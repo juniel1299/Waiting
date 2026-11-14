@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: daumjari
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/daumjari}
+    username: ${DB_USERNAME:daumjari}
+    password: ${DB_PASSWORD:daumjari}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    time-zone: UTC
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
