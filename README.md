@@ -33,13 +33,50 @@ cd backend
 ./gradlew test           # Testcontainers 사용: Docker 실행 중이어야 함 (없으면 스킵)
 ./gradlew build
 
-# frontend (http://localhost:3000)
+# frontend (http://localhost:3000, /api 는 BACKEND_URL 로 프록시)
 cd frontend
 npm install
-npm run dev
-npm run build
+npm run dev                                   # BACKEND_URL 기본값 http://localhost:8080
+BACKEND_URL=http://localhost:8080 npm run build && npm run start
 npm run lint
+
+# 브라우저 e2e (Playwright, 실제 백엔드 + 프런트 프로덕션 빌드)
+docker compose up -d                          # 루트에서 먼저
+cd frontend
+npm run test:e2e                              # bootRun·next start 를 자동으로 띄움
 ```
+
+### 로컬에서 화면 확인 순서
+
+1. 루트: `docker compose up -d`
+2. `backend`: `./gradlew bootRun` (local 프로필, 시드 계정 생성)
+3. `frontend`: `npm install` 후 `npm run dev`
+4. http://localhost:3000 → 시드 계정으로 로그인 (참가자 `alice`, 운영자 `operator`)
+
+e2e 는 3000·8080 포트에 이미 뜬 서버가 있으면 그 서버를 재사용한다 (CI 환경변수가 있으면 새로 띄움). 이전 코드로 뜬 서버가 남아 있으면 내리고 실행한다.
+
+## 화면
+
+| 경로 | 대상 | 내용 |
+|---|---|---|
+| `/login` | 모두 | 시드 계정 로그인. 성공 시 참가자 `/sessions`, 운영자 `/operator` |
+| `/sessions` | 로그인 | 회차 목록, 잔여석·상태·내 예약 표시 |
+| `/sessions/{id}` | 로그인 | 회차 상세, 예약하기·예약 취소. 예약·취소 뒤 서버 상태를 다시 조회 |
+| `/operator` | OPERATOR | 회차 등록(시작 일시는 서울 기준 입력), 회차 목록 |
+| `/operator/sessions/{id}` | OPERATOR | 확정 명단. 참가자가 직접 열면 서버 403 → 명단 없이 "권한이 없습니다." |
+
+화면의 역할 분기는 표시용이고, 명단 비노출의 근거는 백엔드 403 이다 (e2e 에서 응답 코드까지 확인).
+
+예약 안내 문구:
+
+| 결과 | 안내 |
+|---|---|
+| 201 | 예약이 확정됐어요. |
+| 200 (이미 활성 예약) | 이미 예약된 회차예요. 기존 예약을 보여드릴게요. |
+| 409 `SESSION_FULL` | 정원이 마감됐어요. 다른 회차를 확인해 주세요. |
+| 409 `SESSION_STARTED` | 이미 시작된 회차라 예약·취소할 수 없어요. |
+
+결과는 `role="status"`, 오류는 `role="alert"` 로 보조 기술에 전달한다.
 
 DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` (로컬 전용). `.env` 로 바꿀 수 있다.
 시각은 UTC로 저장한다 (Hibernate `jdbc.time_zone=UTC`, 시각 컬럼은 `timestamptz` 예정).
@@ -106,7 +143,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 - 쿠키 이중 제출 방식. 서버가 `XSRF-TOKEN` 쿠키(JS에서 읽기 가능)를 내려주고, 상태 변경 요청(POST/PUT/PATCH/DELETE)은 같은 값을 `X-XSRF-TOKEN` 헤더로 보내야 한다. 로그인 요청도 포함.
 - 프런트 흐름: `GET /api/auth/csrf` → 로그인 → 로그인 응답이 토큰 쿠키를 만료시키므로 다음 상태 변경 전에 다시 `GET /api/auth/csrf`.
 - 로그인 시 세션 ID를 교체한다(세션 고정 방지).
-- 쿠키를 같은 출처로 쓰기 위해 프런트는 `/api` 를 백엔드로 프록시하는 구성을 전제로 한다 (프런트 연동 작업 때 설정).
+- 쿠키를 같은 출처로 쓰기 위해 프런트는 Next rewrites 로 `/api/*` 를 `BACKEND_URL` 로 프록시한다 (`frontend/next.config.ts`). 브라우저는 백엔드 주소를 직접 부르지 않으므로 CORS 설정이 필요 없다.
 
 ## API 오류 규칙
 
@@ -131,3 +168,11 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 - **1인 1건:** 회차·계정별 활성 신청은 하나. 중복 요청은 기존 신청을 돌려주고, DB 부분 유니크 인덱스가 한 번 더 막는다. 취소 후 시작 전이고 자리가 있으면 다시 예약할 수 있다 (새 신청 행 생성).
 - **동시성:** 예약·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
 
+
+## 후속 작업
+
+| 작업 | 시점 | 메모 |
+|---|---|---|
+| 대기 신청·자동 승격 | 다음 작업 | `WAITING` 상태 추가(V2 check 확장), 취소 시 같은 트랜잭션에서 선착순 승격, 기존 대기자 우선 |
+| 로그인 시도 제한 | 공개 배포 전 필수 | 계정·IP 기준 실패 횟수 제한. 지금은 제한 없음 |
+| 상태 자동 갱신 | 대기 기능과 함께 | 화면 진입·예약·취소 때만 조회한다. 폴링은 아직 없음 |
