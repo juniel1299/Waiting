@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
 import {
@@ -14,6 +14,7 @@ import {
   type Reservation,
   type StudySession,
 } from "@/lib/api";
+import { useVisiblePolling } from "@/lib/useVisiblePolling";
 
 export function SessionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,15 +30,38 @@ function Detail({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<StudySession | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const lastSession = useRef<StudySession | null>(null);
+  const requestSeq = useRef(0);
 
   const fetchSession = useCallback(
     async () => (await api<StudySession>(`/api/sessions/${sessionId}`)).data,
     [sessionId],
   );
 
+  /** 화면 반영. 대기 → 확정으로 바뀐 순간에만 한 번 안내한다 (폴링마다 반복하지 않음). */
+  const applySession = useCallback((next: StudySession) => {
+    const before = lastSession.current?.myReservation?.status;
+    if (before === "WAITING" && next.myReservation?.status === "CONFIRMED") {
+      setNotice({ kind: "status", text: "대기 순번이 되어 예약이 확정됐어요." });
+    }
+    lastSession.current = next;
+    setSession(next);
+    setConnectionLost(false);
+  }, []);
+
+  /** 겹친 조회는 마지막에 시작한 것만 반영한다 (늦게 온 옛 응답이 새 상태를 덮지 않게). */
+  const load = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    const next = await fetchSession();
+    if (seq === requestSeq.current) {
+      applySession(next);
+    }
+  }, [fetchSession, applySession]);
+
   const reload = async () => {
     try {
-      setSession(await fetchSession());
+      await load();
     } catch (e) {
       setNotice({ kind: "alert", text: errorMessage(e) });
     }
@@ -45,9 +69,15 @@ function Detail({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     fetchSession()
-      .then(setSession)
+      .then(applySession)
       .catch((e: unknown) => setNotice({ kind: "alert", text: errorMessage(e) }));
-  }, [fetchSession]);
+  }, [fetchSession, applySession]);
+
+  useVisiblePolling({
+    // 폴링 실패는 경고를 반복하지 않고 연결 안내 한 줄로만 보여준다
+    refresh: () => void load().catch(() => setConnectionLost(true)),
+    onConnectionChange: (online) => setConnectionLost(!online),
+  });
 
   /** 예약·취소 결과와 상관없이 서버 상태를 다시 읽어 화면을 맞춘다. */
   async function run(action: () => Promise<Notice>) {
@@ -133,6 +163,7 @@ function Detail({ sessionId }: { sessionId: string }) {
         )}
       </div>
       {notice && <p role={notice.kind}>{notice.text}</p>}
+      {connectionLost && <p className="meta">연결이 끊겼어요. 다시 연결되면 바로 최신 상태로 바꿀게요.</p>}
     </>
   );
 }
