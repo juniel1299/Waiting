@@ -191,8 +191,8 @@ class AuthIntegrationTests {
 	void operatorPassesOperatorAuthorization() throws Exception {
 		MockHttpSession session = login("auth-operator");
 
-		// 운영자 API 는 아직 없으므로 인가 통과 후 404
-		mockMvc.perform(get("/api/operator/sessions").session(session)).andExpect(status().isNotFound());
+		// 인가는 통과하고 없는 경로라 404 (실제 운영자 API 성공은 SessionApiTests 에서 검증)
+		mockMvc.perform(get("/api/operator/does-not-exist").session(session)).andExpect(status().isNotFound());
 	}
 
 	private MockHttpServletRequestBuilder withXsrf(MockHttpServletRequestBuilder request, MockHttpSession session)

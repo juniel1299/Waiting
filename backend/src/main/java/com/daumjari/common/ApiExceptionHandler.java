@@ -1,6 +1,7 @@
 package com.daumjari.common;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,6 +11,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+	@ExceptionHandler(ApiException.class)
+	ResponseEntity<ApiError> apiException(ApiException e) {
+		ErrorCode code = e.errorCode();
+		return ResponseEntity.status(code.status()).body(new ApiError(code.name(), code.message()));
+	}
 
 	@ExceptionHandler(AuthenticationException.class)
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)

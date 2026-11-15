@@ -72,7 +72,24 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | GET | `/api/auth/me` | 필요 | 현재 사용자 |
 | * | `/api/operator/**` | OPERATOR | 운영자 API (참가자는 403) |
 
-### CSRF 정책
+## 회차 API
+
+시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| GET | `/api/sessions` | 로그인 | 회차 목록 (시작 시각순) |
+| GET | `/api/sessions/{id}` | 로그인 | 회차 상세 |
+| POST | `/api/operator/sessions` | OPERATOR | 회차 등록 `{title, startsAt, location, capacity}`, 201 |
+| GET | `/api/operator/sessions/{id}/roster` | OPERATOR | 확정 명단 `[{reservationId, accountId, loginId, displayName, reservedAt}]` |
+
+회차 응답: `{id, title, startsAt, location, capacity, confirmedCount, remainingSeats, status, myReservation}`
+
+- `status`: `OPEN`(예약 가능) · `FULL`(잔여석 0) · `STARTED`(시작 시각 이후, 예약·취소 불가)
+- `myReservation`: 조회한 본인의 활성 신청 `{id, status}`, 없으면 `null`. 다른 참가자 정보는 포함하지 않는다.
+- 등록 시 `capacity` 는 1~1000, `startsAt` 은 현재 이후여야 한다 (아니면 400 `VALIDATION_FAILED`).
+
+## CSRF 정책
 
 - 쿠키 이중 제출 방식. 서버가 `XSRF-TOKEN` 쿠키(JS에서 읽기 가능)를 내려주고, 상태 변경 요청(POST/PUT/PATCH/DELETE)은 같은 값을 `X-XSRF-TOKEN` 헤더로 보내야 한다. 로그인 요청도 포함.
 - 프런트 흐름: `GET /api/auth/csrf` → 로그인 → 로그인 응답이 토큰 쿠키를 만료시키므로 다음 상태 변경 전에 다시 `GET /api/auth/csrf`.
@@ -90,6 +107,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 401 | `INVALID_CREDENTIALS` | 아이디 또는 비밀번호 불일치 (계정 존재 여부는 구분하지 않음) |
 | 403 | `FORBIDDEN` | 권한 없음 (참가자의 운영자 API 접근 등) |
 | 403 | `CSRF_INVALID` | CSRF 토큰 누락·불일치 |
+| 404 | `SESSION_NOT_FOUND` | 회차 없음 |
 
 TODO: 정원 마감, 회차 시작 후 요청 등 예약 오류 코드는 예약 API 구현 때 추가.
 
