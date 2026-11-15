@@ -55,6 +55,20 @@ public class Reservation {
 		return reservation;
 	}
 
+	public static Reservation waitlist(StudySession studySession, Account account, Instant now) {
+		Reservation reservation = confirm(studySession, account, now);
+		reservation.status = ReservationStatus.WAITING;
+		return reservation;
+	}
+
+	/** 대기 → 확정. 대기 상태가 아니면 승격하지 않는다. */
+	public void promote() {
+		if (status != ReservationStatus.WAITING) {
+			throw new IllegalStateException("only WAITING can be promoted: " + status);
+		}
+		status = ReservationStatus.CONFIRMED;
+	}
+
 	/** 이미 취소된 신청이면 아무것도 바꾸지 않는다 (반복 취소에도 좌석은 한 번만 반환). */
 	public void cancel(Instant now) {
 		if (status == ReservationStatus.CANCELLED) {
