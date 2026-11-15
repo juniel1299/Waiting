@@ -7,7 +7,7 @@
 ```
 .
 ├── frontend/           # Next.js (App Router) + TypeScript + ESLint
-├── backend/            # Java 17, Spring Boot 3.5, Gradle (Kotlin DSL)
+├── backend/            # Java 17, Spring Boot 4.1, Gradle (Kotlin DSL)
 │   └── src/main/resources/db/migration/   # Flyway 마이그레이션
 ├── docker-compose.yml  # 로컬 PostgreSQL 16
 └── .env.example
