@@ -46,7 +46,19 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 
 ## 시드 계정
 
-TODO
+`./gradlew bootRun` 은 기본으로 `local` 프로필로 뜨고, DB에 계정이 하나도 없을 때만 아래 시드를 넣는다 (로컬 전용, 다른 프로필에서는 동작하지 않음). 초기화하려면 `docker compose down -v` 후 다시 기동한다.
+
+| 아이디 | 비밀번호 | 역할 | 이름 |
+|---|---|---|---|
+| `operator` | `daumjari-local-1!` | OPERATOR | 운영자 |
+| `alice` | `daumjari-local-1!` | PARTICIPANT | 앨리스 |
+| `bob` | `daumjari-local-1!` | PARTICIPANT | 밥 |
+| `carol` | `daumjari-local-1!` | PARTICIPANT | 캐롤 |
+
+| 회차 | 시작 (서울) | 정원 | 시드 확정 | 용도 |
+|---|---|---|---|---|
+| Spring 트랜잭션 스터디 | 시드 시점 +7일 19:00 | 5 | alice | 빈자리 있는 회차 |
+| PostgreSQL 잠금 스터디 | 시드 시점 +3일 19:00 | 2 | carol | 마지막 1석 회차 |
 
 ## 인증 (서버 세션)
 

@@ -35,6 +35,11 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// 로컬 실행은 기본으로 local 프로필(시드 포함). SPRING_PROFILES_ACTIVE 로 바꿀 수 있다.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+	systemProperty("spring.profiles.active", System.getenv("SPRING_PROFILES_ACTIVE") ?: "local")
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
