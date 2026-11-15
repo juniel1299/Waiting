@@ -1,0 +1,3 @@
+-- 다음자리 초기 마이그레이션 (placeholder)
+-- 회차(study_session)·예약(reservation)·대기(waitlist) 스키마는 다음 작업에서 V2 이후로 추가한다.
+-- 시각 컬럼은 timestamptz(UTC 저장) 기준.
