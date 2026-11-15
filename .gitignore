@@ -1,24 +1,57 @@
-# env
+# ── 로컬 환경변수·비밀 ─────────────────────────────
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.jks
+# 로컬 전용 Spring 설정 덮어쓰기 (비밀값 넣는 용도)
+backend/src/main/resources/application-*-secret.yml
+backend/src/main/resources/application-*.local.yml
+backend/config/
 
-# OS / IDE
+# ── OS ─────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / 에디터 ───────────────────────────────────
 .idea/
 *.iml
+*.ipr
+*.iws
 .vscode/
+.fleet/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+*~
 
-# frontend
+# ── AI 에이전트 로컬 설정 ──────────────────────────
+.claude/settings.local.json
+CLAUDE.local.md
+
+# ── 로그 ───────────────────────────────────────────
+*.log
+logs/
+
+# ── frontend (Next.js) ─────────────────────────────
 node_modules/
 .next/
 out/
+coverage/
+.vercel/
 next-env.d.ts
 *.tsbuildinfo
-npm-debug.log*
 
-# backend
+# ── backend (Gradle / Java) ────────────────────────
 .gradle/
+.kotlin/
 build/
 !backend/gradle/wrapper/gradle-wrapper.jar
 bin/
+backend/out/
+HELP.md
