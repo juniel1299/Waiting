@@ -53,7 +53,11 @@ npm run test:e2e                              # bootRun·next start 를 자동�
 3. `frontend`: `npm install` 후 `npm run dev`
 4. http://localhost:3000 → 시드 계정으로 로그인 (참가자 `alice`, 운영자 `operator`)
 
-e2e 는 3000·8080 포트에 이미 뜬 서버가 있으면 그 서버를 재사용한다 (CI 환경변수가 있으면 새로 띄움). 이전 코드로 뜬 서버가 남아 있으면 내리고 실행한다.
+e2e 는 3000·8080 포트에 이미 뜬 서버가 있으면 그 서버를 재사용한다 (CI 환경변수가 있으면 새로 띄움). 개발 서버를 띄워 둔 채 최신 코드로 검증하려면 다른 포트를 쓴다:
+
+```bash
+E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e
+```
 
 ## 화면
 
@@ -61,7 +65,7 @@ e2e 는 3000·8080 포트에 이미 뜬 서버가 있으면 그 서버를 재사
 |---|---|---|
 | `/login` | 모두 | 시드 계정 로그인. 성공 시 참가자 `/sessions`, 운영자 `/operator` |
 | `/sessions` | 로그인 | 회차 목록, 잔여석·상태·내 예약 표시 |
-| `/sessions/{id}` | 로그인 | 회차 상세, 예약하기·예약 취소. 예약·취소 뒤 서버 상태를 다시 조회 |
+| `/sessions/{id}` | 로그인 | 회차 상세, 예약하기·예약 취소, 마감 시 대기 신청·대기 순번·대기 취소. 요청 뒤 서버 상태를 다시 조회 |
 | `/operator` | OPERATOR | 회차 등록(시작 일시는 서울 기준 입력), 회차 목록 |
 | `/operator/sessions/{id}` | OPERATOR | 확정 명단. 참가자가 직접 열면 서버 403 → 명단 없이 "권한이 없습니다." |
 
@@ -75,6 +79,11 @@ e2e 는 3000·8080 포트에 이미 뜬 서버가 있으면 그 서버를 재사
 | 200 (이미 활성 예약) | 이미 예약된 회차예요. 기존 예약을 보여드릴게요. |
 | 409 `SESSION_FULL` | 정원이 마감됐어요. 다른 회차를 확인해 주세요. |
 | 409 `SESSION_STARTED` | 이미 시작된 회차라 예약·취소할 수 없어요. |
+| 대기 201 | 대기 N번으로 신청했어요. |
+| 대기 200 (이미 대기 중) | 이미 대기 중이에요 (대기 N번). |
+| 409 `SEATS_AVAILABLE` | 빈자리가 생겼어요. 대기 대신 바로 예약해 주세요. |
+
+대기에서 확정으로 바뀐 것은 화면에 들어오거나 새로고침할 때 서버 상태로 보여준다 (실시간 알림·폴링은 아직 없음).
 
 결과는 `role="status"`, 오류는 `role="alert"` 로 보조 기술에 전달한다.
 
@@ -120,10 +129,12 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | POST | `/api/operator/sessions` | OPERATOR | 회차 등록 `{title, startsAt, location, capacity}`, 201 |
 | GET | `/api/operator/sessions/{id}/roster` | OPERATOR | 확정 명단 `[{reservationId, accountId, loginId, displayName, reservedAt}]` |
 
-회차 응답: `{id, title, startsAt, location, capacity, confirmedCount, remainingSeats, status, myReservation}`
+회차 응답: `{id, title, startsAt, location, capacity, confirmedCount, remainingSeats, waitingCount, status, myReservation}`
 
 - `status`: `OPEN`(예약 가능) · `FULL`(잔여석 0) · `STARTED`(시작 시각 이후, 예약·취소 불가)
-- `myReservation`: 조회한 본인의 활성 신청 `{id, status}`, 없으면 `null`. 다른 참가자 정보는 포함하지 않는다.
+- `status` 는 대기자가 있으면 빈자리가 보여도 `FULL` 이다 (대기자 우선).
+- `waitingCount`: 대기 인원.
+- `myReservation`: 조회한 본인의 활성 신청 `{id, status, waitingPosition}`, 없으면 `null`. `waitingPosition` 은 `WAITING` 일 때만 1부터. 다른 참가자 정보는 포함하지 않는다.
 - 등록 시 `capacity` 는 1~1000, `startsAt` 은 현재 이후여야 한다 (아니면 400 `VALIDATION_FAILED`).
 
 ## 예약 API (PARTICIPANT 전용)
@@ -136,7 +147,12 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | POST | `/api/reservations/{id}/cancel` | 본인 예약 취소. 이미 취소된 건이면 변경 없이 200 |
 | GET | `/api/me/reservations` | 내 신청 목록 (최근순, 취소 포함) |
 
-예약 응답: `{id, sessionId, sessionTitle, startsAt, status, createdAt, cancelledAt}`
+| POST | `/api/sessions/{id}/waitlist` | 마감 회차 대기 신청. 새로 대기하면 201, 이미 활성 신청(확정·대기)이 있으면 그 신청을 200. 빈자리가 있으면 409 `SEATS_AVAILABLE` |
+
+예약 응답: `{id, sessionId, sessionTitle, startsAt, status, waitingPosition, createdAt, cancelledAt}` (`status`: `CONFIRMED`·`WAITING`·`CANCELLED`, `waitingPosition` 은 대기일 때만)
+
+- 예약 API(`/reservations`)의 계약은 그대로다. 마감이면 409 `SESSION_FULL` 을 주고, 대기는 별도 API 로 명시적으로 신청한다. 사용자가 원하지 않는 대기에 자동으로 들어가지 않게 하고, 기존 화면·테스트의 `SESSION_FULL` 처리와 충돌하지 않게 하려는 선택이다.
+- 대기 취소도 `POST /api/reservations/{id}/cancel` 을 쓴다.
 
 ## CSRF 정책
 
@@ -159,20 +175,24 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 404 | `SESSION_NOT_FOUND` | 회차 없음 |
 | 404 | `RESERVATION_NOT_FOUND` | 예약 없음, 또는 다른 사람의 예약 (존재 여부를 구분하지 않음) |
 | 409 | `SESSION_FULL` | 정원 마감 |
-| 409 | `SESSION_STARTED` | 회차 시작 시각 이후의 예약·취소 |
+| 409 | `SESSION_STARTED` | 회차 시작 시각 이후의 예약·대기·취소 |
+| 409 | `SEATS_AVAILABLE` | 빈자리가 있는 회차에 대기 신청 (바로 예약하면 됨) |
 
 ## 마감 정책
 
 - **시작 시각 기준 마감:** 회차 `startsAt` 이 되는 순간부터(`now >= startsAt`) 예약과 취소를 모두 거절한다 (409 `SESSION_STARTED`). 시각 비교는 서버 UTC `Clock` 기준.
 - **정원:** 확정(`CONFIRMED`) 수가 정원과 같으면 새 예약은 409 `SESSION_FULL`. 잔여석 = 정원 − 확정 수로 매번 계산하므로 취소를 반복해도 좌석은 한 번만 돌아온다.
-- **1인 1건:** 회차·계정별 활성 신청은 하나. 중복 요청은 기존 신청을 돌려주고, DB 부분 유니크 인덱스가 한 번 더 막는다. 취소 후 시작 전이고 자리가 있으면 다시 예약할 수 있다 (새 신청 행 생성).
-- **동시성:** 예약·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
+- **1인 1건:** 회차·계정별 활성 신청(확정·대기)은 하나. 중복 요청은 기존 신청을 돌려주고, DB 부분 유니크 인덱스가 한 번 더 막는다. 취소 후 시작 전이고 자리가 있으면 다시 예약할 수 있다 (새 신청 행 생성).
+- **대기 순번:** 저장하지 않고 같은 회차 `WAITING` 행 중 id 가 더 작은 수 + 1 로 계산한다. 신청은 회차 행 잠금 아래 하나씩 들어오므로 id 순서가 곧 신청 순서다 (같은 시각이어도 순서가 갈림). 대기를 취소하고 다시 신청하면 새 행이라 맨 뒤로 간다.
+- **자동 승격:** 확정자가 취소하면 같은 트랜잭션·같은 회차 잠금 아래에서 가장 앞 대기자를 확정한다. 승격이 실패하면 취소도 함께 롤백된다. 대기 취소나 이미 취소된 건의 재취소는 승격하지 않는다. 시작 시각 이후에는 취소·승격 모두 일어나지 않는다.
+- **대기자 우선:** 대기자가 있으면 빈자리가 보여도 새 예약은 409 `SESSION_FULL` 이고 대기로만 들어올 수 있다.
+- **동시성:** 예약·대기·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석·대기열 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
 
 
 ## 후속 작업
 
 | 작업 | 시점 | 메모 |
 |---|---|---|
-| 대기 신청·자동 승격 | 다음 작업 | `WAITING` 상태 추가(V2 check 확장), 취소 시 같은 트랜잭션에서 선착순 승격, 기존 대기자 우선 |
+| 정원 증설·축소 | 다음 후보 | 증설 시 늘어난 자리만큼 대기자 승격, 확정 인원보다 작게 줄이는 요청은 거절 |
 | 로그인 시도 제한 | 공개 배포 전 필수 | 계정·IP 기준 실패 횟수 제한. 지금은 제한 없음 |
-| 상태 자동 갱신 | 대기 기능과 함께 | 화면 진입·예약·취소 때만 조회한다. 폴링은 아직 없음 |
+| 상태 자동 갱신 | 다음 후보 | 대기→확정 변화를 새로고침 없이 알리기. 지금은 화면 진입·요청 뒤에만 조회 (폴링 후보, 지연·부하 측정 필요) |
