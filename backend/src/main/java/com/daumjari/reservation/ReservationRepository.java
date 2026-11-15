@@ -5,8 +5,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
@@ -33,6 +36,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 			""")
 	List<Reservation> findWithAccountBySessionIdAndStatus(@Param("sessionId") Long sessionId,
 			@Param("status") ReservationStatus status);
+
+	/** 본인 신청의 회차 ID 만 조회 (엔티티를 영속성 컨텍스트에 올리지 않는다). */
+	@Query("select r.studySession.id from Reservation r where r.id = :id and r.account.id = :accountId")
+	Optional<Long> findSessionIdByIdAndAccountId(@Param("id") Long id, @Param("accountId") Long accountId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select r from Reservation r join fetch r.studySession where r.id = :id and r.account.id = :accountId")
+	Optional<Reservation> findByIdAndAccountIdForUpdate(@Param("id") Long id, @Param("accountId") Long accountId);
+
+	@Query("""
+			select r from Reservation r join fetch r.studySession
+			where r.account.id = :accountId
+			order by r.createdAt desc, r.id desc
+			""")
+	List<Reservation> findWithSessionByAccountId(@Param("accountId") Long accountId);
 
 	interface SessionCount {
 

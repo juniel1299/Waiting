@@ -55,6 +55,15 @@ public class Reservation {
 		return reservation;
 	}
 
+	/** 이미 취소된 신청이면 아무것도 바꾸지 않는다 (반복 취소에도 좌석은 한 번만 반환). */
+	public void cancel(Instant now) {
+		if (status == ReservationStatus.CANCELLED) {
+			return;
+		}
+		status = ReservationStatus.CANCELLED;
+		cancelledAt = now;
+	}
+
 	public boolean isActive() {
 		return status != ReservationStatus.CANCELLED;
 	}

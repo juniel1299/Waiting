@@ -89,6 +89,18 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 - `myReservation`: 조회한 본인의 활성 신청 `{id, status}`, 없으면 `null`. 다른 참가자 정보는 포함하지 않는다.
 - 등록 시 `capacity` 는 1~1000, `startsAt` 은 현재 이후여야 한다 (아니면 400 `VALIDATION_FAILED`).
 
+## 예약 API (PARTICIPANT 전용)
+
+대상 계정은 항상 세션 사용자다. 운영자 계정은 403 `FORBIDDEN`.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| POST | `/api/sessions/{id}/reservations` | 예약. 새로 확정하면 201, 이미 활성 신청이 있으면 그 신청을 200 으로 반환 |
+| POST | `/api/reservations/{id}/cancel` | 본인 예약 취소. 이미 취소된 건이면 변경 없이 200 |
+| GET | `/api/me/reservations` | 내 신청 목록 (최근순, 취소 포함) |
+
+예약 응답: `{id, sessionId, sessionTitle, startsAt, status, createdAt, cancelledAt}`
+
 ## CSRF 정책
 
 - 쿠키 이중 제출 방식. 서버가 `XSRF-TOKEN` 쿠키(JS에서 읽기 가능)를 내려주고, 상태 변경 요청(POST/PUT/PATCH/DELETE)은 같은 값을 `X-XSRF-TOKEN` 헤더로 보내야 한다. 로그인 요청도 포함.
@@ -108,10 +120,14 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 403 | `FORBIDDEN` | 권한 없음 (참가자의 운영자 API 접근 등) |
 | 403 | `CSRF_INVALID` | CSRF 토큰 누락·불일치 |
 | 404 | `SESSION_NOT_FOUND` | 회차 없음 |
-
-TODO: 정원 마감, 회차 시작 후 요청 등 예약 오류 코드는 예약 API 구현 때 추가.
+| 404 | `RESERVATION_NOT_FOUND` | 예약 없음, 또는 다른 사람의 예약 (존재 여부를 구분하지 않음) |
+| 409 | `SESSION_FULL` | 정원 마감 |
+| 409 | `SESSION_STARTED` | 회차 시작 시각 이후의 예약·취소 |
 
 ## 마감 정책
 
-TODO
+- **시작 시각 기준 마감:** 회차 `startsAt` 이 되는 순간부터(`now >= startsAt`) 예약과 취소를 모두 거절한다 (409 `SESSION_STARTED`). 시각 비교는 서버 UTC `Clock` 기준.
+- **정원:** 확정(`CONFIRMED`) 수가 정원과 같으면 새 예약은 409 `SESSION_FULL`. 잔여석 = 정원 − 확정 수로 매번 계산하므로 취소를 반복해도 좌석은 한 번만 돌아온다.
+- **1인 1건:** 회차·계정별 활성 신청은 하나. 중복 요청은 기존 신청을 돌려주고, DB 부분 유니크 인덱스가 한 번 더 막는다. 취소 후 시작 전이고 자리가 있으면 다시 예약할 수 있다 (새 신청 행 생성).
+- **동시성:** 예약·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
 
