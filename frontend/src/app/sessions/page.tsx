@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
-import { api, errorMessage, formatSeoul, STATUS_LABEL, type StudySession } from "@/lib/api";
+import { api, errorMessage, formatSeoul, myReservationLabel, STATUS_LABEL, type StudySession } from "@/lib/api";
 
 export default function SessionsPage() {
   return <AuthGate>{() => <SessionList />}</AuthGate>;
@@ -37,7 +37,8 @@ function SessionList() {
             </span>
             <span>
               잔여 {s.remainingSeats}석 / 정원 {s.capacity} <span className="badge">{STATUS_LABEL[s.status]}</span>
-              {s.myReservation && <span className="badge"> 내 예약: 확정</span>}
+              {s.waitingCount > 0 && <span className="badge">대기 {s.waitingCount}명</span>}
+              {s.myReservation && <span className="badge">내 예약: {myReservationLabel(s.myReservation)}</span>}
             </span>
           </li>
         ))}

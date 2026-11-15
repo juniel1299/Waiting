@@ -38,6 +38,14 @@ export class ApiActor {
     return this.post(`/api/sessions/${sessionId}/reservations`);
   }
 
+  async waitlist(sessionId: number) {
+    return this.post(`/api/sessions/${sessionId}/waitlist`);
+  }
+
+  async cancel(reservationId: number) {
+    return this.post(`/api/reservations/${reservationId}/cancel`);
+  }
+
   async dispose() {
     await this.ctx.dispose();
   }
