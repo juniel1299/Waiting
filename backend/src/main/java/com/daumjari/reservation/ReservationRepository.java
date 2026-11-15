@@ -15,6 +15,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
 	long countByStudySessionIdAndStatus(Long studySessionId, ReservationStatus status);
 
+	long countByStudySessionIdAndStatusAndIdLessThan(Long studySessionId, ReservationStatus status, Long id);
+
+	/** 가장 먼저 신청한 대기자 (id 순 = 신청 순, V3 주석 참고). */
+	Optional<Reservation> findFirstByStudySessionIdAndStatusOrderByIdAsc(Long studySessionId,
+			ReservationStatus status);
+
+	/** 대기 순번(1부터). 대기 상태가 아니면 null. */
+	default Integer waitingPositionOf(Reservation reservation) {
+		if (reservation.getStatus() != ReservationStatus.WAITING) {
+			return null;
+		}
+		return Math.toIntExact(countByStudySessionIdAndStatusAndIdLessThan(reservation.getStudySession().getId(),
+				ReservationStatus.WAITING, reservation.getId()) + 1);
+	}
+
 	@Query("""
 			select r.studySession.id as sessionId, count(r) as total
 			from Reservation r

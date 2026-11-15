@@ -1,7 +1,8 @@
 package com.daumjari.reservation;
 
-/** WAITING 은 대기 기능 구현 때 추가한다 (V2 주석 참고). */
+/** CONFIRMED·WAITING 은 활성 신청, CANCELLED 는 종료. 회차·계정별 활성 신청은 하나. */
 public enum ReservationStatus {
 	CONFIRMED,
+	WAITING,
 	CANCELLED
 }

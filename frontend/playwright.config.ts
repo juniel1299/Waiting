@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
+// 이미 개발 서버를 띄워 둔 경우엔 E2E_PORT·E2E_BACKEND_PORT 로 다른 포트를 써서 새 서버로 검증한다.
+const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT ?? 8080);
+const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 const FRONTEND_PORT = Number(process.env.E2E_PORT ?? 3000);
 
 /**
@@ -21,7 +23,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: "./gradlew bootRun --console=plain",
+      command: `./gradlew bootRun --console=plain --args=--server.port=${BACKEND_PORT}`,
       cwd: "../backend",
       url: `${BACKEND_URL}/actuator/health`,
       reuseExistingServer: !process.env.CI,

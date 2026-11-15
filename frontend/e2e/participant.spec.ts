@@ -57,7 +57,9 @@ test("화면을 연 뒤 다른 참가자가 마지막 자리를 예약하면 마
   await expect(appAlert(page)).toContainText("정원이 마감됐어요");
   await expect(page.getByTestId("remaining")).toHaveText("0 / 2");
   await expect(page.getByTestId("session-status")).toHaveText("마감");
-  await expect(page.getByRole("button", { name: "예약하기" })).toBeDisabled();
+  // 마감되면 예약 대신 대기 신청을 안내한다
+  await expect(page.getByRole("button", { name: "예약하기" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "대기 신청" })).toBeEnabled();
   await expect(page.getByTestId("my-reservation")).toHaveText("예약 없음");
 
   await Promise.all([carol.dispose(), bob.dispose()]);

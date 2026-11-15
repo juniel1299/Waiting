@@ -2,7 +2,7 @@
 
 export type Role = "OPERATOR" | "PARTICIPANT";
 export type SessionStatus = "OPEN" | "FULL" | "STARTED";
-export type ReservationStatus = "CONFIRMED" | "CANCELLED";
+export type ReservationStatus = "CONFIRMED" | "WAITING" | "CANCELLED";
 
 export interface Me {
   id: number;
@@ -19,8 +19,10 @@ export interface StudySession {
   capacity: number;
   confirmedCount: number;
   remainingSeats: number;
+  waitingCount: number;
   status: SessionStatus;
-  myReservation: { id: number; status: ReservationStatus } | null;
+  /** 본인의 활성 신청(확정·대기). waitingPosition 은 대기일 때만 1부터. */
+  myReservation: { id: number; status: ReservationStatus; waitingPosition: number | null } | null;
 }
 
 export interface Reservation {
@@ -29,6 +31,7 @@ export interface Reservation {
   sessionTitle: string;
   startsAt: string;
   status: ReservationStatus;
+  waitingPosition: number | null;
   createdAt: string;
   cancelledAt: string | null;
 }
@@ -111,7 +114,16 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 const MESSAGE_BY_CODE: Record<string, string> = {
   SESSION_FULL: "정원이 마감됐어요. 다른 회차를 확인해 주세요.",
   SESSION_STARTED: "이미 시작된 회차라 예약·취소할 수 없어요.",
+  SEATS_AVAILABLE: "빈자리가 생겼어요. 대기 대신 바로 예약해 주세요.",
 };
+
+/** 내 신청 상태 표시: 확정 / 대기 N번 / 예약 없음. */
+export function myReservationLabel(mine: StudySession["myReservation"]): string {
+  if (!mine) {
+    return "예약 없음";
+  }
+  return mine.status === "WAITING" ? `대기 ${mine.waitingPosition}번` : "확정";
+}
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
