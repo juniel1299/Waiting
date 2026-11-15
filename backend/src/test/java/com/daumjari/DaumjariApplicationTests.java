@@ -1,6 +1,7 @@
 package com.daumjari;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,9 @@ class DaumjariApplicationTests {
 
 	@Test
 	void otherEndpointsRequireAuth() throws Exception {
-		mockMvc.perform(get("/api/anything")).andExpect(status().is3xxRedirection());
+		mockMvc.perform(get("/api/anything"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
 	}
 
 }
