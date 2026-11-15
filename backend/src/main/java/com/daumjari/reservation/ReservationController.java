@@ -28,7 +28,17 @@ public class ReservationController {
 	@PostMapping("/api/sessions/{sessionId}/reservations")
 	public ResponseEntity<ReservationResponse> reserve(@PathVariable Long sessionId,
 			@AuthenticationPrincipal SessionUser user) {
-		ReserveResult result = service.reserve(sessionId, user.id());
+		return toEntity(service.reserve(sessionId, user.id()));
+	}
+
+	/** 마감 회차 대기 신청. 새로 대기하면 201, 이미 활성 신청(확정·대기)이 있으면 그 신청을 200. */
+	@PostMapping("/api/sessions/{sessionId}/waitlist")
+	public ResponseEntity<ReservationResponse> waitlist(@PathVariable Long sessionId,
+			@AuthenticationPrincipal SessionUser user) {
+		return toEntity(service.waitlist(sessionId, user.id()));
+	}
+
+	private static ResponseEntity<ReservationResponse> toEntity(ReserveResult result) {
 		return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
 			.body(result.reservation());
 	}

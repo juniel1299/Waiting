@@ -51,7 +51,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
 				.requestMatchers("/api/operator/**").hasRole("OPERATOR")
-				.requestMatchers("/api/sessions/*/reservations", "/api/reservations/**", "/api/me/reservations")
+				.requestMatchers("/api/sessions/*/reservations", "/api/sessions/*/waitlist", "/api/reservations/**", "/api/me/reservations")
 				.hasRole("PARTICIPANT")
 				.anyRequest().authenticated())
 			.exceptionHandling(ex -> ex

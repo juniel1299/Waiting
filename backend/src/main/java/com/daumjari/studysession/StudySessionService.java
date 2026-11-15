@@ -42,17 +42,17 @@ public class StudySessionService {
 		if (all.isEmpty()) {
 			return List.of();
 		}
-		Map<Long, Long> confirmed = reservations
-			.countBySessionIds(all.stream().map(StudySession::getId).toList(), ReservationStatus.CONFIRMED)
-			.stream()
-			.collect(Collectors.toMap(SessionCount::getSessionId, SessionCount::getTotal));
+		List<Long> ids = all.stream().map(StudySession::getId).toList();
+		Map<Long, Long> confirmed = countsBy(ids, ReservationStatus.CONFIRMED);
+		Map<Long, Long> waiting = countsBy(ids, ReservationStatus.WAITING);
 		Map<Long, Reservation> mine = reservations
 			.findByAccountIdAndStatusNot(viewerId, ReservationStatus.CANCELLED)
 			.stream()
 			.collect(Collectors.toMap(r -> r.getStudySession().getId(), r -> r));
 		Instant now = Instant.now(clock);
 		return all.stream()
-			.map(s -> toResponse(s, confirmed.getOrDefault(s.getId(), 0L), mine.get(s.getId()), now))
+			.map(s -> toResponse(s, confirmed.getOrDefault(s.getId(), 0L), waiting.getOrDefault(s.getId(), 0L),
+					mine.get(s.getId()), now))
 			.toList();
 	}
 
@@ -61,7 +61,8 @@ public class StudySessionService {
 		Reservation mine = reservations
 			.findByStudySessionIdAndAccountIdAndStatusNot(sessionId, viewerId, ReservationStatus.CANCELLED)
 			.orElse(null);
-		return toResponse(session, confirmedCount(sessionId), mine, Instant.now(clock));
+		return toResponse(session, countOf(sessionId, ReservationStatus.CONFIRMED),
+				countOf(sessionId, ReservationStatus.WAITING), mine, Instant.now(clock));
 	}
 
 	@Transactional
@@ -72,7 +73,7 @@ public class StudySessionService {
 		}
 		StudySession saved = sessions.save(StudySession.create(request.title().strip(), request.startsAt(),
 				request.location().strip(), request.capacity(), now));
-		return toResponse(saved, 0, null, now);
+		return toResponse(saved, 0, 0, null, now);
 	}
 
 	public List<RosterEntry> roster(Long sessionId) {
@@ -84,22 +85,31 @@ public class StudySessionService {
 			.toList();
 	}
 
-	public SessionResponse toResponse(StudySession session, long confirmed, Reservation mine, Instant now) {
+	private SessionResponse toResponse(StudySession session, long confirmed, long waiting, Reservation mine,
+			Instant now) {
 		long remaining = Math.max(0, session.getCapacity() - confirmed);
-		MyReservation my = mine == null ? null : new MyReservation(mine.getId(), mine.getStatus());
+		MyReservation my = mine == null ? null
+				: new MyReservation(mine.getId(), mine.getStatus(), reservations.waitingPositionOf(mine));
 		return new SessionResponse(session.getId(), session.getTitle(), session.getStartsAt(), session.getLocation(),
-				session.getCapacity(), confirmed, remaining, statusOf(session, remaining, now), my);
+				session.getCapacity(), confirmed, remaining, waiting, statusOf(session, remaining, waiting, now), my);
 	}
 
-	private static SessionStatus statusOf(StudySession session, long remaining, Instant now) {
+	/** 대기자가 있으면 빈자리가 보여도 대기자 몫이라 FULL 로 본다 (ReservationService.reserve 와 같은 규칙). */
+	private static SessionStatus statusOf(StudySession session, long remaining, long waiting, Instant now) {
 		if (session.hasStarted(now)) {
 			return SessionStatus.STARTED;
 		}
-		return remaining == 0 ? SessionStatus.FULL : SessionStatus.OPEN;
+		return remaining == 0 || waiting > 0 ? SessionStatus.FULL : SessionStatus.OPEN;
 	}
 
-	private long confirmedCount(Long sessionId) {
-		return reservations.countByStudySessionIdAndStatus(sessionId, ReservationStatus.CONFIRMED);
+	private Map<Long, Long> countsBy(List<Long> sessionIds, ReservationStatus status) {
+		return reservations.countBySessionIds(sessionIds, status)
+			.stream()
+			.collect(Collectors.toMap(SessionCount::getSessionId, SessionCount::getTotal));
+	}
+
+	private long countOf(Long sessionId, ReservationStatus status) {
+		return reservations.countByStudySessionIdAndStatus(sessionId, status);
 	}
 
 	private StudySession findSession(Long sessionId) {
