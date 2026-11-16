@@ -251,6 +251,8 @@ Next rewrite 프록시는 XFF 를 붙이지 않고 클라이언트 값을 그대
 | 409 | `SESSION_STARTED` | 회차 시작 시각 이후의 예약·대기·취소 |
 | 409 | `SEATS_AVAILABLE` | 빈자리가 있는 회차에 대기 신청 (바로 예약하면 됨) |
 | 409 | `CAPACITY_BELOW_CONFIRMED` | 현재 확정 인원보다 적게 정원 변경 |
+| 404 | `DEMO_NOT_FOUND` | 데모 체험이 없는 계정의 샘플 취소 |
+| 410 | `DEMO_EXPIRED` | 데모 체험 시간이 지난 방문자의 요청 |
 
 정원 변경의 `VALIDATION_FAILED` 는 0·음수·1000 초과·소수(`2.5`)·문자·`null` 을 모두 포함한다. 정수 필드에 소수가 와도 잘라 받지 않는다 (`spring.jackson.deserialization.accept-float-as-int: false`). 시작 시각 이후 변경은 `SESSION_STARTED`, 참가자 요청은 `FORBIDDEN` 이며, 거절되면 정원과 신청 상태는 바뀌지 않는다.
 
@@ -266,11 +268,71 @@ Next rewrite 프록시는 XFF 를 붙이지 않고 클라이언트 값을 그대
 - **동시성:** 예약·대기·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석·대기열 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
 
 
+## 공개 데모 (가입 없는 체험)
+
+| 단계 | 경로 |
+|---|---|
+| 첫 화면 | `/` (비로그인) → `데모 체험하기`. `/login` 에도 같은 버튼 |
+| 체험 시작 | `POST /api/demo/start` (CSRF 필요, 로그인 불필요) → 201 `{sessionId, expiresAt}`, 방문자 세션 발급 → `/sessions/{sessionId}` |
+| 대기 | 체험 회차 상세에서 `대기 신청` → `대기 1번` |
+| 샘플 취소 | `샘플 참가자 취소` → `POST /api/demo/sample-cancel` → 기존 취소·승격 로직 → 새로고침 없이 `예약 확정` |
+| 다시 체험 | `처음부터 다시 체험` 또는 첫 화면 버튼 → 새 체험 (세션 ID 재발급, 이전 체험은 만료 때 삭제) |
+
+- **체험 하나:** `demo_trial` 행, 방문자 계정, 샘플 참가자 계정 2개, 정원 2 체험 회차(샘플 2명 확정, 시작은 7일 뒤), 지정 샘플 예약 1건. 체험에 속한 계정·회차는 `demo_trial_id` 로 묶인다.
+- **격리 (서버 강제):** 회차는 `demo_trial_id` 가 같은 계정에게만 보인다. 일반 계정은 일반 회차만, 방문자는 자기 체험 회차만 목록·상세·예약·대기할 수 있고, 아니면 404 (존재 비노출). 남의 예약 취소는 기존대로 404. 샘플 취소는 파라미터를 받지 않고 세션의 체험에서 지정 샘플을 찾으므로 다른 체험을 가리킬 수 없다 (일반 계정은 404 `DEMO_NOT_FOUND`). 운영자 목록·명단·정원 변경에서 체험 회차는 보이지 않고(404), 방문자는 운영자 API 에 403. 데모 계정은 비밀번호 로그인이 막혀 있다.
+- **만료·정리:** 기본 30분(`DEMO_TTL`). 지나면 방문자의 API 요청은 410 `DEMO_EXPIRED`(체험 시작·인증 API 제외)이고 화면은 새 체험 시작 버튼을 보여준다. 10분마다 만료 체험의 예약 → 회차 → 계정 → 체험 순으로 지운다 (여러 인스턴스가 함께 돌아도 결과가 같다).
+- **남용 제한:** 체험 시작은 클라이언트 IP 당 15분에 10회 (`DEMO_MAX_STARTS_PER_IP`, 로그인 제한과 같은 집계·IP 판별). 넘으면 429 와 남은 시간 안내.
+
+## 배포
+
+호스팅은 아직 정하지 않았다. 아래는 어느 호스팅이든 필요한 설정과 시작 명령이다.
+
+구성: `HTTPS 종단(LB·리버스 프록시) → 프런트(server.mjs, Next) → 백엔드(Spring Boot) → PostgreSQL 16`. 백엔드는 프런트에서만 닿게 둔다.
+
+```bash
+# 백엔드 (프로필 없이 실행: local 시드가 들어가지 않음)
+cd backend && ./gradlew bootJar
+java -jar build/libs/backend-0.0.1-SNAPSHOT.jar
+
+# 프런트 (BACKEND_URL 은 빌드 시점에 rewrites 로 고정된다)
+cd frontend && npm ci
+BACKEND_URL=http://<백엔드 내부 주소>:8080 npm run build
+PORT=3000 FRONT_TRUSTED_PROXIES=<LB 주소> npm run start
+```
+
+| 환경변수 | 쓰는 곳 | 배포 값 |
+|---|---|---|
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | 백엔드 | 운영 PostgreSQL 16 (Flyway 가 V1~V5 적용) |
+| `SESSION_COOKIE_SECURE` | 백엔드 | `true` (세션·CSRF 쿠키 Secure. HttpOnly·SameSite=Lax 는 기본) |
+| `TRUSTED_PROXIES` | 백엔드 | 프런트 서버 주소만 (Tomcat internal-proxies 정규식) |
+| `LOGIN_MAX_PER_ACCOUNT_IP`, `LOGIN_MAX_PER_IP`, `LOGIN_THROTTLE_WINDOW` | 백엔드 | 기본 5 / 50 / 15m |
+| `DEMO_TTL`, `DEMO_MAX_STARTS_PER_IP` | 백엔드 | 기본 30m / 10 |
+| `BACKEND_URL` | 프런트 빌드·시작 | 백엔드 내부 주소 |
+| `FRONT_TRUSTED_PROXIES` | 프런트 (`server.mjs`) | 앞단 LB 주소 (쉼표 구분). 비우면 전달 헤더를 믿지 않음 |
+| `PORT` | 프런트 | 프런트 서버 포트 |
+| `NEXT_PUBLIC_SESSION_POLL_MS` | 프런트 빌드 | 기본 5000 |
+
+배포 체크리스트:
+
+- [ ] 모바일 브라우저와 시크릿 창에서 공개 URL 첫 화면 → `데모 체험하기` → `대기 1번` → `샘플 참가자 취소` → `예약 확정` 까지 새로고침 없이 되는지
+- [ ] 개발자 도구에서 `JSESSIONID`·`XSRF-TOKEN` 쿠키가 `Secure` 이고 `JSESSIONID` 가 `HttpOnly`, `SameSite=Lax` 인지 (HTTP 로는 로그인이 유지되지 않아야 함)
+- [ ] 프록시 경유 IP 집계: 서로 다른 네트워크의 두 기기에서 같은 아이디로 6번 틀릴 때 한쪽만 429 인지, 위조 `X-Forwarded-For` 를 붙여도 한도가 그대로인지 (`curl -H 'X-Forwarded-For: 1.2.3.4' https://<도메인>/api/auth/login ...`)
+- [ ] 백엔드 직접 접근 차단: 외부에서 백엔드 포트(예: 8080)로 접속이 안 되는지, `TRUSTED_PROXIES` 가 프런트 주소만인지
+- [ ] `/actuator/health` 는 내부에서만 확인 (외부 노출 여부 결정)
+
+남은 결정:
+
+- 호스팅 방식 (VM 1대 + Caddy/nginx TLS, 컨테이너 PaaS 등)과 도메인, 비용
+- PostgreSQL 관리형 여부와 백업
+- 운영자 계정 만드는 방법 (지금은 local 프로필 시드뿐이라 운영 DB 에는 운영자가 없다)
+- 백엔드 여러 대로 늘릴 때 세션 공유 (지금은 서버 메모리 세션. 로그인·데모 시작 집계는 DB 라 이미 공유됨)
+
+개발 서버를 하나 더 띄우려면 빌드 폴더를 나눈다: `NEXT_DIST_DIR=.next-dev2 BACKEND_URL=... npm run dev -- -p 3300` (Next 16 은 같은 폴더의 두 번째 dev 서버를 거부한다).
+
 ## 후속 작업
 
 | 작업 | 시점 | 메모 |
 |---|---|---|
 | 분산 로그인 시도 대응 | 공개 배포 전 검토 | 여러 IP 에서 한 계정을 나눠 대는 시도: 계정 단위 지연·추가 확인(CAPTCHA)·알림 |
-| 가입 없는 공개 데모 | 후속 | 샘플 체험, 방문자별 데이터 격리, 배포 후 모바일·시크릿 창 확인과 부하 지표 기록 |
-| HTTPS 배포 | 후속 | 공개 주소, 세션 쿠키 `Secure`, LB·Next·백엔드 신뢰 프록시 설정 (위 "클라이언트 IP 판별" 배포 행) |
+| HTTPS 배포 | 호스팅 결정 후 | 위 "배포" 설정·체크리스트대로 공개 URL 배포, 배포 후 동시 요청·p95·오류율 기록 |
 | 실시간 푸시 | 필요 시 | 지금은 5초 폴링. 동시 접속이 커지면 SSE 등 서버 푸시와 부하 측정(p95, 오류율) 검토 |

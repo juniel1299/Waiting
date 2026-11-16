@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
+  // 같은 폴더에서 개발 서버를 하나 더 띄울 때 빌드 폴더를 나눈다 (기본 .next)
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
