@@ -87,6 +87,16 @@ final class HttpTestClient {
 		return post("/api/reservations/" + reservationId + "/cancel", "");
 	}
 
+	HttpResponse<String> changeCapacity(Long sessionId, int capacity) throws Exception {
+		HttpRequest request = HttpRequest
+			.newBuilder(URI.create(baseUrl + "/api/operator/sessions/" + sessionId + "/capacity"))
+			.header("Content-Type", "application/json")
+			.header("X-XSRF-TOKEN", xsrfToken())
+			.method("PATCH", BodyPublishers.ofString("{\"capacity\":" + capacity + "}"))
+			.build();
+		return http.send(request, BodyHandlers.ofString());
+	}
+
 	/** 두 요청을 CyclicBarrier 로 동시에 출발시킨다. 결과는 인자 순서대로. */
 	static List<HttpResponse<String>> race(Callable<HttpResponse<String>> first,
 			Callable<HttpResponse<String>> second) throws Exception {

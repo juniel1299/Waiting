@@ -18,6 +18,9 @@ spring:
     locations: classpath:db/migration
   jackson:
     time-zone: UTC
+    deserialization:
+      # 정수 필드(정원 등)에 2.5 같은 소수가 오면 잘라 받지 않고 400 으로 거절한다
+      accept-float-as-int: false
 
 server:
   servlet:
