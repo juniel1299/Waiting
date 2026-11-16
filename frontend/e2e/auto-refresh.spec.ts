@@ -37,7 +37,7 @@ async function setUp(page: Page) {
   const bPage = await bContext.newPage();
   await loginInBrowser(bPage, "bob");
   await bPage.goto(`/sessions/${sessionId}`);
-  await expect(bPage.getByTestId("my-reservation")).toHaveText("확정");
+  await expect(bPage.getByTestId("my-reservation")).toHaveText("예약 확정");
   return { sessionId, bBrowser, bPage };
 }
 
@@ -88,7 +88,7 @@ test("A 가 대기 1번일 때 B 가 화면에서 취소하면, A 는 새로고�
   const navigations = countNavigations(page);
 
   const cancelledAt = await cancelInB(bPage);
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정", { timeout: POLL_MS + 3000 });
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정", { timeout: POLL_MS + 3000 });
   const elapsed = Date.now() - cancelledAt;
   record("폴링 반영 시간", elapsed);
 
@@ -112,7 +112,7 @@ test("탭이 숨겨진 동안은 조회하지 않고, 다시 보이면 즉시 �
 
   const shownAt = Date.now();
   await setVisibility(page, "visible");
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정", { timeout: IMMEDIATE_MS });
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정", { timeout: IMMEDIATE_MS });
   record("탭 복귀 반영 시간", Date.now() - shownAt);
   expect(requests.value).toBeGreaterThanOrEqual(1);
   await bBrowser.close();
@@ -134,7 +134,7 @@ test("오프라인 동안은 조회를 멈추고 안내는 한 번만, 다시 �
 
   const onlineAt = Date.now();
   await context.setOffline(false);
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정", { timeout: IMMEDIATE_MS });
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정", { timeout: IMMEDIATE_MS });
   record("네트워크 복구 반영 시간", Date.now() - onlineAt);
   await expect(offlineNotice).toHaveCount(0);
   await bBrowser.close();

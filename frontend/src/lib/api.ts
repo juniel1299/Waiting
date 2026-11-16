@@ -9,6 +9,8 @@ export interface Me {
   loginId: string;
   displayName: string;
   role: Role;
+  /** 데모 체험 방문자 */
+  demo: boolean;
 }
 
 export interface StudySession {
@@ -23,6 +25,8 @@ export interface StudySession {
   status: SessionStatus;
   /** 본인의 활성 신청(확정·대기). waitingPosition 은 대기일 때만 1부터. */
   myReservation: { id: number; status: ReservationStatus; waitingPosition: number | null } | null;
+  /** 데모 체험 회차일 때만: 체험 데이터 삭제 시각과 지정 샘플 예약이 아직 확정인지 */
+  demo: { expiresAt: string; sampleReservationActive: boolean } | null;
 }
 
 export interface Reservation {
@@ -125,12 +129,12 @@ const MESSAGE_BY_CODE: Record<string, string> = {
   SEATS_AVAILABLE: "빈자리가 생겼어요. 대기 대신 바로 예약해 주세요.",
 };
 
-/** 내 신청 상태 표시: 확정 / 대기 N번 / 예약 없음. */
+/** 내 신청 상태 표시: 예약 확정 / 대기 N번 / 예약 없음. */
 export function myReservationLabel(mine: StudySession["myReservation"]): string {
   if (!mine) {
     return "예약 없음";
   }
-  return mine.status === "WAITING" ? `대기 ${mine.waitingPosition}번` : "확정";
+  return mine.status === "WAITING" ? `대기 ${mine.waitingPosition}번` : "예약 확정";
 }
 
 /** 초를 "N분 M초" / "M초" 로. */
