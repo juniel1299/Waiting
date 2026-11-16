@@ -17,7 +17,8 @@ final class AccountUserDetails implements UserDetails {
 	private final String passwordHash;
 
 	AccountUserDetails(Account account) {
-		this.user = new SessionUser(account.getId(), account.getLoginId(), account.getDisplayName(), account.getRole());
+		this.user = new SessionUser(account.getId(), account.getLoginId(), account.getDisplayName(), account.getRole(),
+				account.getDemoTrialId());
 		this.passwordHash = account.getPasswordHash();
 	}
 

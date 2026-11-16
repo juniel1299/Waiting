@@ -3,6 +3,7 @@ package com.daumjari.config;
 import java.io.IOException;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -50,8 +51,10 @@ public class SecurityConfig {
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/demo/start").permitAll()
 				.requestMatchers("/api/operator/**").hasRole("OPERATOR")
-				.requestMatchers("/api/sessions/*/reservations", "/api/sessions/*/waitlist", "/api/reservations/**", "/api/me/reservations")
+				.requestMatchers("/api/sessions/*/reservations", "/api/sessions/*/waitlist", "/api/reservations/**", "/api/me/reservations",
+						"/api/demo/sample-cancel")
 				.hasRole("PARTICIPANT")
 				.anyRequest().authenticated())
 			.exceptionHandling(ex -> ex
@@ -71,9 +74,12 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	CsrfTokenRepository csrfTokenRepository() {
+	CsrfTokenRepository csrfTokenRepository(@Value("${server.servlet.session.cookie.secure:false}") boolean secure) {
 		// 프런트(JS)가 쿠키 값을 읽어 헤더로 보내야 하므로 HttpOnly 해제
-		return CookieCsrfTokenRepository.withHttpOnlyFalse();
+		CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+		// HTTPS 배포에서는 세션 쿠키와 같이 Secure (SESSION_COOKIE_SECURE=true)
+		repository.setCookieCustomizer(cookie -> cookie.secure(secure));
+		return repository;
 	}
 
 	@Bean

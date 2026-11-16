@@ -35,6 +35,8 @@ server:
       cookie:
         http-only: true
         same-site: lax
+        # HTTPS 배포에서 true (CSRF 쿠키도 같은 값을 따른다)
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 daumjari:
   # 로그인 실패 제한 (README "로그인 시도 제한")
@@ -42,6 +44,10 @@ daumjari:
     max-per-account-ip: ${LOGIN_MAX_PER_ACCOUNT_IP:5}
     max-per-ip: ${LOGIN_MAX_PER_IP:50}
     window: ${LOGIN_THROTTLE_WINDOW:15m}
+  # 가입 없는 데모 체험 (README "공개 데모")
+  demo:
+    ttl: ${DEMO_TTL:30m}
+    max-starts-per-ip: ${DEMO_MAX_STARTS_PER_IP:10}
 
 management:
   endpoints:

@@ -32,6 +32,10 @@ public class StudySession {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
+	/** 데모 체험 회차면 그 체험 ID. 일반 회차는 null. */
+	@Column(name = "demo_trial_id")
+	private Long demoTrialId;
+
 	protected StudySession() {
 	}
 
@@ -46,6 +50,26 @@ public class StudySession {
 		session.capacity = capacity;
 		session.createdAt = now;
 		return session;
+	}
+
+	public static StudySession createDemo(String title, Instant startsAt, String location, int capacity,
+			Long demoTrialId, Instant now) {
+		StudySession session = create(title, startsAt, location, capacity, now);
+		session.demoTrialId = demoTrialId;
+		return session;
+	}
+
+	/** 일반 회차는 일반 계정(체험 없음)에게만, 체험 회차는 같은 체험의 계정에게만 보인다. */
+	public boolean isVisibleTo(Long viewerDemoTrialId) {
+		return java.util.Objects.equals(demoTrialId, viewerDemoTrialId);
+	}
+
+	public boolean isDemo() {
+		return demoTrialId != null;
+	}
+
+	public Long getDemoTrialId() {
+		return demoTrialId;
 	}
 
 	public void changeCapacity(int newCapacity) {

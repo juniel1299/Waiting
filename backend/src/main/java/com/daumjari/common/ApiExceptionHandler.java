@@ -1,5 +1,6 @@
 package com.daumjari.common;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.daumjari.auth.LoginThrottledException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -16,6 +19,18 @@ public class ApiExceptionHandler {
 	ResponseEntity<ApiError> apiException(ApiException e) {
 		ErrorCode code = e.errorCode();
 		return ResponseEntity.status(code.status()).body(new ApiError(code.name(), code.message()));
+	}
+
+	/** 로그인·데모 시작 시도 제한. Retry-After(초) 헤더와 본문 retryAfterSeconds. */
+	@ExceptionHandler(LoginThrottledException.class)
+	ResponseEntity<ThrottledError> throttled(LoginThrottledException e) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
+			.body(new ThrottledError("TOO_MANY_ATTEMPTS", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+					e.retryAfterSeconds()));
+	}
+
+	public record ThrottledError(String code, String message, long retryAfterSeconds) {
 	}
 
 	@ExceptionHandler(AuthenticationException.class)

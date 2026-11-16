@@ -59,6 +59,15 @@ public class LoginThrottle {
 		}
 	}
 
+	/** 데모 체험 시작 남용 제한: 같은 클라이언트 IP 로 로그인 제한과 같은 창 안에 max 회까지. */
+	public void countDemoStart(String clientIp, int max) {
+		Instant now = Instant.now(clock);
+		long retryAfter = retryAfterSeconds(count(sha256("demo-start:" + clientIp), now), max, now);
+		if (retryAfter > 0) {
+			throw new LoginThrottledException(retryAfter);
+		}
+	}
+
 	/** 로그인 성공: 계정+IP 카운터는 지우고, IP 카운터에서는 이번 시도(실패가 아니었음)만 뺀다. */
 	public void onSuccess(String loginId, String clientIp) {
 		jdbc.update("delete from login_attempt where throttle_key = ?", accountKey(loginId, clientIp));
