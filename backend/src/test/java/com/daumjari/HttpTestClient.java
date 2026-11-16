@@ -87,6 +87,24 @@ final class HttpTestClient {
 		return post("/api/reservations/" + reservationId + "/cancel", "");
 	}
 
+	/**
+	 * 새 브라우저처럼(쿠키 없음) 로그인 한 번을 시도한다. forwardedFor 가 있으면 X-Forwarded-For 로 보낸다
+	 * (Tomcat 이 신뢰하는 프록시에서 온 요청이면 이 값이 클라이언트 IP 가 된다).
+	 */
+	static HttpResponse<String> attemptLogin(String baseUrl, String loginId, String password, String forwardedFor)
+			throws Exception {
+		HttpTestClient client = new HttpTestClient(baseUrl);
+		client.refreshXsrf();
+		HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/login"))
+			.header("Content-Type", "application/json")
+			.header("X-XSRF-TOKEN", client.xsrfToken())
+			.POST(BodyPublishers.ofString("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(loginId, password)));
+		if (forwardedFor != null) {
+			request.header("X-Forwarded-For", forwardedFor);
+		}
+		return client.http.send(request.build(), BodyHandlers.ofString());
+	}
+
 	HttpResponse<String> changeCapacity(Long sessionId, int capacity) throws Exception {
 		HttpRequest request = HttpRequest
 			.newBuilder(URI.create(baseUrl + "/api/operator/sessions/" + sessionId + "/capacity"))

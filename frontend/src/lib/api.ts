@@ -54,6 +54,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** 429 의 Retry-After(초). */
+    readonly retryAfterSeconds?: number,
   ) {
     super(message);
   }
@@ -83,7 +85,13 @@ async function xsrfToken(): Promise<string> {
 async function toApiError(res: Response): Promise<ApiError> {
   try {
     const body = (await res.json()) as { code?: string; message?: string };
-    return new ApiError(res.status, body.code ?? "UNKNOWN", body.message ?? "요청을 처리하지 못했어요.");
+    const retryAfter = Number(res.headers.get("Retry-After"));
+    return new ApiError(
+      res.status,
+      body.code ?? "UNKNOWN",
+      body.message ?? "요청을 처리하지 못했어요.",
+      retryAfter > 0 ? retryAfter : undefined,
+    );
   } catch {
     return new ApiError(res.status, "UNKNOWN", "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
   }
@@ -125,7 +133,21 @@ export function myReservationLabel(mine: StudySession["myReservation"]): string 
   return mine.status === "WAITING" ? `대기 ${mine.waitingPosition}번` : "확정";
 }
 
+/** 초를 "N분 M초" / "M초" 로. */
+export function formatWait(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes === 0) {
+    return `${rest}초`;
+  }
+  return rest === 0 ? `${minutes}분` : `${minutes}분 ${rest}초`;
+}
+
 export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.code === "TOO_MANY_ATTEMPTS") {
+    const wait = error.retryAfterSeconds ? `${formatWait(error.retryAfterSeconds)} 후` : "잠시 후";
+    return `로그인 시도가 너무 많아요. ${wait} 다시 시도해 주세요.`;
+  }
   if (error instanceof ApiError) {
     return MESSAGE_BY_CODE[error.code] ?? error.message;
   }
