@@ -67,7 +67,7 @@ E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e
 | `/sessions` | 로그인 | 회차 목록, 잔여석·상태·내 예약 표시 |
 | `/sessions/{id}` | 로그인 | 회차 상세, 예약하기·예약 취소, 마감 시 대기 신청·대기 순번·대기 취소. 요청 뒤 서버 상태를 다시 조회 |
 | `/operator` | OPERATOR | 회차 등록(시작 일시는 서울 기준 입력), 회차 목록 |
-| `/operator/sessions/{id}` | OPERATOR | 확정 명단. 참가자가 직접 열면 서버 403 → 명단 없이 "권한이 없습니다." |
+| `/operator/sessions/{id}` | OPERATOR | 확정 명단, 정원·확정·대기 인원, 정원 변경(시작 전). 참가자가 직접 열면 서버 403 → 명단 없이 "권한이 없습니다." |
 
 화면의 역할 분기는 표시용이고, 명단 비노출의 근거는 백엔드 403 이다 (e2e 에서 응답 코드까지 확인).
 
@@ -161,6 +161,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | GET | `/api/sessions/{id}` | 로그인 | 회차 상세 |
 | POST | `/api/operator/sessions` | OPERATOR | 회차 등록 `{title, startsAt, location, capacity}`, 201 |
 | GET | `/api/operator/sessions/{id}/roster` | OPERATOR | 확정 명단 `[{reservationId, accountId, loginId, displayName, reservedAt}]` |
+| PATCH | `/api/operator/sessions/{id}/capacity` | OPERATOR | 정원 변경 `{capacity}` (1~1000 정수). 응답 `{session, promotedCount}` — 변경 후 회차와 늘어난 자리로 확정된 대기 인원 |
 
 회차 응답: `{id, title, startsAt, location, capacity, confirmedCount, remainingSeats, waitingCount, status, myReservation}`
 
@@ -210,6 +211,9 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 409 | `SESSION_FULL` | 정원 마감 |
 | 409 | `SESSION_STARTED` | 회차 시작 시각 이후의 예약·대기·취소 |
 | 409 | `SEATS_AVAILABLE` | 빈자리가 있는 회차에 대기 신청 (바로 예약하면 됨) |
+| 409 | `CAPACITY_BELOW_CONFIRMED` | 현재 확정 인원보다 적게 정원 변경 |
+
+정원 변경의 `VALIDATION_FAILED` 는 0·음수·1000 초과·소수(`2.5`)·문자·`null` 을 모두 포함한다. 정수 필드에 소수가 와도 잘라 받지 않는다 (`spring.jackson.deserialization.accept-float-as-int: false`). 시작 시각 이후 변경은 `SESSION_STARTED`, 참가자 요청은 `FORBIDDEN` 이며, 거절되면 정원과 신청 상태는 바뀌지 않는다.
 
 ## 마감 정책
 
@@ -219,6 +223,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 - **대기 순번:** 저장하지 않고 같은 회차 `WAITING` 행 중 id 가 더 작은 수 + 1 로 계산한다. 신청은 회차 행 잠금 아래 하나씩 들어오므로 id 순서가 곧 신청 순서다 (같은 시각이어도 순서가 갈림). 대기를 취소하고 다시 신청하면 새 행이라 맨 뒤로 간다.
 - **자동 승격:** 확정자가 취소하면 같은 트랜잭션·같은 회차 잠금 아래에서 가장 앞 대기자를 확정한다. 승격이 실패하면 취소도 함께 롤백된다. 대기 취소나 이미 취소된 건의 재취소는 승격하지 않는다. 시작 시각 이후에는 취소·승격 모두 일어나지 않는다.
 - **대기자 우선:** 대기자가 있으면 빈자리가 보여도 새 예약은 409 `SESSION_FULL` 이고 대기로만 들어올 수 있다.
+- **정원 변경:** 시작 전에만, 운영자만, 현재 확정 인원 이상으로만 바꿀 수 있다. 회차 행 잠금 아래 한 트랜잭션에서 정원을 바꾸고, 늘어난 자리만큼 기존 승격 로직(`WaitlistPromoter`)을 대기 순서대로 반복해 확정한다. 예: 정원 3·확정 3·대기 3 에서 5 로 늘리면 대기 1·2번 확정, 3번은 대기 1번. 대기자를 모두 확정하고도 자리가 남으면 일반 예약이 열린다(`OPEN`). 승격 중 실패하면 정원 변경과 앞선 승격이 함께 롤백된다. 줄일 때 대기자는 그대로 둔다.
 - **동시성:** 예약·대기·취소는 회차 행을 `SELECT ... FOR UPDATE` 로 잠근 트랜잭션 안에서 잔여석·대기열 판단과 상태 변경을 함께 한다. 잠금 순서는 회차 → 신청.
 
 
@@ -226,6 +231,6 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 
 | 작업 | 시점 | 메모 |
 |---|---|---|
-| 정원 증설·축소 | 다음 후보 | 증설 시 늘어난 자리만큼 대기자 승격, 확정 인원보다 작게 줄이는 요청은 거절 |
 | 로그인 시도 제한 | 공개 배포 전 필수 | 계정·IP 기준 실패 횟수 제한. 지금은 제한 없음 |
+| 공개 HTTPS 데모 | 후속 | 가입 없는 샘플 체험, 방문자별 데이터 격리, 배포 후 모바일·시크릿 창 확인과 부하 지표 기록 |
 | 실시간 푸시 | 필요 시 | 지금은 5초 폴링. 동시 접속이 커지면 SSE 등 서버 푸시와 부하 측정(p95, 오류율) 검토 |
