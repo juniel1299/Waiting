@@ -24,4 +24,8 @@ final class AuthDtos {
 	record CsrfResponse(String headerName, String token) {
 	}
 
+	/** 429 본문. Retry-After 헤더와 같은 값을 retryAfterSeconds 로도 준다. */
+	record ThrottledResponse(String code, String message, long retryAfterSeconds) {
+	}
+
 }
