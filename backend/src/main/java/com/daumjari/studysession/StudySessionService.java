@@ -15,6 +15,8 @@ import com.daumjari.reservation.Reservation;
 import com.daumjari.reservation.ReservationRepository;
 import com.daumjari.reservation.ReservationRepository.SessionCount;
 import com.daumjari.reservation.ReservationStatus;
+import com.daumjari.reservation.WaitlistPromoter;
+import com.daumjari.studysession.SessionDtos.CapacityChangeResponse;
 import com.daumjari.studysession.SessionDtos.CreateSessionRequest;
 import com.daumjari.studysession.SessionDtos.MyReservation;
 import com.daumjari.studysession.SessionDtos.RosterEntry;
@@ -29,11 +31,15 @@ public class StudySessionService {
 
 	private final ReservationRepository reservations;
 
+	private final WaitlistPromoter promoter;
+
 	private final Clock clock;
 
-	public StudySessionService(StudySessionRepository sessions, ReservationRepository reservations, Clock clock) {
+	public StudySessionService(StudySessionRepository sessions, ReservationRepository reservations,
+			WaitlistPromoter promoter, Clock clock) {
 		this.sessions = sessions;
 		this.reservations = reservations;
+		this.promoter = promoter;
 		this.clock = clock;
 	}
 
@@ -74,6 +80,31 @@ public class StudySessionService {
 		StudySession saved = sessions.save(StudySession.create(request.title().strip(), request.startsAt(),
 				request.location().strip(), request.capacity(), now));
 		return toResponse(saved, 0, 0, null, now);
+	}
+
+	/**
+	 * 회차 행을 잠근 뒤 정원을 바꾸고, 늘어난 자리만큼 기존 승격 객체로 대기 순서대로 확정한다.
+	 * 한 트랜잭션이라 승격 중 실패하면 정원 변경과 앞선 승격도 함께 롤백된다.
+	 */
+	@Transactional
+	public CapacityChangeResponse changeCapacity(Long sessionId, int capacity) {
+		Instant now = Instant.now(clock);
+		StudySession session = sessions.findByIdForUpdate(sessionId)
+			.orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+		if (session.hasStarted(now)) {
+			throw new ApiException(ErrorCode.SESSION_STARTED);
+		}
+		long confirmed = countOf(sessionId, ReservationStatus.CONFIRMED);
+		if (capacity < confirmed) {
+			throw new ApiException(ErrorCode.CAPACITY_BELOW_CONFIRMED);
+		}
+		session.changeCapacity(capacity);
+		int promoted = 0;
+		while (confirmed + promoted < capacity && promoter.promoteNext(sessionId).isPresent()) {
+			promoted++;
+		}
+		return new CapacityChangeResponse(toResponse(session, confirmed + promoted,
+				countOf(sessionId, ReservationStatus.WAITING), null, now), promoted);
 	}
 
 	public List<RosterEntry> roster(Long sessionId) {

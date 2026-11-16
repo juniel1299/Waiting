@@ -5,12 +5,15 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.daumjari.studysession.SessionDtos.CapacityChangeResponse;
+import com.daumjari.studysession.SessionDtos.ChangeCapacityRequest;
 import com.daumjari.studysession.SessionDtos.CreateSessionRequest;
 import com.daumjari.studysession.SessionDtos.RosterEntry;
 import com.daumjari.studysession.SessionDtos.SessionResponse;
@@ -32,6 +35,13 @@ public class OperatorSessionController {
 	public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
 		SessionResponse created = service.create(request);
 		return ResponseEntity.created(URI.create("/api/sessions/" + created.id())).body(created);
+	}
+
+	/** 시작 전 정원 변경. 늘어난 자리만큼 대기자를 순서대로 확정한다. */
+	@PatchMapping("/{sessionId}/capacity")
+	public CapacityChangeResponse changeCapacity(@PathVariable Long sessionId,
+			@Valid @RequestBody ChangeCapacityRequest request) {
+		return service.changeCapacity(sessionId, request.capacity());
 	}
 
 	@GetMapping("/{sessionId}/roster")

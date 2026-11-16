@@ -10,6 +10,7 @@ public enum ErrorCode {
 	SESSION_FULL(HttpStatus.CONFLICT, "정원이 마감되었습니다."),
 	SESSION_STARTED(HttpStatus.CONFLICT, "이미 시작된 회차는 예약하거나 취소할 수 없습니다."),
 	SEATS_AVAILABLE(HttpStatus.CONFLICT, "빈자리가 있는 회차는 대기 대신 바로 예약할 수 있습니다."),
+	CAPACITY_BELOW_CONFIRMED(HttpStatus.CONFLICT, "현재 확정 인원보다 적게 정원을 줄일 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 

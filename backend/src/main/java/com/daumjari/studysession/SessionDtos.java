@@ -35,6 +35,13 @@ public final class SessionDtos {
 			@NotBlank @Size(max = 200) String location, @NotNull @Min(1) @Max(1000) Integer capacity) {
 	}
 
+	public record ChangeCapacityRequest(@NotNull @Min(1) @Max(1000) Integer capacity) {
+	}
+
+	/** promotedCount: 늘어난 자리로 대기에서 확정된 인원. */
+	public record CapacityChangeResponse(SessionResponse session, int promotedCount) {
+	}
+
 	public record RosterEntry(Long reservationId, Long accountId, String loginId, String displayName,
 			Instant reservedAt) {
 	}

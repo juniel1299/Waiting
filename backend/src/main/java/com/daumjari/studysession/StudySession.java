@@ -48,6 +48,13 @@ public class StudySession {
 		return session;
 	}
 
+	public void changeCapacity(int newCapacity) {
+		if (newCapacity <= 0) {
+			throw new IllegalArgumentException("capacity must be positive: " + newCapacity);
+		}
+		capacity = newCapacity;
+	}
+
 	/** 시작 시각부터 예약·취소를 받지 않는다. */
 	public boolean hasStarted(Instant now) {
 		return !now.isBefore(startsAt);
