@@ -35,6 +35,10 @@ public class Account {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
+	/** 데모 체험 계정이면 그 체험 ID. 일반 계정은 null. */
+	@Column(name = "demo_trial_id")
+	private Long demoTrialId;
+
 	protected Account() {
 	}
 
@@ -46,6 +50,18 @@ public class Account {
 		account.role = role;
 		account.createdAt = now;
 		return account;
+	}
+
+	/** 데모 체험 계정. 비밀번호 로그인은 막혀 있다 (AccountUserDetailsService). */
+	public static Account demo(String loginId, String displayName, Long demoTrialId, Instant now) {
+		// 형식이 맞지 않는 해시라 어떤 비밀번호와도 일치하지 않는다
+		Account account = create(loginId, "!demo-no-password", displayName, Role.PARTICIPANT, now);
+		account.demoTrialId = demoTrialId;
+		return account;
+	}
+
+	public Long getDemoTrialId() {
+		return demoTrialId;
 	}
 
 	public Long getId() {

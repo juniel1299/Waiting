@@ -12,7 +12,11 @@ import jakarta.persistence.LockModeType;
 
 public interface StudySessionRepository extends JpaRepository<StudySession, Long> {
 
-	List<StudySession> findAllByOrderByStartsAtAscIdAsc();
+	/** 일반 회차 (데모 체험 회차 제외). */
+	List<StudySession> findByDemoTrialIdIsNullOrderByStartsAtAscIdAsc();
+
+	/** 한 데모 체험의 회차. */
+	List<StudySession> findByDemoTrialIdOrderByStartsAtAscIdAsc(Long demoTrialId);
 
 	/** 회차 단위로 예약·취소를 직렬화하기 위한 행 잠금 (SELECT ... FOR UPDATE). */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

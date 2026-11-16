@@ -14,11 +14,12 @@ import {
   type Reservation,
   type StudySession,
 } from "@/lib/api";
+import { DemoStartButton } from "@/components/DemoStartButton";
 import { useVisiblePolling } from "@/lib/useVisiblePolling";
 
 export function SessionDetail() {
   const { id } = useParams<{ id: string }>();
-  return <AuthGate>{() => <Detail sessionId={id} />}</AuthGate>;
+  return <AuthGate>{(me) => <Detail sessionId={id} demoVisitor={me.demo} />}</AuthGate>;
 }
 
 interface Notice {
@@ -26,7 +27,7 @@ interface Notice {
   text: string;
 }
 
-function Detail({ sessionId }: { sessionId: string }) {
+function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: boolean }) {
   const [session, setSession] = useState<StudySession | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,6 +110,12 @@ function Detail({ sessionId }: { sessionId: string }) {
       return { kind: "status", text: existingNotice(res.data) };
     });
 
+  const cancelSample = () =>
+    run(async () => {
+      await api<Reservation>("/api/demo/sample-cancel", { method: "POST" });
+      return { kind: "status", text: "샘플 참가자가 예약을 취소했어요." };
+    });
+
   const cancel = (reservationId: number, waiting: boolean) =>
     run(async () => {
       await api<Reservation>(`/api/reservations/${reservationId}/cancel`, { method: "POST" });
@@ -116,7 +123,15 @@ function Detail({ sessionId }: { sessionId: string }) {
     });
 
   if (!session) {
-    return notice ? <p role="alert">{notice.text}</p> : <p>불러오는 중…</p>;
+    if (!notice) {
+      return <p>불러오는 중…</p>;
+    }
+    return (
+      <>
+        <p role="alert">{notice.text}</p>
+        {demoVisitor && <DemoStartButton label="새 체험 시작하기" />}
+      </>
+    );
   }
 
   const mine = session.myReservation;
@@ -162,6 +177,25 @@ function Detail({ sessionId }: { sessionId: string }) {
           </button>
         )}
       </div>
+      {session.demo && (
+        <section className="card" aria-label="데모 체험 안내">
+          <p>
+            체험 회차예요. 대기 신청 후 샘플 참가자가 취소하면 대기 순서대로 예약이 확정돼요. 체험 데이터는{" "}
+            {formatSeoul(session.demo.expiresAt)}에 삭제돼요.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || !session.demo.sampleReservationActive}
+              onClick={cancelSample}
+            >
+              샘플 참가자 취소
+            </button>
+            <DemoStartButton label="처음부터 다시 체험" className="secondary" />
+          </div>
+        </section>
+      )}
       {notice && <p role={notice.kind}>{notice.text}</p>}
       {connectionLost && <p className="meta">연결이 끊겼어요. 다시 연결되면 바로 최신 상태로 바꿀게요.</p>}
     </>

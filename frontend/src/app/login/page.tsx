@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { DemoStartButton } from "@/components/DemoStartButton";
 import { api, errorMessage, type Me } from "@/lib/api";
 
 export default function LoginPage() {
@@ -48,6 +49,8 @@ export default function LoginPage() {
         </button>
         {error && <p role="alert">{error}</p>}
       </form>
+      <p className="meta">계정이 없어도 체험할 수 있어요.</p>
+      <DemoStartButton className="secondary" />
     </main>
   );
 }

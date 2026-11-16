@@ -9,7 +9,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.daumjari.account.Account;
+import com.daumjari.account.AccountRepository;
 import com.daumjari.common.ApiException;
+import com.daumjari.demo.DemoTrials;
 import com.daumjari.common.ErrorCode;
 import com.daumjari.reservation.Reservation;
 import com.daumjari.reservation.ReservationRepository;
@@ -33,18 +36,31 @@ public class StudySessionService {
 
 	private final WaitlistPromoter promoter;
 
+	private final AccountRepository accounts;
+
+	private final DemoTrials demoTrials;
+
 	private final Clock clock;
 
 	public StudySessionService(StudySessionRepository sessions, ReservationRepository reservations,
-			WaitlistPromoter promoter, Clock clock) {
+			WaitlistPromoter promoter, AccountRepository accounts, DemoTrials demoTrials, Clock clock) {
 		this.sessions = sessions;
 		this.reservations = reservations;
 		this.promoter = promoter;
+		this.accounts = accounts;
+		this.demoTrials = demoTrials;
 		this.clock = clock;
 	}
 
+	/** 조회자의 데모 체험 ID (일반 계정은 null). 회차는 같은 체험 값끼리만 보인다. */
+	private Long trialOf(Long viewerId) {
+		return accounts.findById(viewerId).map(Account::getDemoTrialId).orElse(null);
+	}
+
 	public List<SessionResponse> list(Long viewerId) {
-		List<StudySession> all = sessions.findAllByOrderByStartsAtAscIdAsc();
+		Long trial = trialOf(viewerId);
+		List<StudySession> all = trial == null ? sessions.findByDemoTrialIdIsNullOrderByStartsAtAscIdAsc()
+				: sessions.findByDemoTrialIdOrderByStartsAtAscIdAsc(trial);
 		if (all.isEmpty()) {
 			return List.of();
 		}
@@ -64,6 +80,9 @@ public class StudySessionService {
 
 	public SessionResponse get(Long sessionId, Long viewerId) {
 		StudySession session = findSession(sessionId);
+		if (!session.isVisibleTo(trialOf(viewerId))) {
+			throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
+		}
 		Reservation mine = reservations
 			.findByStudySessionIdAndAccountIdAndStatusNot(sessionId, viewerId, ReservationStatus.CANCELLED)
 			.orElse(null);
@@ -90,6 +109,7 @@ public class StudySessionService {
 	public CapacityChangeResponse changeCapacity(Long sessionId, int capacity) {
 		Instant now = Instant.now(clock);
 		StudySession session = sessions.findByIdForUpdate(sessionId)
+			.filter(s -> !s.isDemo())
 			.orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
 		if (session.hasStarted(now)) {
 			throw new ApiException(ErrorCode.SESSION_STARTED);
@@ -108,7 +128,9 @@ public class StudySessionService {
 	}
 
 	public List<RosterEntry> roster(Long sessionId) {
-		findSession(sessionId);
+		if (findSession(sessionId).isDemo()) {
+			throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
+		}
 		return reservations.findWithAccountBySessionIdAndStatus(sessionId, ReservationStatus.CONFIRMED)
 			.stream()
 			.map(r -> new RosterEntry(r.getId(), r.getAccount().getId(), r.getAccount().getLoginId(),
@@ -122,7 +144,8 @@ public class StudySessionService {
 		MyReservation my = mine == null ? null
 				: new MyReservation(mine.getId(), mine.getStatus(), reservations.waitingPositionOf(mine));
 		return new SessionResponse(session.getId(), session.getTitle(), session.getStartsAt(), session.getLocation(),
-				session.getCapacity(), confirmed, remaining, waiting, statusOf(session, remaining, waiting, now), my);
+				session.getCapacity(), confirmed, remaining, waiting, statusOf(session, remaining, waiting, now), my,
+				session.isDemo() ? demoTrials.info(session.getDemoTrialId()).orElse(null) : null);
 	}
 
 	/** 대기자가 있으면 빈자리가 보여도 대기자 몫이라 FULL 로 본다 (ReservationService.reserve 와 같은 규칙). */

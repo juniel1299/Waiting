@@ -31,7 +31,7 @@ test("대기 1번인 참가자는 확정자가 취소하면 새로고침 후 확
   expect((await bob.cancel((await bobReservation.json()).id)).status()).toBe(200);
 
   await page.reload();
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정");
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정");
   await expect(page.getByTestId("remaining")).toHaveText("0 / 1");
   await expect(page.getByTestId("waiting-count")).toHaveText("0명");
   await expect(page.getByRole("button", { name: "예약 취소" })).toBeEnabled();

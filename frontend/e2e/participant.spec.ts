@@ -27,10 +27,10 @@ test("참가자가 예약하고 새로고침해도 유지되며 취소하면 잔
   await page.getByRole("button", { name: "예약하기" }).click();
   await expect(page.getByRole("status")).toContainText("예약이 확정됐어요");
   await expect(page.getByTestId("remaining")).toHaveText("2 / 3");
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정");
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정");
 
   await page.reload();
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정");
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정");
   await expect(page.getByTestId("remaining")).toHaveText("2 / 3");
 
   await page.getByRole("button", { name: "예약 취소" }).click();
@@ -78,7 +78,7 @@ test("다른 곳에서 이미 예약한 뒤 다시 누르면 기존 예약으로
 
   await page.getByRole("button", { name: "예약하기" }).click();
   await expect(page.getByRole("status")).toContainText("이미 예약된 회차예요");
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정");
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정");
   await expect(page.getByTestId("remaining")).toHaveText("2 / 3");
 
   await aliceElsewhere.dispose();

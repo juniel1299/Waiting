@@ -51,7 +51,7 @@ test("운영자가 정원을 늘리면 대기 중인 참가자 상세가 새로�
   await expect(operator.page.getByTestId("capacity")).toContainText("정원 2명");
   const changedAt = Date.now();
 
-  await expect(page.getByTestId("my-reservation")).toHaveText("확정", { timeout: POLL_MS + 3000 });
+  await expect(page.getByTestId("my-reservation")).toHaveText("예약 확정", { timeout: POLL_MS + 3000 });
   console.log(`[measure] 증설 → 참가자 화면 확정: ${Date.now() - changedAt}ms (poll ${POLL_MS}ms)`);
   await expect(page.getByTestId("remaining")).toHaveText("0 / 2");
   expect(navigations, "참가자 화면 새로고침·이동").toBe(0);

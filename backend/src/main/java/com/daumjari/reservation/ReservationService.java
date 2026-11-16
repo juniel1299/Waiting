@@ -46,6 +46,7 @@ public class ReservationService {
 	public ReserveResult reserve(Long sessionId, Long accountId) {
 		Instant now = Instant.now(clock);
 		StudySession session = lockOpenSession(sessionId, now);
+		requireVisible(session, accountId);
 		Optional<Reservation> existing = activeOf(sessionId, accountId);
 		if (existing.isPresent()) {
 			return new ReserveResult(toResponse(existing.get()), false);
@@ -64,6 +65,7 @@ public class ReservationService {
 	public ReserveResult waitlist(Long sessionId, Long accountId) {
 		Instant now = Instant.now(clock);
 		StudySession session = lockOpenSession(sessionId, now);
+		requireVisible(session, accountId);
 		Optional<Reservation> existing = activeOf(sessionId, accountId);
 		if (existing.isPresent()) {
 			return new ReserveResult(toResponse(existing.get()), false);
@@ -106,6 +108,14 @@ public class ReservationService {
 			throw new ApiException(ErrorCode.SESSION_STARTED);
 		}
 		return session;
+	}
+
+	/** 일반 계정은 일반 회차만, 데모 방문자는 자기 체험 회차만. 아니면 존재를 드러내지 않고 404. */
+	private void requireVisible(StudySession session, Long accountId) {
+		Long trial = accounts.findById(accountId).map(com.daumjari.account.Account::getDemoTrialId).orElse(null);
+		if (!session.isVisibleTo(trial)) {
+			throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
+		}
 	}
 
 	private Optional<Reservation> activeOf(Long sessionId, Long accountId) {

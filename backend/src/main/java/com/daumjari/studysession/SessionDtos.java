@@ -2,6 +2,7 @@ package com.daumjari.studysession;
 
 import java.time.Instant;
 
+import com.daumjari.demo.DemoTrials.DemoInfo;
 import com.daumjari.reservation.ReservationStatus;
 
 import jakarta.validation.constraints.Max;
@@ -24,7 +25,7 @@ public final class SessionDtos {
 	/** 참가자·운영자 공통 회차 응답. 다른 참가자 정보는 담지 않는다. */
 	public record SessionResponse(Long id, String title, Instant startsAt, String location, int capacity,
 			long confirmedCount, long remainingSeats, long waitingCount, SessionStatus status,
-			MyReservation myReservation) {
+			MyReservation myReservation, DemoInfo demo) {
 	}
 
 	/** 조회한 사용자 본인의 활성 신청(확정·대기). 없으면 null. waitingPosition 은 대기일 때만 (1부터). */
