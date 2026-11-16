@@ -23,7 +23,8 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `./gradlew bootRun --console=plain --args=--server.port=${BACKEND_PORT}`,
+      // 로그인 제한 창을 짧게: 제한 후 정상 로그인까지 e2e 에서 기다릴 수 있게
+      command: `./gradlew bootRun --console=plain --args='--server.port=${BACKEND_PORT} --daumjari.login-throttle.window=${process.env.E2E_THROTTLE_WINDOW_SECONDS ?? 10}s'`,
       cwd: "../backend",
       url: `${BACKEND_URL}/actuator/health`,
       reuseExistingServer: !process.env.CI,
