@@ -1,0 +1,13 @@
+# 공개 배포용 (SPRING_PROFILES_ACTIVE=prod). local 시드는 들어가지 않는다 (LocalSeedData 는 local 프로필 전용).
+spring:
+  datasource:
+    # 호스팅이 호스트·포트·DB 이름을 따로 주는 경우 (Render fromDatabase). DB_URL 을 쓰지 않는다
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:daumjari}
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    session:
+      cookie:
+        # HTTPS 진입점 뒤에서만 쓰므로 기본 Secure
+        secure: ${SESSION_COOKIE_SECURE:true}

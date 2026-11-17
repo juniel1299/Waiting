@@ -1,0 +1,49 @@
+# VM 1대 대안 (그리고 로컬에서 운영 이미지 확인용). HTTPS 는 앞에 Caddy 등 TLS 종단을 둔다 (README "배포").
+# 백엔드·DB 는 포트를 열지 않는다: 외부에서는 web 만 닿는다.
+name: daumjari-prod
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: daumjari
+      POSTGRES_USER: daumjari
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필요}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U daumjari -d daumjari"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ../backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_NAME: daumjari
+      DB_USERNAME: daumjari
+      DB_PASSWORD: ${DB_PASSWORD}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      # 같은 compose 네트워크의 web 컨테이너만 신뢰 (도커 기본 브리지 대역)
+      TRUSTED_PROXIES: '172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+'
+      BOOTSTRAP_OPERATOR_LOGIN_ID: ${BOOTSTRAP_OPERATOR_LOGIN_ID:-}
+      BOOTSTRAP_OPERATOR_PASSWORD: ${BOOTSTRAP_OPERATOR_PASSWORD:-}
+
+  web:
+    build:
+      context: ../frontend
+      args:
+        BACKEND_URL: http://api:8080
+    depends_on:
+      - api
+    environment:
+      BACKEND_URL: http://api:8080
+      FRONT_TRUSTED_PROXIES: ${FRONT_TRUSTED_PROXIES:-}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  pgdata:

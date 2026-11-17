@@ -8,18 +8,15 @@ const dev = process.argv.includes("--dev");
 const portFlag = process.argv.indexOf("-p");
 const port = Number(portFlag >= 0 ? process.argv[portFlag + 1] : (process.env.PORT ?? 3000));
 
-// 이 서버 앞에 로드밸런서 등이 있을 때만 그 주소를 넣는다 (쉼표 구분). 비어 있으면 아무 전달 헤더도 믿지 않는다.
-const trustedProxies = new Set(
-  (process.env.FRONT_TRUSTED_PROXIES ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
+// 이 서버 앞에 로드밸런서 등이 있을 때만 그 주소를 정규식으로 넣는다 (예: 10\\.\\d+\\.\\d+\\.\\d+).
+// 비어 있으면 아무 전달 헤더도 믿지 않는다. 호스팅의 실제 프록시 주소는 배포 후 실측해 정한다 (README "배포").
+const trustedPattern = process.env.FRONT_TRUSTED_PROXIES ? new RegExp(`^(?:${process.env.FRONT_TRUSTED_PROXIES})$`) : null;
+const isTrusted = (address) => trustedPattern !== null && trustedPattern.test(address.replace(/^::ffff:/, ""));
 
 /** 신뢰 프록시를 거쳐 왔으면 그 프록시들이 붙인 X-Forwarded-For 를 오른쪽부터 읽고, 아니면 실제 접속 주소. */
 function clientIp(req) {
   const peer = req.socket.remoteAddress ?? "";
-  if (!trustedProxies.has(peer)) {
+  if (!isTrusted(peer)) {
     return peer;
   }
   const hops = String(req.headers["x-forwarded-for"] ?? "")
@@ -27,7 +24,7 @@ function clientIp(req) {
     .map((s) => s.trim())
     .filter(Boolean);
   for (let i = hops.length - 1; i >= 0; i--) {
-    if (!trustedProxies.has(hops[i])) {
+    if (!isTrusted(hops[i])) {
       return hops[i];
     }
   }
@@ -42,7 +39,7 @@ createServer((req, res) => {
   req.headers["x-forwarded-for"] = clientIp(req);
   delete req.headers["forwarded"];
   delete req.headers["x-real-ip"];
-  if (!trustedProxies.has(req.socket.remoteAddress ?? "")) {
+  if (!isTrusted(req.socket.remoteAddress ?? "")) {
     delete req.headers["x-forwarded-proto"];
     delete req.headers["x-forwarded-host"];
     delete req.headers["x-forwarded-port"];
