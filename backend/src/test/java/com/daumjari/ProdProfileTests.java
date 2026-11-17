@@ -23,7 +23,8 @@ import com.daumjari.seed.LocalSeedData;
 /** 공개 배포 프로필: 시드 없음, Secure 쿠키 기본, 운영자 일회성 생성. */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(properties = { "daumjari.bootstrap-operator.login-id=ops-admin",
-		"daumjari.bootstrap-operator.password=correct-horse-battery" })
+		"daumjari.bootstrap-operator.password=correct-horse-battery",
+		"daumjari.proxy.shared-secret=prod-profile-test-secret" })
 @ActiveProfiles("prod")
 @Testcontainers(disabledWithoutDocker = true)
 class ProdProfileTests {

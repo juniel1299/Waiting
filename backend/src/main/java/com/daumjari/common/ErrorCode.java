@@ -10,6 +10,7 @@ public enum ErrorCode {
 	SESSION_FULL(HttpStatus.CONFLICT, "정원이 마감되었습니다."),
 	SESSION_STARTED(HttpStatus.CONFLICT, "이미 시작된 회차는 예약하거나 취소할 수 없습니다."),
 	SEATS_AVAILABLE(HttpStatus.CONFLICT, "빈자리가 있는 회차는 대기 대신 바로 예약할 수 있습니다."),
+	PROXY_REQUIRED(HttpStatus.FORBIDDEN, "프런트 프록시를 거친 요청만 받습니다."),
 	DEMO_NOT_FOUND(HttpStatus.NOT_FOUND, "진행 중인 데모 체험이 없습니다."),
 	DEMO_EXPIRED(HttpStatus.GONE, "데모 체험 시간이 끝났습니다. 다시 체험해 주세요."),
 	CAPACITY_BELOW_CONFIRMED(HttpStatus.CONFLICT, "현재 확정 인원보다 적게 정원을 줄일 수 없습니다."),
