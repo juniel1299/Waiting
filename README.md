@@ -283,56 +283,82 @@ Next rewrite 프록시는 XFF 를 붙이지 않고 클라이언트 값을 그대
 - **만료·정리:** 기본 30분(`DEMO_TTL`). 지나면 방문자의 API 요청은 410 `DEMO_EXPIRED`(체험 시작·인증 API 제외)이고 화면은 새 체험 시작 버튼을 보여준다. 10분마다 만료 체험의 예약 → 회차 → 계정 → 체험 순으로 지운다 (여러 인스턴스가 함께 돌아도 결과가 같다).
 - **남용 제한:** 체험 시작은 클라이언트 IP 당 15분에 10회 (`DEMO_MAX_STARTS_PER_IP`, 로그인 제한과 같은 집계·IP 판별). 넘으면 429 와 남은 시간 안내.
 
-## 배포
+## 배포 (무료 구성, 월 0원)
 
-호스팅은 아직 정하지 않았다. 아래는 어느 호스팅이든 필요한 설정과 시작 명령이다.
+아직 배포하지 않았다 (계정 생성·결제수단 등록 없음). 아래는 무료 구성 기준 설정과 절차다.
 
-구성: `HTTPS 종단(LB·리버스 프록시) → 프런트(server.mjs, Next) → 백엔드(Spring Boot) → PostgreSQL 16`. 백엔드는 프런트에서만 닿게 둔다.
+| 역할 | 서비스 | 무료 조건 (2026-11 기준, 가입 전 요금 페이지에서 다시 확인) |
+|---|---|---|
+| 프런트 (공개 HTTPS 주소) | Vercel Hobby (`*.vercel.app`) | 개인·비상업 용도. `/api` 프록시는 Route Handler(Node)로 동작, `maxDuration` 90초 |
+| 백엔드 | Render Free web service (Docker, 512MB) | 15분 무요청 시 절전, 깨는 데 약 1분. 수시 재시작 가능. private service 없음 → 공개 주소 |
+| DB | Neon Free (PostgreSQL) | 1GB/프로젝트, 월 100 CU-시간, 5분 무활동 시 절전, 초과 시 과금 없이 정지 |
+
+Render Free Postgres 는 30일 뒤 만료되어 쓰지 않는다. Render 에는 결제수단을 등록하지 않는다 (등록하면 한도 초과분이 과금되고, 미등록이면 정지만 된다).
+
+구성: `브라우저 → Vercel(Next, /api Route Handler) → Render 백엔드(공개 주소지만 프록시 토큰 필요) → Neon`
+
+- **백엔드 직접 호출 차단:** prod 프로필은 `/actuator/health` 외 모든 요청에 `X-Daumjari-Proxy-Token`(= `PROXY_SHARED_SECRET`)을 요구하고, 없거나 틀리면 403 `PROXY_REQUIRED` (상수 시간 비교).
+- **방문자 IP:** Vercel 이 `x-forwarded-for` 를 자기가 본 주소로 덮어쓰고, Route Handler 가 그 첫 값을 `X-Daumjari-Client-IP` 로 넘긴다. 백엔드는 토큰이 맞을 때만 이 값을 쓰고 다른 전달 헤더는 보지 않는다 (`forward-headers-strategy: none`).
+- **세션:** prod 는 Spring Session JDBC (`spring_session`, V6). 백엔드 절전·재시작 뒤에도 로그인·데모 세션이 남는다. 쿠키 `JSESSIONID`·`XSRF-TOKEN` 은 Secure, `JSESSIONID` 는 HttpOnly·SameSite=Lax, 도메인 미지정 (브라우저는 vercel.app 쿠키로만 본다).
+- **시드:** `local` 프로필 전용이라 prod 에서는 만들어지지 않는다 (`ProdProfileTests`).
+- **절전과 스케줄:** 만료 체험·로그인 집계·세션 정리는 백엔드가 깨어 있을 때만 돈다. 잠든 동안 쌓인 만료 행은 다음 기동 뒤 정리된다. DB 커넥션은 쉬는 것을 남기지 않아(`minimum-idle: 0`) Neon 이 절전할 수 있다.
+
+### 환경변수
+
+| 위치 | 변수 | 값 |
+|---|---|---|
+| Render | `SPRING_PROFILES_ACTIVE` | `prod` (Dockerfile 기본값) |
+| Render | `DB_URL` | Neon pooled 연결 JDBC URL, `?sslmode=require` |
+| Render | `DB_USERNAME`, `DB_PASSWORD` | Neon 역할 |
+| Render | `PROXY_SHARED_SECRET` | 32자 이상 무작위, Vercel 과 같은 값 |
+| Render | `BOOTSTRAP_OPERATOR_LOGIN_ID`, `BOOTSTRAP_OPERATOR_PASSWORD` | 첫 배포 때만 (아래 운영자 계정) |
+| Render (선택) | `DEMO_TTL`, `DEMO_MAX_STARTS_PER_IP`, `LOGIN_*` | 기본 30m / 10 / 5·50·15m |
+| Vercel | `BACKEND_URL` | `https://<render 서비스>.onrender.com` |
+| Vercel | `PROXY_SHARED_SECRET` | Render 와 같은 값 |
+| Vercel (선택) | `NEXT_PUBLIC_SESSION_POLL_MS` | 기본 5000 |
+
+### 배포 순서
+
+1. Neon: 프로젝트 생성(PostgreSQL 16), pooled 연결 문자열 확인.
+2. Render: 저장소 연결 → `render.yaml` Blueprint (또는 `backend` 디렉터리 Docker web service, plan free, health check `/actuator/health`) → 위 환경변수. 첫 기동 때 Flyway 가 V1~V6 을 적용한다. 마이그레이션이 실패하면 앱이 뜨지 않고 이전 배포가 계속 서비스된다.
+3. Vercel: 저장소 import, Root Directory `frontend`, 프레임워크 Next.js → 환경변수 → 배포. 기본 주소 `https://<프로젝트>.vercel.app` 이 포트폴리오 링크.
+
+### 운영자 계정 생성
+
+Render 에 `BOOTSTRAP_OPERATOR_LOGIN_ID`·`BOOTSTRAP_OPERATOR_PASSWORD`(12자 이상)를 넣고 재배포 → 로그 `operator bootstrap created account '<id>'` 확인 → 두 변수를 지우고 다시 배포. 이미 있는 아이디면 아무것도 바꾸지 않고, 비밀번호는 로그에 남지 않는다.
+
+### 백업과 롤백
+
+- **백업:** Neon Free 는 최근 시점 복원 범위가 짧다 (요금 페이지 확인). 배포 전마다 수동 덤프: `pg_dump "postgresql://<user>:<pw>@<host>/<db>?sslmode=require" -Fc -f daumjari-$(date +%F).dump`, 복원은 `pg_restore -d <url> --clean daumjari-YYYY-MM-DD.dump`.
+- **롤백:** Vercel·Render 모두 대시보드에서 이전 배포로 되돌린다. Flyway 는 전진 전용이라, 새 마이그레이션이 들어간 배포를 되돌릴 때는 배포 전 덤프로 DB 를 복원한 뒤 이전 배포로 돌린다 (V1~V6 은 모두 추가형).
+
+### 로컬에서 운영 이미지 확인 (VM 대안과 같은 구성)
 
 ```bash
-# 백엔드 (프로필 없이 실행: local 시드가 들어가지 않음)
-cd backend && ./gradlew bootJar
-java -jar build/libs/backend-0.0.1-SNAPSHOT.jar
-
-# 프런트 (BACKEND_URL 은 빌드 시점에 rewrites 로 고정된다)
-cd frontend && npm ci
-BACKEND_URL=http://<백엔드 내부 주소>:8080 npm run build
-PORT=3000 FRONT_TRUSTED_PROXIES=<LB 주소> npm run start
+cd deploy
+DB_PASSWORD=... PROXY_SHARED_SECRET=... SESSION_COOKIE_SECURE=false WEB_PORT=3400 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-| 환경변수 | 쓰는 곳 | 배포 값 |
-|---|---|---|
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | 백엔드 | 운영 PostgreSQL 16 (Flyway 가 V1~V5 적용) |
-| `SESSION_COOKIE_SECURE` | 백엔드 | `true` (세션·CSRF 쿠키 Secure. HttpOnly·SameSite=Lax 는 기본) |
-| `TRUSTED_PROXIES` | 백엔드 | 프런트 서버 주소만 (Tomcat internal-proxies 정규식) |
-| `LOGIN_MAX_PER_ACCOUNT_IP`, `LOGIN_MAX_PER_IP`, `LOGIN_THROTTLE_WINDOW` | 백엔드 | 기본 5 / 50 / 15m |
-| `DEMO_TTL`, `DEMO_MAX_STARTS_PER_IP` | 백엔드 | 기본 30m / 10 |
-| `BACKEND_URL` | 프런트 빌드·시작 | 백엔드 내부 주소 |
-| `FRONT_TRUSTED_PROXIES` | 프런트 (`server.mjs`) | 앞단 LB 주소 (쉼표 구분). 비우면 전달 헤더를 믿지 않음 |
-| `PORT` | 프런트 | 프런트 서버 포트 |
-| `NEXT_PUBLIC_SESSION_POLL_MS` | 프런트 빌드 | 기본 5000 |
+2026-11-18 로컬 실측 (Apple M4 Pro, 백엔드 컨테이너 메모리 512MB 제한): 기동 3.2초, 데모 흐름 뒤 메모리 358MiB/512MiB, 토큰 없는 직접 호출 403·health 200, 백엔드 재시작(4초) 뒤 같은 쿠키로 세션 유지. Render Free 의 실제 기동 시간은 CPU 가 작아 이보다 길다 (배포 후 실측).
 
-배포 체크리스트:
+VM 대안 (월 약 $7~12, 예: Lightsail 1~2GB): 위 compose 앞에 Caddy 를 두면 Let's Encrypt HTTPS 가 붙지만 도메인(또는 sslip.io 같은 IP 기반 이름)이 필요하고, OS·백업을 직접 관리해야 한다.
 
-- [ ] 모바일 브라우저와 시크릿 창에서 공개 URL 첫 화면 → `데모 체험하기` → `대기 1번` → `샘플 참가자 취소` → `예약 확정` 까지 새로고침 없이 되는지
-- [ ] 개발자 도구에서 `JSESSIONID`·`XSRF-TOKEN` 쿠키가 `Secure` 이고 `JSESSIONID` 가 `HttpOnly`, `SameSite=Lax` 인지 (HTTP 로는 로그인이 유지되지 않아야 함)
-- [ ] 프록시 경유 IP 집계: 서로 다른 네트워크의 두 기기에서 같은 아이디로 6번 틀릴 때 한쪽만 429 인지, 위조 `X-Forwarded-For` 를 붙여도 한도가 그대로인지 (`curl -H 'X-Forwarded-For: 1.2.3.4' https://<도메인>/api/auth/login ...`)
-- [ ] 백엔드 직접 접근 차단: 외부에서 백엔드 포트(예: 8080)로 접속이 안 되는지, `TRUSTED_PROXIES` 가 프런트 주소만인지
-- [ ] `/actuator/health` 는 내부에서만 확인 (외부 노출 여부 결정)
+### 배포 후 검증 체크리스트
 
-남은 결정:
+- [ ] 모바일·시크릿 창: 첫 화면 → `데모 체험하기` → `대기 1번` → `샘플 참가자 취소` → 새로고침 없이 `예약 확정`
+- [ ] 다른 기기(다른 방문자)의 체험이 그대로인지
+- [ ] `JSESSIONID`·`XSRF-TOKEN` 이 Secure 이고 `JSESSIONID` 가 HttpOnly·SameSite=Lax 인지
+- [ ] 방문자 IP 집계: 서로 다른 네트워크 두 기기에서 같은 아이디로 6번 틀리면 한쪽만 429 (Vercel 주소 하나로 모이지 않는지), 위조 `X-Forwarded-For` 를 붙여도 한도가 그대로인지
+- [ ] 백엔드 직접 호출: `curl https://<render>.onrender.com/api/auth/csrf` → 403 `PROXY_REQUIRED`, `/actuator/health` → 200
+- [ ] 콜드 스타트: 15분 이상 쉰 뒤 첫 `데모 체험하기`가 1분 안에 끝나는지, "서버를 깨우는 중이에요" 안내가 보이는지
+- [ ] Vercel Hobby 에서 Route Handler `maxDuration` 90초가 허용되는지 (아니면 콜드 스타트 중 504)
 
-- 호스팅 방식 (VM 1대 + Caddy/nginx TLS, 컨테이너 PaaS 등)과 도메인, 비용
-- PostgreSQL 관리형 여부와 백업
-- 운영자 계정 만드는 방법 (지금은 local 프로필 시드뿐이라 운영 DB 에는 운영자가 없다)
-- 백엔드 여러 대로 늘릴 때 세션 공유 (지금은 서버 메모리 세션. 로그인·데모 시작 집계는 DB 라 이미 공유됨)
-
-개발 서버를 하나 더 띄우려면 빌드 폴더를 나눈다: `NEXT_DIST_DIR=.next-dev2 BACKEND_URL=... npm run dev -- -p 3300` (Next 16 은 같은 폴더의 두 번째 dev 서버를 거부한다).
+한계: 무료 백엔드는 절전 뒤 첫 요청이 약 1분 걸리고, 한 인스턴스라 재시작 중 짧게 끊길 수 있다. 무료 한도를 넘으면 서비스가 정지된다.
 
 ## 후속 작업
 
 | 작업 | 시점 | 메모 |
 |---|---|---|
 | 분산 로그인 시도 대응 | 공개 배포 전 검토 | 여러 IP 에서 한 계정을 나눠 대는 시도: 계정 단위 지연·추가 확인(CAPTCHA)·알림 |
-| HTTPS 배포 | 호스팅 결정 후 | 위 "배포" 설정·체크리스트대로 공개 URL 배포, 배포 후 동시 요청·p95·오류율 기록 |
+| HTTPS 배포 | 계정 생성 승인 후 | 위 "배포" 순서대로 Neon → Render → Vercel, 체크리스트 실측, 동시 요청·p95·오류율 기록 |
 | 실시간 푸시 | 필요 시 | 지금은 5초 폴링. 동시 접속이 커지면 SSE 등 서버 푸시와 부하 측정(p95, 오류율) 검토 |

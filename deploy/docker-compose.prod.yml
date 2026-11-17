@@ -27,20 +27,20 @@ services:
       DB_USERNAME: daumjari
       DB_PASSWORD: ${DB_PASSWORD}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
-      # 같은 compose 네트워크의 web 컨테이너만 신뢰 (도커 기본 브리지 대역)
-      TRUSTED_PROXIES: '172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+'
+      # web 의 /api 프록시만 백엔드를 쓸 수 있다 (ProxyTokenFilter)
+      PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:?PROXY_SHARED_SECRET 필요}
       BOOTSTRAP_OPERATOR_LOGIN_ID: ${BOOTSTRAP_OPERATOR_LOGIN_ID:-}
       BOOTSTRAP_OPERATOR_PASSWORD: ${BOOTSTRAP_OPERATOR_PASSWORD:-}
+    # Render Free 와 같은 메모리 한도로 확인
+    mem_limit: 512m
 
   web:
-    build:
-      context: ../frontend
-      args:
-        BACKEND_URL: http://api:8080
+    build: ../frontend
     depends_on:
       - api
     environment:
       BACKEND_URL: http://api:8080
+      PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET}
       FRONT_TRUSTED_PROXIES: ${FRONT_TRUSTED_PROXIES:-}
     ports:
       - "${WEB_PORT:-3000}:3000"

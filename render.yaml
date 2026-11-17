@@ -1,0 +1,27 @@
+# Render Blueprint 초안 (백엔드만). 아직 생성하지 않음 — 무료 구성: 결제수단을 등록하지 않는다.
+# 프런트는 Vercel Hobby, DB 는 Neon Free (README "배포").
+services:
+  - type: web # Free 플랜에는 private service 가 없어 공개 주소가 생긴다. 직접 호출은 PROXY_SHARED_SECRET 으로 막는다
+    name: daumjari-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Neon pooled 연결: jdbc:postgresql://<host>/<db>?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Vercel 프로젝트와 같은 값 (32자 이상 무작위)
+      - key: PROXY_SHARED_SECRET
+        sync: false
+      # 운영자 일회성 생성용. 첫 배포 때만 넣고 생성 로그 확인 뒤 지운다
+      - key: BOOTSTRAP_OPERATOR_LOGIN_ID
+        sync: false
+      - key: BOOTSTRAP_OPERATOR_PASSWORD
+        sync: false

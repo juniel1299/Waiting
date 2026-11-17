@@ -15,10 +15,13 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [waking, setWaking] = useState(false);
 
   async function start() {
     setBusy(true);
     setError(null);
+    // 무료 서버가 잠들어 있으면 첫 요청이 1분 가까이 걸린다
+    const slow = setTimeout(() => setWaking(true), 3000);
     try {
       const { data } = await api<{ sessionId: number }>("/api/demo/start", { method: "POST" });
       router.push(`/sessions/${data.sessionId}`);
@@ -30,6 +33,9 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
         setError(errorMessage(e));
       }
       setBusy(false);
+    } finally {
+      clearTimeout(slow);
+      setWaking(false);
     }
   }
 
@@ -38,6 +44,7 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
       <button type="button" className={className} disabled={busy} onClick={start}>
         {label}
       </button>
+      {busy && waking && <p role="status">서버를 깨우는 중이에요. 최대 1분쯤 걸릴 수 있어요.</p>}
       {error && <p role="alert">{error}</p>}
     </>
   );
