@@ -287,11 +287,11 @@ Next rewrite 프록시는 XFF 를 붙이지 않고 클라이언트 값을 그대
 
 아직 배포하지 않았다 (계정 생성·결제수단 등록 없음). 아래는 무료 구성 기준 설정과 절차다.
 
-| 역할 | 서비스 | 무료 조건 (2026-11 기준, 가입 전 요금 페이지에서 다시 확인) |
+| 역할 | 서비스 | 무료 조건 (2026-11-18 공식 문서 확인) |
 |---|---|---|
-| 프런트 (공개 HTTPS 주소) | Vercel Hobby (`*.vercel.app`) | 개인·비상업 용도. `/api` 프록시는 Route Handler(Node)로 동작, `maxDuration` 90초 |
-| 백엔드 | Render Free web service (Docker, 512MB) | 15분 무요청 시 절전, 깨는 데 약 1분. 수시 재시작 가능. private service 없음 → 공개 주소 |
-| DB | Neon Free (PostgreSQL) | 1GB/프로젝트, 월 100 CU-시간, 5분 무활동 시 절전, 초과 시 과금 없이 정지 |
+| 프런트 (공개 HTTPS 주소) | Vercel Hobby (`*.vercel.app`) | 무료·결제 주기 없음. 월 Fast Data Transfer 100GB, Function 호출 100만, Active CPU 4시간. 초과 시 과금 없이 30일 사용 중지. Function 최대 300초 (`/api` Route Handler `maxDuration` 90초). 절전 없음 |
+| 백엔드 | Render Free web service (Docker) | 워크스페이스당 월 750 인스턴스 시간(1개 상시 실행 가능). 15분 무요청 시 절전, 깨는 데 약 1분. private service 없음 → 공개 주소. 트래픽·빌드 한도 수치는 대시보드에서 확인. 초과 시 결제수단이 없으면 그달 정지, 있으면 추가 과금 |
+| DB | Neon Free (PostgreSQL) | $0, 만료·비활성 삭제 없음. 프로젝트당 저장 1GB, 월 100 CU-시간, 전송 5GB. 5분 무활동 시 절전(끌 수 없음). 복원 이력 6시간. CU·전송 초과 시 다음 달까지 정지, 저장 초과 시 쓰기 실패 (과금 없음, 데이터 유지) |
 
 Render Free Postgres 는 30일 뒤 만료되어 쓰지 않는다. Render 에는 결제수단을 등록하지 않는다 (등록하면 한도 초과분이 과금되고, 미등록이면 정지만 된다).
 
