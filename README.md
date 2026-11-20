@@ -308,7 +308,7 @@ Render Free Postgres 는 30일 뒤 만료되어 쓰지 않는다. Render 에는 
 | 위치 | 변수 | 값 |
 |---|---|---|
 | Render | `SPRING_PROFILES_ACTIVE` | `prod` (Dockerfile 기본값) |
-| Render | `DB_URL` | Neon pooled 연결 JDBC URL, `?sslmode=require` |
+| Render | `DB_URL` | Neon direct(비 pooled) 연결 JDBC URL, `?sslmode=require` |
 | Render | `DB_USERNAME`, `DB_PASSWORD` | Neon 역할 |
 | Render | `PROXY_SHARED_SECRET` | 32자 이상 무작위, Vercel 과 같은 값 |
 | Render | `BOOTSTRAP_OPERATOR_LOGIN_ID`, `BOOTSTRAP_OPERATOR_PASSWORD` | 첫 배포 때만 (아래 운영자 계정) |
@@ -319,7 +319,7 @@ Render Free Postgres 는 30일 뒤 만료되어 쓰지 않는다. Render 에는 
 
 ### 배포 순서
 
-1. Neon: 프로젝트 생성(PostgreSQL 16), pooled 연결 문자열 확인.
+1. Neon: 프로젝트 생성 — PostgreSQL 16, 리전 AWS Asia Pacific (Singapore), Neon Auth 끔. Connect 에서 Connection pooling 을 끈 direct 연결 문자열을 쓴다 (Flyway 마이그레이션·Hikari 풀이 PgBouncer 를 거치지 않게, 풀은 최대 5개라 연결 수 여유 충분). Render·Vercel Function 리전도 Singapore 로 맞춘다.
 2. Render: 저장소 연결 → `render.yaml` Blueprint (또는 `backend` 디렉터리 Docker web service, plan free, health check `/actuator/health`) → 위 환경변수. 첫 기동 때 Flyway 가 V1~V6 을 적용한다. 마이그레이션이 실패하면 앱이 뜨지 않고 이전 배포가 계속 서비스된다.
 3. Vercel: 저장소 import, Root Directory `frontend`, 프레임워크 Next.js → 환경변수 → 배포. 기본 주소 `https://<프로젝트>.vercel.app` 이 포트폴리오 링크.
 
