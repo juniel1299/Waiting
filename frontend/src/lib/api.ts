@@ -69,7 +69,8 @@ const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 // 무료 백엔드는 잠들었다 깨는 데 1~2분이 걸린다. 그동안 프록시·플랫폼은 502/503/504 를 돌려준다.
 const WAKING_STATUS = new Set([502, 503, 504]);
-const WAKE_MAX_WAIT_MS = 180_000;
+// 2026-11-20 실측: 절전 뒤 사용 가능까지 약 2분 52초 → 여유를 두고 5분
+const WAKE_MAX_WAIT_MS = 300_000;
 const WAKE_RETRY_DELAY_MS = 5_000;
 const WAKE_RETRY_DELAY_MAX_MS = 30_000;
 /** 이보다 오래 걸리는 요청도 깨는 중으로 보고 안내한다 */
