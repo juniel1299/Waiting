@@ -2,25 +2,30 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { DemoStartButton } from "@/components/DemoStartButton";
-import { api, ApiError, type Me } from "@/lib/api";
+import { api, type Me } from "@/lib/api";
 
-/** 로그인한 사용자는 역할별 첫 화면으로, 아니면 소개와 데모 체험·로그인 입구를 보여준다. */
+/**
+ * 소개와 데모 체험·로그인 입구를 바로 보여준다. 서버가 깨는 중이어도 로그인 확인을 기다리지 않고,
+ * 확인 응답이 로그인 상태면 그때 역할별 첫 화면으로 보낸다.
+ */
 export default function Home() {
   const router = useRouter();
-  const [anonymous, setAnonymous] = useState(false);
 
   useEffect(() => {
+    let active = true;
     api<Me>("/api/auth/me")
-      .then(({ data }) => router.replace(data.role === "OPERATOR" ? "/operator" : "/sessions"))
-      .catch((e: unknown) => setAnonymous(e instanceof ApiError && e.status === 401));
+      .then(({ data }) => active && router.replace(data.role === "OPERATOR" ? "/operator" : "/sessions"))
+      .catch(() => {
+        // 로그인 전(401)이거나 서버 오류: 입구를 그대로 둔다
+      });
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  if (!anonymous) {
-    return <main className="container">불러오는 중…</main>;
-  }
   return (
     <main className="container narrow">
       <h1>다음자리</h1>
