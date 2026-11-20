@@ -58,7 +58,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
-    /** 429 의 Retry-After(초). */
+    /** 429·503 의 Retry-After(초). */
     readonly retryAfterSeconds?: number,
   ) {
     super(message);
@@ -66,6 +66,71 @@ export class ApiError extends Error {
 }
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+// 무료 백엔드는 잠들었다 깨는 데 1~2분이 걸린다. 그동안 프록시·플랫폼은 502/503/504 를 돌려준다.
+const WAKING_STATUS = new Set([502, 503, 504]);
+const WAKE_MAX_WAIT_MS = 180_000;
+const WAKE_RETRY_DELAY_MS = 5_000;
+const WAKE_RETRY_DELAY_MAX_MS = 30_000;
+/** 이보다 오래 걸리는 요청도 깨는 중으로 보고 안내한다 */
+const WAKE_HINT_MS = 3_000;
+
+let wakingRequests = 0;
+const wakingListeners = new Set<() => void>();
+
+function changeWaking(delta: number) {
+  wakingRequests += delta;
+  wakingListeners.forEach((listener) => listener());
+}
+
+/** "서버를 깨우는 중" 안내용 구독 (useSyncExternalStore). */
+export function subscribeServerWaking(listener: () => void): () => void {
+  wakingListeners.add(listener);
+  return () => wakingListeners.delete(listener);
+}
+
+export function isServerWaking(): boolean {
+  return wakingRequests > 0;
+}
+
+function retryDelayMs(res: Response | null): number {
+  const seconds = Number(res?.headers.get("Retry-After"));
+  return seconds > 0 ? Math.min(seconds * 1000, WAKE_RETRY_DELAY_MAX_MS) : WAKE_RETRY_DELAY_MS;
+}
+
+/**
+ * 백엔드가 깨는 중이면(502/503/504·연결 실패) 상한까지 간격을 두고 다시 보낸다. retry 가 false 면 한 번만 보낸다.
+ * 늦거나 다시 보내는 동안엔 깨우는 중 안내를 켠다.
+ */
+async function sendWhileWaking(send: () => Promise<Response>, retry: boolean): Promise<Response> {
+  const deadline = Date.now() + WAKE_MAX_WAIT_MS;
+  let waking = false;
+  const markWaking = () => {
+    if (!waking) {
+      waking = true;
+      changeWaking(1);
+    }
+  };
+  const hint = setTimeout(markWaking, WAKE_HINT_MS);
+  try {
+    for (;;) {
+      let res: Response | null = null;
+      try {
+        res = await send();
+      } catch (e) {
+        if (!retry || Date.now() >= deadline) throw e;
+      }
+      if (res && !(retry && WAKING_STATUS.has(res.status) && Date.now() < deadline)) {
+        return res;
+      }
+      markWaking();
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs(res)));
+    }
+  } finally {
+    clearTimeout(hint);
+    if (waking) changeWaking(-1);
+  }
+}
 
 function readCookie(name: string): string | null {
   const prefix = `${name}=`;
@@ -79,7 +144,7 @@ async function xsrfToken(): Promise<string> {
   if (cached) {
     return cached;
   }
-  const res = await fetch("/api/auth/csrf", { cache: "no-store" });
+  const res = await sendWhileWaking(() => fetch("/api/auth/csrf", { cache: "no-store" }), true);
   if (!res.ok) {
     throw await toApiError(res);
   }
@@ -101,7 +166,14 @@ async function toApiError(res: Response): Promise<ApiError> {
   }
 }
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> {
+interface ApiInit {
+  method?: string;
+  body?: unknown;
+  /** 깨는 중이면 다시 보낼지. 조회는 기본으로 다시 보내고, 변경은 두 번 처리돼도 무해할 때만 켠다. */
+  retryWhileWaking?: boolean;
+}
+
+export async function api<T>(path: string, init: ApiInit = {}): Promise<ApiResult<T>> {
   const method = init.method ?? "GET";
   const headers: Record<string, string> = {};
   if (init.body !== undefined) {
@@ -110,12 +182,16 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   if (MUTATING.has(method)) {
     headers["X-XSRF-TOKEN"] = await xsrfToken();
   }
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    cache: "no-store",
-  });
+  const res = await sendWhileWaking(
+    () =>
+      fetch(path, {
+        method,
+        headers,
+        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+        cache: "no-store",
+      }),
+    init.retryWhileWaking ?? !MUTATING.has(method),
+  );
   if (!res.ok) {
     throw await toApiError(res);
   }
