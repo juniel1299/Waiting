@@ -321,7 +321,7 @@ Render Free Postgres 는 30일 뒤 만료되어 쓰지 않는다. Render 에는 
 
 1. Neon: 프로젝트 생성(Free, PostgreSQL 16, AWS Asia Pacific (Singapore)). Connect 화면에서 Connection pooling 을 끄고 직접 연결 문자열 확인 (Flyway 는 직접 연결 권장, 백엔드 풀 최대 5개라 연결 수 여유).
 2. Render: 저장소 연결 → `render.yaml` Blueprint (또는 `backend` 디렉터리 Docker web service, plan free, health check `/actuator/health`) → 위 환경변수. 첫 기동 때 Flyway 가 V1~V6 을 적용한다. 마이그레이션이 실패하면 앱이 뜨지 않고 이전 배포가 계속 서비스된다.
-3. Vercel: 저장소 import, Root Directory `frontend`, 프레임워크 Next.js → 환경변수 → 배포. 기본 주소 `https://<프로젝트>.vercel.app` 이 포트폴리오 링크.
+3. Vercel: (`/api` Function 은 `preferredRegion = "sin1"` 으로 Singapore 에서 실행) 저장소 import, Root Directory `frontend`, 프레임워크 Next.js → 환경변수 → 배포. 기본 주소 `https://<프로젝트>.vercel.app` 이 포트폴리오 링크.
 
 ### 운영자 계정 생성
 

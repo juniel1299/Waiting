@@ -8,6 +8,8 @@ const PROXY_TOKEN = process.env.PROXY_SHARED_SECRET ?? "";
 // 무료 백엔드는 잠들었다 깨는 데 약 1분이 걸린다
 const UPSTREAM_TIMEOUT_MS = 90_000;
 export const maxDuration = 90;
+// Vercel Function 을 백엔드(Render)·DB(Neon)와 같은 Singapore 에서 실행
+export const preferredRegion = "sin1";
 
 const FORWARDED_REQUEST_HEADERS = ["accept", "accept-language", "content-type", "cookie", "x-xsrf-token"];
 const DROPPED_RESPONSE_HEADERS = new Set([
