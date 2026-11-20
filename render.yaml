@@ -6,11 +6,12 @@ services:
     runtime: docker
     rootDir: backend
     plan: free
+    region: singapore # Neon 프로젝트(AWS Asia Pacific Singapore)와 같은 지역
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # Neon pooled 연결: jdbc:postgresql://<host>/<db>?sslmode=require
+      # Neon 직접 연결(Connection pooling 끔, Flyway 마이그레이션용): jdbc:postgresql://<host>/<db>?sslmode=require
       - key: DB_URL
         sync: false
       - key: DB_USERNAME
