@@ -5,9 +5,11 @@ const BACKEND_URL =
   process.env.BACKEND_URL ??
   (process.env.BACKEND_HOSTPORT ? `http://${process.env.BACKEND_HOSTPORT}` : "http://localhost:8080");
 const PROXY_TOKEN = process.env.PROXY_SHARED_SECRET ?? "";
-// 무료 백엔드는 잠들었다 깨는 데 약 1분이 걸린다
-const UPSTREAM_TIMEOUT_MS = 90_000;
+// 무료 백엔드는 잠들었다 깨는 데 1~2분이 걸린다. 함수 제한(maxDuration)에 걸려 플랫폼 504 가 나기 전에
+// 먼저 끊고 503 + Retry-After 로 답해, 브라우저가 "깨우는 중" 안내와 함께 다시 시도하게 한다.
 export const maxDuration = 90;
+const UPSTREAM_TIMEOUT_MS = Number(process.env.PROXY_UPSTREAM_TIMEOUT_MS ?? (maxDuration - 5) * 1000);
+const RETRY_AFTER_SECONDS = "5";
 
 const FORWARDED_REQUEST_HEADERS = ["accept", "accept-language", "content-type", "cookie", "x-xsrf-token"];
 const DROPPED_RESPONSE_HEADERS = new Set([
@@ -43,6 +45,7 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
   if (PROXY_TOKEN) headers.set("x-daumjari-proxy-token", PROXY_TOKEN);
 
   let upstream: Response;
+  let body: ArrayBuffer | null;
   try {
     upstream = await fetch(target, {
       method: request.method,
@@ -52,10 +55,11 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
       cache: "no-store",
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
+    body = upstream.status === 204 ? null : await upstream.arrayBuffer();
   } catch {
     return Response.json(
       { code: "BACKEND_UNAVAILABLE", message: "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요." },
-      { status: 503 },
+      { status: 503, headers: { "retry-after": RETRY_AFTER_SECONDS } },
     );
   }
 
@@ -66,7 +70,6 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
   for (const cookie of upstream.headers.getSetCookie()) {
     responseHeaders.append("set-cookie", cookie);
   }
-  const body = upstream.status === 204 ? null : await upstream.arrayBuffer();
   return new Response(body, { status: upstream.status, headers: responseHeaders });
 }
 
