@@ -10,7 +10,7 @@ export function ServerWakingNotice() {
   if (!waking) return null;
   return (
     <p role="status" className="container waking">
-      서버를 깨우는 중이에요. 무료 서버라 1~2분쯤 걸릴 수 있어요. 자동으로 다시 시도하고 있어요.
+      서버를 깨우는 중이에요. 무료 서버라 2~3분쯤 걸릴 수 있어요. 자동으로 다시 시도하고 있어요.
     </p>
   );
 }
