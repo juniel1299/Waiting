@@ -44,6 +44,13 @@ daumjari:
     max-per-account-ip: ${LOGIN_MAX_PER_ACCOUNT_IP:5}
     max-per-ip: ${LOGIN_MAX_PER_IP:50}
     window: ${LOGIN_THROTTLE_WINDOW:15m}
+  # 프런트 프록시 공유 비밀. 비어 있으면(로컬) 토큰 검사를 하지 않고 Tomcat 전달 헤더 규칙을 쓴다
+  proxy:
+    shared-secret: ${PROXY_SHARED_SECRET:}
+  # 운영자 계정 일회성 생성 (README "운영자 계정 생성"). 둘 다 비어 있으면 아무것도 하지 않는다
+  bootstrap-operator:
+    login-id: ${BOOTSTRAP_OPERATOR_LOGIN_ID:}
+    password: ${BOOTSTRAP_OPERATOR_PASSWORD:}
   # 가입 없는 데모 체험 (README "공개 데모")
   demo:
     ttl: ${DEMO_TTL:30m}

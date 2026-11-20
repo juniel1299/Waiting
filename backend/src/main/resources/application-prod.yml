@@ -1,0 +1,26 @@
+# 공개 배포용 (SPRING_PROFILES_ACTIVE=prod). local 시드는 들어가지 않는다 (LocalSeedData 는 local 프로필 전용).
+spring:
+  datasource:
+    # Neon 등은 전체 JDBC URL (예: jdbc:postgresql://<host>/<db>?sslmode=require). 없으면 호스트·포트·이름으로 조합
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:daumjari}}
+    hikari:
+      # 무료 DB 절전·사용 시간 절약: 쉬는 커넥션을 남기지 않는다
+      minimum-idle: 0
+      maximum-pool-size: 5
+      idle-timeout: 60000 # ms
+      max-lifetime: 300000 # ms
+
+server:
+  port: ${PORT:8080}
+  # 앞단 전달 헤더는 쓰지 않는다. 클라이언트 IP 는 프록시 토큰이 맞을 때만 X-Daumjari-Client-IP (ProxyTokenFilter)
+  forward-headers-strategy: none
+  servlet:
+    session:
+      cookie:
+        # HTTPS 진입점 뒤에서만 쓰므로 기본 Secure (세션 쿠키는 ProdSessionConfig, CSRF 쿠키는 SecurityConfig 가 이 값을 쓴다)
+        secure: ${SESSION_COOKIE_SECURE:true}
+
+daumjari:
+  proxy:
+    # 공개 주소의 백엔드는 프런트 프록시만 쓸 수 있다. 없으면 기동 실패
+    shared-secret: ${PROXY_SHARED_SECRET}

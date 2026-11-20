@@ -24,6 +24,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	// prod 프로필에서만 쓰는 JDBC 세션 저장소 (ProdSessionConfig). Boot 자동 설정 없이 라이브러리만 둔다
+	implementation("org.springframework.session:spring-session-jdbc")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
