@@ -267,6 +267,16 @@ input:focus-visible {
   font-size: 0.9rem;
 }
 
+@media (max-width: 480px) {
+  .flow {
+    flex-direction: column;
+  }
+
+  .flow li {
+    flex-basis: auto;
+  }
+}
+
 .tour-video {
   width: 100%;
   max-width: 360px;
