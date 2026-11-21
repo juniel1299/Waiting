@@ -51,7 +51,7 @@
 ### 실행 환경
 
 - **로컬 부하:** Apple M4 Pro(12코어, 24GB), macOS 27.2, JDK 17.0.13(Zulu), Spring Boot 4.1.2 local 프로필, Hikari 기본 풀 10, PostgreSQL 16.16(docker 27.3.1, Docker Desktop 12 CPU·8GB), Node 23.7.0. 부하 발생기·서버·DB 가 한 기기에 있다.
-- **공개 배포:** Vercel Hobby(Function 리전 sin1) → Render Free(Singapore, 0.1 CPU·512MB) → Neon Free(Singapore). 측정은 서울의 Mac 에서 했다.
+- **공개 배포:** Vercel Hobby(Function 리전 sin1) → Render Free(Singapore) → Neon Free(Singapore). 측정은 서울의 Mac 에서 했다.
 
 ## 기술 설명: 문제 → 방식 → 확인한 테스트
 
