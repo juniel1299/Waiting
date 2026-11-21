@@ -10,7 +10,7 @@
 | 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
 | 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [마지막 자리·취소/승격](loadtest/results/2026-11-21-local.md) · [정원 증설](loadtest/results/2026-11-21-local-capacity.md) (로컬) |
-| 직무별 포트폴리오 | [프런트엔드](docs/portfolio/frontend.md) · [백엔드](docs/portfolio/backend.md) · [풀스택](docs/portfolio/fullstack.md) |
+| 직무별 포트폴리오 | [프런트엔드](docs/portfolio/frontend.md) · [백엔드](docs/portfolio/backend.md) · [풀스택](docs/portfolio/fullstack.md) · [면접 답변 초안](docs/portfolio/interview.md) |
 | 미검증·확인 대기 | [미검증 항목](#미검증확인-대기-항목) |
 | 공개 배포 검증 | [공개 배포 검증 (2026-11-21)](#공개-배포-검증-2026-11-21) |
 
