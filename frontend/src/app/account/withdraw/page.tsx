@@ -25,6 +25,10 @@ function summarize(reservations: Reservation[], now: number): Summary {
   };
 }
 
+function count(n: number | undefined): string {
+  return n === undefined ? "" : `(지금 ${n}건)`;
+}
+
 /** 탈퇴 확인 화면: 계정·신청 정보 처리 방식을 설명하고 비밀번호를 다시 받는다. 처리 규칙은 서버(WithdrawalService)가 정한다. */
 function Withdraw({ me }: { me: Me }) {
   const router = useRouter();
@@ -88,13 +92,12 @@ function Withdraw({ me }: { me: Me }) {
             다시 가입할 수 있지만 지금 기록과는 연결되지 않아요.
           </li>
           <li>
-            {summary ? `시작 전 확정 예약 ${summary.upcomingConfirmed}건은` : "시작 전 확정 예약은"} 취소되고, 대기 중인
-            다음 분이 자동으로 확정돼요.
+            시작 전 확정 예약{count(summary?.upcomingConfirmed)}은 취소되고, 대기 중인 다음 분이 자동으로 확정돼요.
           </li>
-          <li>{summary ? `대기 신청 ${summary.waiting}건은` : "대기 신청은"} 모두 취소돼요.</li>
+          <li>대기 신청{count(summary?.waiting)}은 모두 취소돼요.</li>
           <li>
-            {summary ? `이미 시작된 회차의 참가 기록 ${summary.startedConfirmed}건은` : "이미 시작된 회차의 참가 기록은"}{" "}
-            운영 기록으로 남고 &lsquo;탈퇴한 회원&rsquo;으로 표시돼요.
+            이미 시작된 회차의 참가 기록{count(summary?.startedConfirmed)}은 운영 기록으로 남고 &lsquo;탈퇴한
+            회원&rsquo;으로 표시돼요.
           </li>
           <li>다른 기기에서 로그인한 상태도 모두 끊겨요. 탈퇴는 되돌릴 수 없어요.</li>
         </ul>

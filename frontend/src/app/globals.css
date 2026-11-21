@@ -140,6 +140,9 @@ button {
 }
 
 button {
+  /* 모바일 탭 강조가 눌린 모양처럼 남지 않게 한다. 키보드 포커스는 아래 :focus-visible 링으로 보인다 */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   cursor: pointer;
   background: var(--accent);
   border-color: var(--accent);
@@ -232,6 +235,12 @@ input:focus-visible {
 
 [role="status"] {
   color: var(--ok);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .field-error {

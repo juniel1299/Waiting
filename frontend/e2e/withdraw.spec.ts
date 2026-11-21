@@ -29,7 +29,7 @@ test("계정 메뉴 → 탈퇴 안내·비밀번호 재확인 → 탈퇴하면 �
   await loginInBrowser(page, loginId, PASSWORD);
   await page.getByRole("link", { name: "회원 탈퇴" }).click();
   await expect(page).toHaveURL(/\/account\/withdraw$/);
-  await expect(page.getByText("시작 전 확정 예약 1건")).toBeVisible();
+  await expect(page.getByText("시작 전 확정 예약(지금 1건)")).toBeVisible();
   await expect(page.getByText("대기 중인 다음 분이 자동으로 확정돼요")).toBeVisible();
   await expect(page.getByText("되돌릴 수 없어요")).toBeVisible();
 

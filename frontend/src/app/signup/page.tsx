@@ -85,26 +85,29 @@ export default function SignupPage() {
 
   function input(field: Field, label: string, value: string, onChange: (v: string) => void, extra: object) {
     const errorId = `${field}-error`;
+    // 안내는 label 밖에 둔다: 안에 두면 오류 문구가 칸 이름에 섞인다 (aria-describedby 로만 연결)
     return (
-      <label>
-        {label}
-        <input
-          ref={(el) => {
-            inputs.current[field] = el;
-          }}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-invalid={fieldErrors[field] ? true : undefined}
-          aria-describedby={fieldErrors[field] ? errorId : undefined}
-          required
-          {...extra}
-        />
+      <div className="field">
+        <label>
+          {label}
+            <input
+            ref={(el) => {
+              inputs.current[field] = el;
+            }}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            aria-invalid={fieldErrors[field] ? true : undefined}
+            aria-describedby={fieldErrors[field] ? errorId : undefined}
+            required
+            {...extra}
+          />
+        </label>
         {fieldErrors[field] && (
           <span id={errorId} className="field-error">
             {fieldErrors[field]}
           </span>
         )}
-      </label>
+      </div>
     );
   }
 

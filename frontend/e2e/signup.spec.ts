@@ -57,6 +57,10 @@ test("형식 오류·비밀번호 불일치는 보내기 전에 칸별로 안내
   await expect(page.getByText("8자 이상")).toBeVisible();
   await expect(page.getByText("비밀번호 확인이 일치하지 않아요")).toBeVisible();
   await expect(page.getByLabel("아이디")).toBeFocused();
+  // 오류 문구는 칸 이름이 아니라 설명으로 연결된다
+  await expect(page.getByRole("textbox", { name: "아이디", exact: true })).toHaveAccessibleDescription(
+    /영문 소문자·숫자·밑줄/,
+  );
   expect(requests).toBe(0);
 });
 
