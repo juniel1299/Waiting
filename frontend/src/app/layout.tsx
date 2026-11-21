@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ServerWakingNotice } from "@/components/ServerWakingNotice";
 
 import "./globals.css";
@@ -12,7 +13,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko">
       <body>
-        <ServerWakingNotice />
+        {/* 주소(usePathname)를 읽으므로 정적 렌더와 분리한다 */}
+        <Suspense fallback={null}>
+          <ServerWakingNotice />
+        </Suspense>
         {children}
       </body>
     </html>

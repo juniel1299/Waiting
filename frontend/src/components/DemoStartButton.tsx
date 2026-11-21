@@ -62,18 +62,22 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
       <button type="button" className={classes} aria-busy={busy} aria-disabled={busy} onClick={start}>
         {busy ? "체험 준비 중…" : failed ? "다시 시도하기" : label}
       </button>
-      {busy && (
+      {/* 준비 중·서버 깨우는 중·시간 초과(오류) 안내를 버튼 바로 아래 한 자리에서 바꿔 보여준다 */}
+      {error ? (
+        <p role="alert">{error}</p>
+      ) : busy || waking ? (
         <p role="status">
           {waking ? (
             <>
-              서버를 켜는 중이라 자동으로 다시 시도하고 있어요. 최대 5분쯤 걸릴 수 있어요. <TourLink />
+              서버를 깨우는 중이에요. 자동으로 다시 시도하고 있어요 (최대 5분). <TourLink />
             </>
           ) : (
             "체험을 준비하고 있어요."
           )}
         </p>
+      ) : (
+        <p className="meta">무료 서버라 한동안 접속이 없었다면 첫 시작에 1~3분 걸릴 수 있어요.</p>
       )}
-      {error && <p role="alert">{error}</p>}
     </>
   );
 }

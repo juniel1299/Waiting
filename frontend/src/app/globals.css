@@ -238,7 +238,23 @@ input:focus-visible {
 }
 
 /* 첫 화면 3단계 흐름: 넓으면 가로, 좁으면 세로 */
+.home {
+  max-width: 560px;
+}
+
+.demo-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-links {
+  color: var(--muted);
+}
+
+/* 짧은 한국어 단어가 중간에서 끊기지 않게 (어절 단위 줄바꿈) */
 .flow {
+  word-break: keep-all;
   list-style: none;
   counter-reset: step;
   display: flex;
@@ -257,6 +273,10 @@ input:focus-visible {
   border-radius: 8px;
 }
 
+.flow li strong {
+  white-space: nowrap;
+}
+
 .flow li strong::before {
   content: counter(step) ". ";
   color: var(--accent);
@@ -267,7 +287,7 @@ input:focus-visible {
   font-size: 0.9rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 599px) {
   .flow {
     flex-direction: column;
   }
