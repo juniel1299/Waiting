@@ -542,7 +542,40 @@ VM 대안 (월 약 $7~12, 예: Lightsail 1~2GB): 위 compose 앞에 Caddy 를 �
 
 스크린샷: `docs/screenshots/public-detail-return-1-my-confirmed-mobile.png` (내 신청 확정), `public-detail-return-2-checking-mobile.png` (복귀 직후 확인 중), `public-detail-return-3-confirmed-mobile.png` (확정).
 
-남은 항목: 일반 가입 계정으로 공개 내 신청 확인은 운영 환경 비밀번호 로그인이 필요해, 사용자가 [`loadtest/public-my-reservations-check.mjs`](loadtest/public-my-reservations-check.mjs) 를 실행하기를 기다린다. 실제 iPhone Safari·공개 운영자 화면도 확인 대기.
+남은 항목: 일반 가입 계정으로 공개 내 신청 확인은 운영 환경 비밀번호 로그인이 필요해, 사용자가 [`loadtest/public-my-reservations-check.mjs`](loadtest/public-my-reservations-check.mjs) 를 실행하기를 기다린다 (로컬 리허설은 아래 소절에서 통과). 실제 iPhone Safari·공개 운영자 화면도 확인 대기.
+
+#### 일반 가입 계정 '내 신청' 점검: 로컬 리허설 완료, 공개 실행은 사용자 대기 (2026-11-21 21:57 UTC)
+
+스크립트 [`loadtest/public-my-reservations-check.mjs`](loadtest/public-my-reservations-check.mjs) `[회차id]`:
+
+- **인자:** 점검할 회차의 id (기본 20 = 사용자가 운영자 화면에서 만든 정원 1 공개 회차).
+- **회차에 가하는 변경:** B 가 예약 → A 가 대기 → B 취소로 A 승격 → A·B 탈퇴(A 의 확정도 취소). 회차의 확정·대기 수는 시작 전으로 돌아오고, 취소된 신청 2건이 '탈퇴한 회원' 기록으로 남는다.
+- **계정:** `qa_a…`·`qa_b…`·확인용 `qa_c…` 3개 가입(IP 15분 5회 한도 안) → 모두 탈퇴. 비밀번호는 실행 중에만 무작위로 만들고 출력·저장하지 않는다.
+- **안전장치:** 시작 전 회차가 "모집 중·남은 자리 1·대기 0" 이 아니면 신청 전에 멈춘다. 오류가 나도 `finally` 에서 A·B 탈퇴, C 로 회차 상태 확인 뒤 C 탈퇴.
+
+로컬 리허설 (로컬 프런트 3100·백엔드 18080·PostgreSQL 16, 정원 1 새 회차 503, `BASE_URL=http://localhost:3100`) 실제 출력:
+
+```
+21:57:02 가입·로그인 A 201/200 B 201/200
+21:57:02 회차 503 시작 전 (참가자 화면 값): OPEN 확정 0/1 대기 0
+21:57:02 B 예약 201 CONFIRMED, A 대기 201 WAITING 1번
+21:57:02 A 내 신청: [[871,"공개 점검 리허설","로컬 리허설룸","WAITING",1]]
+21:57:02 B 내 신청: [[870,"공개 점검 리허설","로컬 리허설룸","CONFIRMED",null]]
+21:57:02 A 목록에 B 신청 없음: true | B 목록에 A 신청 없음: true
+21:57:02 B 취소 뒤 A 내 신청: [[871,"CONFIRMED"]]
+21:57:02 정리: A 탈퇴 204 B 탈퇴 204
+21:57:02 확인용 C 가입·로그인 201/200
+21:57:02 회차 503 정리 뒤 (참가자 화면 값): OPEN 확정 0/1 대기 0
+21:57:02 C 탈퇴 204
+```
+
+결과: 일반 계정의 예약(B: 예약 확정)·대기(A: 대기 1번, 장소 포함)가 각자의 내 신청에 보이고, 서로의 신청은 보이지 않았다. 승격 뒤 A 는 예약 확정. 정리 뒤 회차는 시작 전과 같은 확정 0/1·대기 0, DB 에는 취소된 신청 2건만 남고 활성 테스트 계정은 0개.
+
+공개 실행을 Claude 가 하지 않은 이유: 이 점검은 공개 운영 주소에 비밀번호로 로그인한다. Claude 의 안전 규칙은 운영 환경에서 비밀번호로 인증하는 일을 사용자가 요청해도 하지 않으며, 로컬이나 이름에 staging·preview 같은 테스트 표시가 있는 주소에서만 허용한다. 회차 20 의 적합성 확인(회차 조회)도 로그인이 필요해 같은 이유로 하지 않았다 (스크립트가 신청 전에 직접 확인하고, 맞지 않으면 멈춘다). 사용자가 실행할 명령:
+
+```bash
+cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-my-reservations-check.mjs 20
+```
 
 ## 미검증·확인 대기 항목
 
