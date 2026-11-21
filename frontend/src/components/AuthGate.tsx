@@ -71,6 +71,7 @@ function Header({ me }: { me: Me }) {
       </Link>
       <nav className="nav">
         <Link href="/sessions">회차 목록</Link>
+        {me.role === "PARTICIPANT" && <Link href="/me/reservations">내 신청</Link>}
         {me.role === "OPERATOR" && <Link href="/operator">회차 관리</Link>}
       </nav>
       <span className="who">{me.displayName} 님</span>

@@ -210,6 +210,11 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.badge.confirmed {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
 .badge {
   display: inline-block;
   font-size: 0.85rem;

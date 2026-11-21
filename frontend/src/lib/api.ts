@@ -34,6 +34,7 @@ export interface Reservation {
   sessionId: number;
   sessionTitle: string;
   startsAt: string;
+  location: string;
   status: ReservationStatus;
   waitingPosition: number | null;
   createdAt: string;
