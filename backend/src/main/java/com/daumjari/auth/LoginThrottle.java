@@ -61,8 +61,17 @@ public class LoginThrottle {
 
 	/** 데모 체험 시작 남용 제한: 같은 클라이언트 IP 로 로그인 제한과 같은 창 안에 max 회까지. */
 	public void countDemoStart(String clientIp, int max) {
+		countPerIp("demo-start:", clientIp, max);
+	}
+
+	/** 회원가입 시도 남용 제한: 성공·실패와 무관하게 같은 클라이언트 IP 로 같은 창 안에 max 회까지. */
+	public void countSignup(String clientIp, int max) {
+		countPerIp("signup:", clientIp, max);
+	}
+
+	private void countPerIp(String purpose, String clientIp, int max) {
 		Instant now = Instant.now(clock);
-		long retryAfter = retryAfterSeconds(count(sha256("demo-start:" + clientIp), now), max, now);
+		long retryAfter = retryAfterSeconds(count(sha256(purpose + clientIp), now), max, now);
 		if (retryAfter > 0) {
 			throw new LoginThrottledException(retryAfter);
 		}

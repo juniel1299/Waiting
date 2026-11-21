@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
+	LOGIN_ID_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
 	SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "회차를 찾을 수 없습니다."),
 	SESSION_FULL(HttpStatus.CONFLICT, "정원이 마감되었습니다."),
 	SESSION_STARTED(HttpStatus.CONFLICT, "이미 시작된 회차는 예약하거나 취소할 수 없습니다."),

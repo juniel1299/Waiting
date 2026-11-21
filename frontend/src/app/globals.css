@@ -222,6 +222,15 @@ input:focus-visible {
   color: var(--ok);
 }
 
+.field-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
 [role="alert"] {
   color: var(--danger);
 }

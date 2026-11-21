@@ -30,6 +30,17 @@ public class ApiExceptionHandler {
 					e.retryAfterSeconds()));
 	}
 
+	/** 입력 칸별 오류. fields 는 칸 이름 → 표시용 안내. */
+	@ExceptionHandler(FieldValidationException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	ValidationError fieldValidation(FieldValidationException e) {
+		return new ValidationError(ErrorCode.VALIDATION_FAILED.name(), ErrorCode.VALIDATION_FAILED.message(),
+				e.fields());
+	}
+
+	public record ValidationError(String code, String message, java.util.Map<String, String> fields) {
+	}
+
 	public record ThrottledError(String code, String message, long retryAfterSeconds) {
 	}
 

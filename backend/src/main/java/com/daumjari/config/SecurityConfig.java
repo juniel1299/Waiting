@@ -50,7 +50,7 @@ public class SecurityConfig {
 				.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-				.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/demo/start").permitAll()
 				.requestMatchers("/api/operator/**").hasRole("OPERATOR")
 				.requestMatchers("/api/sessions/*/reservations", "/api/sessions/*/waitlist", "/api/reservations/**", "/api/me/reservations",

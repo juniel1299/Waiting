@@ -60,6 +60,8 @@ export class ApiError extends Error {
     message: string,
     /** 429·503 의 Retry-After(초). */
     readonly retryAfterSeconds?: number,
+    /** 400 VALIDATION_FAILED 의 칸별 안내 (칸 이름 → 문구). */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
   }
@@ -155,13 +157,14 @@ async function xsrfToken(): Promise<string> {
 
 async function toApiError(res: Response): Promise<ApiError> {
   try {
-    const body = (await res.json()) as { code?: string; message?: string };
+    const body = (await res.json()) as { code?: string; message?: string; fields?: Record<string, string> };
     const retryAfter = Number(res.headers.get("Retry-After"));
     return new ApiError(
       res.status,
       body.code ?? "UNKNOWN",
       body.message ?? "요청을 처리하지 못했어요.",
       retryAfter > 0 ? retryAfter : undefined,
+      body.fields,
     );
   } catch {
     return new ApiError(res.status, "UNKNOWN", "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
