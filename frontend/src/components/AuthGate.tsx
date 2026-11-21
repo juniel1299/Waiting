@@ -74,6 +74,11 @@ function Header({ me }: { me: Me }) {
         {me.role === "OPERATOR" && <Link href="/operator">회차 관리</Link>}
       </nav>
       <span className="who">{me.displayName} 님</span>
+      {me.role === "PARTICIPANT" && !me.demo && (
+        <Link href="/account/withdraw" className="link">
+          회원 탈퇴
+        </Link>
+      )}
       <button type="button" className="secondary" onClick={logout}>
         로그아웃
       </button>

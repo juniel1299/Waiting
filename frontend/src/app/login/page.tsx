@@ -26,10 +26,12 @@ export default function LoginPage() {
   );
 }
 
-/** 가입 직후엔 ?signedUp=<아이디> 로 와서 안내와 함께 아이디를 채워 둔다. */
+/** 가입 직후엔 ?signedUp=<아이디> 로 와서 안내와 함께 아이디를 채워 둔다. 탈퇴 직후엔 ?withdrawn=1. */
 function LoginForm() {
   const router = useRouter();
-  const signedUp = useSearchParams().get("signedUp");
+  const params = useSearchParams();
+  const signedUp = params.get("signedUp");
+  const withdrawn = params.get("withdrawn") === "1";
   const [loginId, setLoginId] = useState(signedUp ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,7 @@ function LoginForm() {
   return (
     <>
       {signedUp && <p role="status">가입이 완료됐어요. 로그인해 주세요.</p>}
+      {withdrawn && <p role="status">탈퇴가 완료됐어요. 그동안 이용해 주셔서 고마워요.</p>}
       <form onSubmit={submit} className="form">
         <label>
           아이디

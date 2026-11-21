@@ -6,6 +6,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import com.daumjari.account.AccountRepository;
+import com.daumjari.auth.WithdrawnAccountFilter;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,8 +43,10 @@ public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, CsrfTokenRepository csrfTokenRepository,
-			SecurityContextRepository securityContextRepository) throws Exception {
+			SecurityContextRepository securityContextRepository, AccountRepository accounts) throws Exception {
 		http
+			// 탈퇴한 계정의 남은 세션은 권한 판단 전에 인증을 비워 401 로 끝낸다
+			.addFilterBefore(new WithdrawnAccountFilter(accounts), AuthorizationFilter.class)
 			.csrf(csrf -> csrf
 				.csrfTokenRepository(csrfTokenRepository)
 				.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))

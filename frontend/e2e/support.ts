@@ -9,12 +9,25 @@ const baseURL = `http://localhost:${process.env.E2E_PORT ?? 3000}`;
 export class ApiActor {
   private constructor(private readonly ctx: APIRequestContext) {}
 
-  static async login(loginId: string): Promise<ApiActor> {
+  static async login(loginId: string, password = SEED_PASSWORD): Promise<ApiActor> {
     const ctx = await request.newContext({ baseURL });
     const actor = new ApiActor(ctx);
-    const res = await actor.post("/api/auth/login", { loginId, password: SEED_PASSWORD });
+    const res = await actor.post("/api/auth/login", { loginId, password });
     expect(res.status(), `${loginId} 로그인`).toBe(200);
     return actor;
+  }
+
+  /** 새 참가자를 가입시키고 그 계정으로 로그인한다. */
+  static async signup(loginId: string, password: string): Promise<ApiActor> {
+    const ctx = await request.newContext({ baseURL });
+    const res = await new ApiActor(ctx).post("/api/auth/signup", { loginId, password, passwordConfirm: password });
+    expect(res.status(), `${loginId} 가입: ${await res.text()}`).toBe(201);
+    await ctx.dispose();
+    return ApiActor.login(loginId, password);
+  }
+
+  async get(path: string) {
+    return this.ctx.get(path);
   }
 
   async post(path: string, data?: unknown) {
@@ -51,10 +64,10 @@ export class ApiActor {
   }
 }
 
-export async function loginInBrowser(page: Page, loginId: string) {
+export async function loginInBrowser(page: Page, loginId: string, password = SEED_PASSWORD) {
   await page.goto("/login");
   await page.getByLabel("아이디").fill(loginId);
-  await page.getByLabel("비밀번호").fill(SEED_PASSWORD);
+  await page.getByLabel("비밀번호").fill(password);
   await page.getByRole("button", { name: "로그인" }).click();
   await page.waitForURL((url) => url.pathname !== "/login");
 }
