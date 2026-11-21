@@ -151,6 +151,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | POST | `/api/auth/signup` | 불필요 | 본문 `{"loginId","password","passwordConfirm"}`, 201 `{id, loginId, role}`. 로그인은 하지 않는다 |
 | POST | `/api/auth/logout` | 필요 | 세션 무효화, 204 |
 | GET | `/api/auth/me` | 필요 | 현재 사용자 |
+| POST | `/api/me/withdraw` | PARTICIPANT (데모 제외) | 본문 `{"password"}`, 204. 탈퇴 후 이 세션은 끝난다 (아래 "회원탈퇴 정책") |
 | * | `/api/operator/**` | OPERATOR | 운영자 API (참가자는 403) |
 
 ### 회원가입 정책
@@ -161,6 +162,19 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 - **유일성:** DB `account.login_id` unique 가 보장한다. 사전 조회(대소문자 무시)는 안내용이고, 동시 가입으로 제약 위반이 나도 같은 `409 LOGIN_ID_TAKEN` 으로 답한다 (같은 아이디 8개 동시 가입 → 201 하나, 나머지 409).
 - **입력 오류:** `400 VALIDATION_FAILED` 와 칸별 안내 `fields` (`{"loginId": "...", "password": "...", "passwordConfirm": "..."}`). 화면도 같은 규칙으로 보내기 전에 검사한다.
 - **남용 방지:** 같은 클라이언트 IP 의 가입 시도(성공·실패 무관)를 로그인 제한과 같은 창(15분)에 5회까지 (`daumjari.signup.max-per-ip`, `SIGNUP_MAX_PER_IP`). 넘으면 `429 TOO_MANY_ATTEMPTS` + `Retry-After`.
+
+### 회원탈퇴 정책
+
+| 항목 | 처리 |
+|---|---|
+| 확인 | 비밀번호 재입력. 틀리면 `400 PASSWORD_MISMATCH`. 재확인 시도도 로그인 시도 제한(아이디+IP 15분 5회)에 함께 센다 (훔친 세션으로 비밀번호 대입 방지) |
+| 계정 행 | 지우지 않는다 (신청 FK·시작된 회차 기록). `login_id` → `deleted-{id}`, 이름 → `탈퇴한 회원`, 비밀번호 해시 → 매칭 불가 값, `deleted_at` 기록 (V7) |
+| 시작 전 회차 | 확정 예약 취소 → 기존 승격 로직으로 첫 대기자 확정. 대기 신청 취소 |
+| 시작된 회차 | 확정 기록은 참가 기록으로 남고 운영자 명단에 `탈퇴한 회원` 으로 보인다. 남은 대기는 취소 |
+| 같은 아이디 재가입 | 즉시 가능 (원래 아이디가 풀린다). 새 계정이라 예전 기록과 연결되지 않는다 |
+| 운영자·데모 계정 | `403 WITHDRAWAL_NOT_ALLOWED`. 운영자는 운영을 이어가야 하고, 데모 계정은 만료되면 통째로 정리된다. 화면에 메뉴도 없다 |
+| 로그인·세션 | 탈퇴한 계정은 로그인 불가. 탈퇴한 세션은 즉시 무효화하고, 같은 계정의 다른 기기 세션은 요청마다 계정 상태를 확인하는 필터가 무효화해 `401 UNAUTHENTICATED` (메모리·JDBC 세션 저장소 공통) |
+| 일관성 | 한 트랜잭션: 계정 행 `FOR UPDATE` → 활성 신청이 있는 회차를 id 순으로 `FOR UPDATE` → 정리 → 익명화. 중간 실패는 전부 롤백. 예약·대기는 계정 행을 `FOR SHARE` 로 먼저 잠가(잠금 순서 계정 → 회차) 탈퇴와 겹치면 탈퇴 뒤 `401` 이 된다. 탈퇴와 예약 동시 요청 20회 반복에서 탈퇴된 계정의 활성 신청 0건 |
 
 ## 회차 API
 
@@ -252,6 +266,8 @@ Next rewrite 프록시는 XFF 를 붙이지 않고 클라이언트 값을 그대
 |---|---|---|
 | 400 | `VALIDATION_FAILED` | 요청 형식·값 오류 (가입은 칸별 `fields` 포함) |
 | 409 | `LOGIN_ID_TAKEN` | 이미 사용 중인 아이디 (가입) |
+| 400 | `PASSWORD_MISMATCH` | 탈퇴 비밀번호 재확인 실패 |
+| 403 | `WITHDRAWAL_NOT_ALLOWED` | 운영자·데모 계정의 탈퇴 |
 | 401 | `UNAUTHENTICATED` | 로그인 필요 (세션 없음·만료) |
 | 401 | `INVALID_CREDENTIALS` | 아이디 또는 비밀번호 불일치 (계정 존재 여부는 구분하지 않음) |
 | 403 | `FORBIDDEN` | 권한 없음 (참가자의 운영자 API 접근 등) |
