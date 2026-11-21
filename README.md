@@ -272,7 +272,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 |---|---|---|
 | POST | `/api/sessions/{id}/reservations` | 예약. 새로 확정하면 201, 이미 활성 신청이 있으면 그 신청을 200 으로 반환 |
 | POST | `/api/reservations/{id}/cancel` | 본인 예약 취소. 이미 취소된 건이면 변경 없이 200 |
-| GET | `/api/me/reservations` | 내 신청 목록 (최근순, 취소 포함) |
+| GET | `/api/me/reservations` | 내 신청 목록 (최근순, 취소 포함). 세션 계정 기준이라 경로에 사용자 id 를 받지 않는다. 항목: 회차 id·제목·시작·장소, 상태, 대기 순번(대기일 때만). 데모 방문자는 자기 체험만, 체험 만료 뒤 410 |
 
 | POST | `/api/sessions/{id}/waitlist` | 마감 회차 대기 신청. 새로 대기하면 201, 이미 활성 신청(확정·대기)이 있으면 그 신청을 200. 빈자리가 있으면 409 `SEATS_AVAILABLE` |
 
