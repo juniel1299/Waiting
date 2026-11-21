@@ -29,12 +29,26 @@ export default function Home() {
   return (
     <main className="container narrow">
       <h1>다음자리</h1>
-      <p>정원이 있는 오프라인 개발 스터디의 회차 예약과 취소 대기 서비스예요.</p>
-      <p className="meta">
-        가입 없이 체험해 보세요. 마감된 샘플 회차에 대기를 걸고, 샘플 참가자가 취소하면 내 대기가 자동으로 확정되는
-        과정을 볼 수 있어요.
-      </p>
+      <p>정원이 찬 스터디도 놓치지 않게: 대기를 걸어 두면 취소로 빈자리가 생길 때 순서대로 자동 확정돼요.</p>
+      <ol className="flow" aria-label="체험 흐름">
+        <li>
+          <strong>대기 신청</strong>
+          <span>마감된 회차에 줄을 서요</span>
+        </li>
+        <li>
+          <strong>빈자리 발생</strong>
+          <span>확정자가 취소해요</span>
+        </li>
+        <li>
+          <strong>예약 확정</strong>
+          <span>첫 대기자가 자동으로, 새로고침 없이</span>
+        </li>
+      </ol>
+      <p className="meta">가입 없이 체험해 보세요. 나만의 샘플 회차로 이 흐름을 직접 눌러 볼 수 있어요.</p>
       <DemoStartButton />
+      <Link href="/tour" className="link">
+        1분 시연 보기 (영상·화면)
+      </Link>
       <Link href="/login" className="link">
         계정으로 로그인
       </Link>

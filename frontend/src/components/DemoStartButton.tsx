@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { TourLink } from "@/components/TourLink";
 import { api, ApiError, errorMessage, formatWait, isServerWaking, subscribeServerWaking } from "@/lib/api";
 
 interface DemoStartButtonProps {
@@ -63,7 +64,13 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
       </button>
       {busy && (
         <p role="status">
-          {waking ? "서버를 켜는 중이라 자동으로 다시 시도하고 있어요. 최대 5분쯤 걸릴 수 있어요." : "체험을 준비하고 있어요."}
+          {waking ? (
+            <>
+              서버를 켜는 중이라 자동으로 다시 시도하고 있어요. 최대 5분쯤 걸릴 수 있어요. <TourLink />
+            </>
+          ) : (
+            "체험을 준비하고 있어요."
+          )}
         </p>
       )}
       {error && <p role="alert">{error}</p>}
