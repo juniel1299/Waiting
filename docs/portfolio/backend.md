@@ -3,6 +3,23 @@
 > 정원이 있는 스터디 회차의 **예약·취소 대기**에서, 동시에 몰리는 요청에도 정원을 넘기지 않고 대기 순서대로 확정되게 만든 서비스.
 > 공개 데모: https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연: [/tour](https://waiting-mauve.vercel.app/tour)
 
+## 지원서용 요약
+
+**프로젝트 소개.** 다음자리는 정원이 있는 스터디 회차의 예약·취소 대기 서비스입니다. 백엔드에서는 마지막 자리에 요청이 몰려도 정원을 넘기지 않고, 취소나 정원 증설로 생긴 자리를 먼저 대기한 사람부터 확정하도록 잠금·트랜잭션·DB 제약을 설계했습니다. 공개 데모 https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연 [/tour](https://waiting-mauve.vercel.app/tour) (34초 영상 + 단계별 화면, 백엔드 없이 열림)
+
+**핵심 구현·검증 결과**
+
+1. **회차 행 잠금(`SELECT … FOR UPDATE`)**: 정원 1 회차에 동시 예약 10~400건을 보낸 모든 단계에서 확정 정확히 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0 (로컬 M4 Pro·PostgreSQL 16.16 docker). 근거: [`ReservationConcurrencyTests`](../../backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java), [결과](../../loadtest/results/2026-11-21-local.md)
+2. **취소·승격·정원 증설의 원자성**: 같은 트랜잭션·같은 회차 잠금에서 첫 대기자를 확정한다. 대기자 400명 상태의 혼합 요청(C2, 203건)에서 확정 = 대기 순번 1~6, 636 req/s, p95 288ms (로컬). 승격 실패 주입 시 취소까지 롤백. 근거: [`PromotionRollbackTests`](../../backend/src/test/java/com/daumjari/PromotionRollbackTests.java), [결과](../../loadtest/results/2026-11-21-local-capacity.md)
+3. **로그인 제한·프록시 신뢰**: 시도를 비밀번호 확인 전에 PostgreSQL upsert 로 원자적으로 세어, 동시 실패 10건 중 정확히 5건만 인증까지 간다. 프록시 공유 토큰이 맞을 때만 전달된 클라이언트 IP 를 믿어 위조 `X-Forwarded-For` 로 한도를 피할 수 없다. 근거: [`LoginThrottleConcurrencyTests`](../../backend/src/test/java/com/daumjari/LoginThrottleConcurrencyTests.java), [`ProxyTokenTests`](../../backend/src/test/java/com/daumjari/ProxyTokenTests.java)
+
+**[직접 작성]** 아래는 저장소 기록만으로 확인할 수 없어 비워 둔 항목이다.
+
+- 개발 기간: [직접 작성: 예) 2026.11 ~ 2026.11, 주 n시간] (참고: 저장소 커밋 기준 날짜 2026-11-15 ~ 2026-11-21)
+- 개인 담당 범위·팀 구성: [직접 작성: 예) 1인 개발 / 기획·설계·구현·배포 전부]
+- AI 활용 방식: [직접 작성: 예) 어떤 도구로 무엇을 맡겼고, 무엇을 직접 판단·검증했는지]
+- 지원 직무·회사에 맞춰 강조할 점: [직접 작성]
+
 ## 서비스 소개
 
 - **역할:** 참가자는 회차를 예약하고, 마감된 회차에는 대기를 건다. 확정자가 취소하거나 운영자가 정원을 늘리면 **먼저 대기한 사람부터** 자동 확정된다.
@@ -20,7 +37,7 @@
   - 같은 회차의 요청만 줄을 서고, 다른 회차끼리는 서로 막지 않는다.
   - 잠금 순서는 항상 회차 → 신청이라 교착을 만들지 않는다.
 - **확인:**
-  - [`ReservationConcurrencyTests`](../../backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java): 실제 포트·PostgreSQL, 마지막 1석 동시 예약을 30회 반복해 매번 정확히 1명 확정.
+  - [`ReservationConcurrencyTests`](../../backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java): 실제 포트·PostgreSQL 에서 두 계정이 마지막 1석에 동시에 예약하는 경합을 30회 반복해 매번 정확히 1명 확정.
   - 로컬 부하 시나리오 A: 정원 1 회차에 동시 10~400건 → 모든 단계 확정 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0. [결과](../../loadtest/results/2026-11-21-local.md)
 
 ### 2. 취소·승격의 원자성
@@ -98,18 +115,18 @@
 
 | 항목 | 결과 | 환경 · 근거 |
 |---|---|---|
-| 자동 테스트 | 백엔드 306개 통과 (2026-11-21) | JUnit + Testcontainers PostgreSQL |
-| 마지막 자리 (A) | N=400: 확정 1, 409 ×399, 오류 0, p95 429ms, 870 req/s | 로컬 · [결과](../../loadtest/results/2026-11-21-local.md) |
-| 취소·승격 (B) | N=400 대기 + 205건 혼합: 승격 = 대기 순번 1~5, p95 303ms | 로컬 · [결과](../../loadtest/results/2026-11-21-local.md) |
-| 정원 증설 (C) | N=400 대기 + 203건 혼합: 최종 정원 6, 승격 = 순번 1~6, p95 288ms, 축소 요청은 순서에 따라 200/409 | 로컬 · [결과](../../loadtest/results/2026-11-21-local-capacity.md) |
-| SQL 정합성 | 4종 0행 (A·B 실행 뒤, C 실행 뒤 각각) | [`checks.sql`](../../loadtest/checks.sql) |
+| 자동 테스트 | 백엔드 306개 통과, 실패·건너뜀 0 | JUnit + Testcontainers PostgreSQL. 직전 실행 결과: 2026-11-21 약 10:50 UTC, 로컬 Mac, 커밋 `548023aa` 기준. 그 뒤 커밋(`cfbf1830` 시연 영상 mp4, 문서)은 다시 돌리지 않음 |
+| 마지막 자리 (A) | 정원 1 회차에 동시 예약 400건: 확정 1, 409 ×399, 예상 못한 오류 0, 870 req/s, p95 429ms | 로컬(Apple M4 Pro, PostgreSQL 16.16 docker, 부하 발생기·서버·DB 같은 기기) · [결과](../../loadtest/results/2026-11-21-local.md) |
+| 취소·승격 (B) | 대기자 400명 상태의 혼합 요청(B2, 205건: 확정자 취소 5 + 신규 예약 100 + 신규 대기 100): 승격 = 대기 순번 1~5, 639 req/s, p95 303ms | 로컬(Apple M4 Pro, PostgreSQL 16.16 docker, 부하 발생기·서버·DB 같은 기기) · [결과](../../loadtest/results/2026-11-21-local.md) |
+| 정원 증설 (C) | 대기자 400명 상태의 혼합 요청(C2, 203건: 증설·축소·취소 각 1 + 신규 예약 100 + 신규 대기 100): 최종 정원 6, 승격 = 순번 1~6, 636 req/s, p95 288ms, 축소 요청은 처리 순서에 따라 200/409 | 로컬(Apple M4 Pro, PostgreSQL 16.16 docker, 부하 발생기·서버·DB 같은 기기) · [결과](../../loadtest/results/2026-11-21-local-capacity.md) |
+| SQL 정합성 | 4종 0행 (A·B 실행 뒤, C 실행 뒤 각각) | 로컬(Apple M4 Pro, PostgreSQL 16.16 docker, 부하 발생기·서버·DB 같은 기기) · [`checks.sql`](../../loadtest/checks.sql) |
 
 로컬 환경: Apple M4 Pro(12코어, 24GB), macOS 27.2, JDK 17.0.13, Spring Boot 4.1.2, Hikari 풀 10, PostgreSQL 16.16(docker), Node 23.7 부하 발생기. 부하 발생기·서버·DB 가 같은 기기라 절대 수치보다 "단계를 올려도 정합성이 유지되는지"가 요점이다.
 
 ## 한계와 개선 방향
 
 - **잠금 범위:** 회차 단위 잠금이라 한 회차에 요청이 아주 몰리면 그 회차 요청은 줄을 선다 (N=400 대기 p95 660~749ms). 인기 회차가 많아지면 대기열을 큐로 분리하는 방안을 검토할 수 있다.
-- **부하 측정 환경:** 같은 기기에서 돌렸고, 공개 무료 서버(0.1 CPU)에는 부하를 주지 않았다. 운영 수준 처리량은 측정하지 않았다.
+- **부하 측정 환경:** 같은 기기에서 돌렸고, 공개 무료 서버에는 부하를 주지 않았다. 운영 수준 처리량은 측정하지 않았다.
 - **시도 제한:** 고정 창이라 경계 앞뒤로 최대 2배까지 몰아 시도할 수 있고, 여러 IP 로 한 계정을 나눠 대는 분산 시도는 (아이디+IP) 키로 막지 못한다.
 - **변경 이력:** 상태 변경 이력을 남기지 않아 "직접 확정"과 "늦은 승격"을 사후에 구분할 수 없다. 이력 테이블이나 감사 로그가 다음 단계다.
 - **인스턴스:** 단일 인스턴스 배포다. 수평 확장 시에도 DB 잠금이라 정합성은 유지되지만 처리량은 검증하지 않았다.
