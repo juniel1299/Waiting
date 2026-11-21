@@ -13,6 +13,7 @@ Node 내장 `fetch`(undici) 스크립트 하나(`loadtest.mjs`). 이 저장소�
 docker compose up -d          # 저장소 루트
 loadtest/run.sh               # 기본 단계 10, 50, 100, 200, 400
 LEVELS=10,50 loadtest/run.sh  # 단계 지정
+SCENARIOS=C loadtest/run.sh   # 시나리오 지정 (A, B, C 중, 기본 전부)
 loadtest/run.sh --selftest    # checks.sql 이 위반을 잡는지 확인 (한 번 실행한 뒤)
 ```
 
@@ -23,7 +24,7 @@ loadtest/run.sh --selftest    # checks.sql 이 위반을 잡는지 확인 (한 �
 3. `loadtest.mjs`: 계정 605개를 가입·로그인해 두고, 단계마다 새 회차(SQL 로 생성)에 요청 N개를 한꺼번에 보낸다.
 4. `checks.sql` 로 DB 를 검사한다 (모두 0행이어야 정상). 끝나면 백엔드를 끈다.
 
-결과: `results/<실행시각>.json` (단계별 수치·응답 코드·승격 id), `results/checks-*.txt` (SQL 결과), 정리본 `results/2026-11-21-local.md`.
+결과: `results/<실행시각>.json` (단계별 수치·응답 코드·승격 id·대기 순서), `results/checks-*.txt` (SQL 결과), 정리본 [`results/2026-11-21-local.md`](results/2026-11-21-local.md) (A·B), [`results/2026-11-21-local-capacity.md`](results/2026-11-21-local-capacity.md) (C).
 
 ## 시나리오
 
@@ -32,6 +33,10 @@ loadtest/run.sh --selftest    # checks.sql 이 위반을 잡는지 확인 (한 �
 | A 마지막 자리 | 정원 1 회차에 N명 동시 예약 | 확정 정확히 1건(DB 대조), 나머지 `409 SESSION_FULL` |
 | B1 동시 대기 | 정원 5 마감 회차에 N명 동시 대기 | 모두 `201 WAITING` |
 | B2 취소·승격 혼합 | 확정자 5명 취소 + 신규 예약 N/4 + 신규 대기 N/4 동시 | 승격된 5건 = B1 에서 먼저 대기한 5건(id 순), 신규 예약 모두 `409 SESSION_FULL`, 남은 대기 수 일치 |
+| C1 동시 대기 | 정원 1 회차에 N명 동시 대기 | 모두 `201 WAITING`, 대기 순번 = id 순 1..N |
+| C2 증설·축소·취소 혼합 | 운영자 정원 1→6 증설 + 정원 →1 축소 + 확정자 취소 + 신규 예약 N/4 + 신규 대기 N/4 동시 | 최종 정원 6, 확정 = 대기 순번 1~6, 축소는 `200` 또는 `409 CAPACITY_BELOW_CONFIRMED`, 신규 예약 모두 409 |
+
+시나리오 C 의 운영자는 부하 전용 DB 에 참가자로 가입한 계정을 SQL 로 `OPERATOR` 로 바꿔 쓴다 (시드 비밀번호를 쓰지 않음).
 
 예상된 응답(위 코드)과 예상 못한 오류(5xx, 타임아웃 30초, 연결 오류, 그 밖의 코드)를 따로 센다.
 
