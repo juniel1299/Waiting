@@ -27,22 +27,43 @@ function MyReservations() {
   const [items, setItems] = useState<Reservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connectionLost, setConnectionLost] = useState(false);
+  // 숨겨 뒀던 화면이 다시 보일 때 서버 응답 전까지 옛 상태를 현재처럼 보이지 않게 한다 (상세와 같은 방식)
+  const [verifying, setVerifying] = useState(false);
   const requestSeq = useRef(0);
 
-  /** 겹친 조회는 마지막에 시작한 것만 반영한다. */
-  const load = useCallback(async () => {
-    const seq = ++requestSeq.current;
-    const { data } = await api<Reservation[]>("/api/me/reservations");
+  const applyIfLatest = useCallback((seq: number, data: Reservation[]) => {
     if (seq === requestSeq.current) {
       setItems(data);
       setError(null);
       setConnectionLost(false);
+      setVerifying(false);
     }
   }, []);
 
+  /** 겹친 조회는 마지막에 시작한 것만 반영한다 (지난 조회의 응답·실패는 무시). */
+  const load = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    try {
+      applyIfLatest(seq, (await api<Reservation[]>("/api/me/reservations")).data);
+    } catch (e) {
+      if (seq === requestSeq.current) throw e;
+    }
+  }, [applyIfLatest]);
+
   useEffect(() => {
+    const seq = ++requestSeq.current;
+    api<Reservation[]>("/api/me/reservations")
+      .then(({ data }) => applyIfLatest(seq, data))
+      .catch((e: unknown) => {
+        if (seq === requestSeq.current) setError(errorMessage(e));
+      });
+    return () => setVerifying(true);
+  }, [applyIfLatest]);
+
+  const retry = () => {
+    setError(null);
     load().catch((e: unknown) => setError(errorMessage(e)));
-  }, [load]);
+  };
 
   useVisiblePolling({
     refresh: () => void load().catch(() => setConnectionLost(true)),
@@ -56,7 +77,15 @@ function MyReservations() {
   return (
     <>
       <h1>내 신청</h1>
-      {error && <p role="alert">{error}</p>}
+      {verifying && !error && <p role="status">최신 상태 확인 중…</p>}
+      {error && (
+        <p role="alert">
+          {error}{" "}
+          <button type="button" className="secondary" onClick={retry}>
+            다시 시도
+          </button>
+        </p>
+      )}
       {active === undefined && !error && <p>불러오는 중…</p>}
       {active?.length === 0 && (
         <p>
@@ -78,7 +107,7 @@ function MyReservations() {
               </span>
               <span>
                 <span data-testid="reservation-status" className={r.status === "WAITING" ? "badge" : "badge confirmed"}>
-                  {statusLabel(r)}
+                  {verifying || error ? "확인 중…" : statusLabel(r)}
                 </span>
               </span>
             </li>
