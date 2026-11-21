@@ -9,6 +9,8 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +61,41 @@ class ProdSessionTests {
 				"JSESSIONID=" + cookieValue(start, "JSESSIONID"));
 		assertThat(me.statusCode()).isEqualTo(200);
 		assertThat(me.body()).contains("\"demo\":true");
+	}
+
+	/**
+	 * 회귀: 세션 저장소의 principal 이름은 varchar(100) 이다. 예전에는 SessionUser.toString() 전체가 들어가
+	 * 아이디가 11자 이상이면(가입 허용 4~20자) 로그인이 500 이었다 (2026-11-21 공개 배포에서 발견).
+	 */
+	@Test
+	void signedUpMemberWithTheLongestAllowedLoginIdCanLogIn() throws Exception {
+		String loginId = ("lm" + UUID.randomUUID().toString().replace("-", "")).substring(0, 20);
+		String password = "prod-login-pass-1!";
+		String clientIp = "10.9." + ThreadLocalRandom.current().nextInt(256) + "." + ThreadLocalRandom.current().nextInt(1, 255);
+		String xsrf = cookieValue(send(HttpRequest.newBuilder(uri("/api/auth/csrf")).GET(), null), "XSRF-TOKEN");
+		String body = "{\"loginId\":\"%s\",\"password\":\"%s\",\"passwordConfirm\":\"%s\"}".formatted(loginId, password,
+				password);
+		HttpResponse<String> signup = send(HttpRequest.newBuilder(uri("/api/auth/signup"))
+			.header("X-XSRF-TOKEN", xsrf)
+			.header("X-Daumjari-Client-IP", clientIp)
+			.header("Content-Type", "application/json")
+			.POST(BodyPublishers.ofString(body)), "XSRF-TOKEN=" + xsrf);
+		assertThat(signup.statusCode()).as(signup.body()).isEqualTo(201);
+
+		HttpResponse<String> login = send(HttpRequest.newBuilder(uri("/api/auth/login"))
+			.header("X-XSRF-TOKEN", xsrf)
+			.header("X-Daumjari-Client-IP", clientIp)
+			.header("Content-Type", "application/json")
+			.POST(BodyPublishers.ofString("{\"loginId\":\"%s\",\"password\":\"%s\"}".formatted(loginId, password))),
+				"XSRF-TOKEN=" + xsrf);
+		assertThat(login.statusCode()).as(login.body()).isEqualTo(200);
+		assertThat(jdbc.queryForObject("select count(*) from spring_session where principal_name = ?", Long.class,
+				loginId))
+			.isEqualTo(1L);
+		HttpResponse<String> me = send(HttpRequest.newBuilder(uri("/api/auth/me")).GET(),
+				"JSESSIONID=" + cookieValue(login, "JSESSIONID"));
+		assertThat(me.statusCode()).isEqualTo(200);
+		assertThat(me.body()).contains("\"loginId\":\"" + loginId + "\"");
 	}
 
 	private HttpResponse<String> send(HttpRequest.Builder request, String cookie) throws Exception {
