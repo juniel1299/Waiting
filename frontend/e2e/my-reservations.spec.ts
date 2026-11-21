@@ -98,3 +98,22 @@ test("운영자 메뉴에는 '내 신청'이 없다", async ({ page }) => {
   await expect(page.getByRole("link", { name: "회차 관리" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 신청" })).toHaveCount(0);
 });
+
+test("모바일 머리글의 메뉴 이름은 한 줄로 보이고 가로 넘침이 없다", async ({ page }) => {
+  const loginId = newLoginId();
+  await ApiActor.signup(loginId, PASSWORD);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await loginInBrowser(page, loginId, PASSWORD);
+  await page.getByRole("link", { name: "내 신청" }).click();
+  await expect(page.getByRole("heading", { name: "내 신청" })).toBeVisible();
+  for (const name of ["회차 목록", "내 신청", "회원 탈퇴"]) {
+    const link = page.getByRole("banner").getByRole("link", { name });
+    expect(await link.evaluate((el) => {
+        // 요소가 flex 항목이면 getClientRects 는 늘 1개라, 글자 줄 상자의 서로 다른 top 수로 줄 수를 센다
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+      }), name).toBe(1);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

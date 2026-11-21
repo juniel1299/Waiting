@@ -42,7 +42,12 @@ for (const vp of VIEWPORTS) {
       const titles = page.getByRole("list", { name: "체험 흐름" }).locator("li strong");
       await expect(titles).toHaveCount(3);
       for (const t of await titles.all()) {
-        expect(await t.evaluate((el) => el.getClientRects().length), await t.textContent() ?? "").toBe(1);
+        expect(await t.evaluate((el) => {
+        // 요소가 flex 항목이면 getClientRects 는 늘 1개라, 글자 줄 상자의 서로 다른 top 수로 줄 수를 센다
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+      }), await t.textContent() ?? "").toBe(1);
       }
       const boxes = await Promise.all((await page.getByRole("list", { name: "체험 흐름" }).locator("li").all()).map((li) => li.boundingBox()));
       const sameRow = boxes.every((b) => Math.abs(b!.y - boxes[0]!.y) < 2);

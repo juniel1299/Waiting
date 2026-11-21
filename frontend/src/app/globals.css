@@ -96,8 +96,15 @@ a {
 
 .nav {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   flex: 1;
+}
+
+/* 좁은 화면에서도 메뉴 이름·사용자 이름이 글자 단위로 끊기지 않게 한다 (줄이 모자라면 항목째 다음 줄로) */
+.header a,
+.header .who {
+  white-space: nowrap;
 }
 
 .nav a,
