@@ -237,6 +237,70 @@ input:focus-visible {
   color: var(--ok);
 }
 
+/* 첫 화면 3단계 흐름: 넓으면 가로, 좁으면 세로 */
+.flow {
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flow li {
+  counter-increment: step;
+  flex: 1 1 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.flow li strong::before {
+  content: counter(step) ". ";
+  color: var(--accent);
+}
+
+.flow li span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .flow {
+    flex-direction: column;
+  }
+
+  .flow li {
+    flex-basis: auto;
+  }
+}
+
+.tour-video {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tour-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tour-steps img {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .field {
   display: flex;
   flex-direction: column;

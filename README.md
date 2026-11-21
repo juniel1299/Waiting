@@ -2,6 +2,71 @@
 
 **다음자리** — 오프라인 개발 스터디 회차 예약·취소 대기 서비스.
 
+정원이 찬 회차에 대기를 걸어 두면, 확정자가 취소해 빈자리가 생기는 순간 **대기 순서대로 자동 확정**되고 화면은 새로고침 없이 바뀐다.
+
+| | |
+|---|---|
+| 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
+| 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
+| 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
+| 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [`loadtest/results/2026-11-21-local.md`](loadtest/results/2026-11-21-local.md) |
+| 공개 배포 검증 | [공개 배포 검증 (2026-11-21)](#공개-배포-검증-2026-11-21) |
+
+<p>
+  <img src="docs/screenshots/home-flow-mobile.png" alt="첫 화면: 3단계 흐름과 데모 체험하기" width="220">
+  <img src="docs/screenshots/waking-tour-link-mobile.png" alt="서버 기동 안내와 기다리는 동안 시연 보기 링크" width="220">
+  <img src="docs/screenshots/tour-mobile.png" alt="정적 시연 페이지" width="220">
+</p>
+
+## 아키텍처
+
+```
+브라우저 ──HTTPS──▶ Vercel (Next.js, sin1)
+                     ├─ 화면·정적 자산(/tour 시연 포함): 백엔드 없이 응답
+                     └─ /api/* Route Handler 프록시
+                          · 클라이언트 IP 를 X-Forwarded-For 로 다시 쓰고 공유 비밀 토큰을 붙인다
+                          · 업스트림 85초 제한 → 503 + Retry-After (Vercel 504 대신)
+                          ▼
+                   Render Free (Spring Boot 4, Singapore) ── 토큰 없는 직접 호출은 403
+                          ▼
+                   Neon Free (PostgreSQL 16) ── 예약·대기·세션(Spring Session JDBC)
+```
+
+쿠키(`JSESSIONID`, `XSRF-TOKEN`)는 모두 프런트 주소의 같은 출처 쿠키다. 무료 백엔드는 15분 무요청 시 잠들고, 브라우저는 502/503/504 를 받으면 "서버를 깨우는 중" 안내와 함께 최대 5분 자동 재시도한다.
+
+## 핵심 검증 결과
+
+| 무엇을 | 결과 | 환경 · 근거 |
+|---|---|---|
+| 마지막 자리 동시 예약 (정원 1, N=10·50·100·200·400) | 모든 단계 확정 정확히 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0. N=400: 460ms, 870 req/s, p95 429ms | 로컬 실제 PostgreSQL · [결과](loadtest/results/2026-11-21-local.md) |
+| 취소·승격 혼합 (확정자 5명 취소 + 신규 예약·대기 동시) | 먼저 대기한 5명이 id 순서대로 승격, 신규 예약은 모두 409, 오류 0. N=400 대기 + 205건 혼합: p95 303ms | 로컬 실제 PostgreSQL · [결과](loadtest/results/2026-11-21-local.md) |
+| SQL 정합성 (정원 초과·활성 중복·대기 추월·승격 누락) | 4종 모두 0행. 검사식은 일부러 만든 위반을 각각 검출함(셀프테스트) | [`checks.sql`](loadtest/checks.sql) |
+| 공개 서비스 정상 흐름 (데모 3회 순차 + 동시 3건, 21요청) | 3회 모두 `대기 신청 → 샘플 취소 → 확정`, 상태 200·201 만, p50 221ms · p95 514ms · max 637ms (웜) | 공개 배포 2026-11-21 10:46 UTC · [결과](loadtest/results/2026-11-21-public-smoke.txt) |
+| 절전 후 첫 체험 시작 | 클릭 → 체험 화면 **170.9초 (2분 51초)**, 버튼은 1.6초에 노출, 안내 4.7초, 중복 요청 0 | 공개 배포 · [측정 조건과 한계](#절전-후-첫-접속-2026-11-21-0420-utc) |
+| 자동 테스트 | 백엔드 JUnit(Testcontainers PostgreSQL), 프런트 e2e(Playwright, 실제 백엔드), 프록시 단위(node:test) | 아래 [실행](#실행) |
+
+### 실행 환경
+
+- **로컬 부하:** Apple M4 Pro(12코어, 24GB), macOS 27.2, JDK 17.0.13(Zulu), Spring Boot 4.1.2 local 프로필, Hikari 기본 풀 10, PostgreSQL 16.16(docker 27.3.1, Docker Desktop 12 CPU·8GB), Node 23.7.0. 부하 발생기·서버·DB 가 한 기기에 있다.
+- **공개 배포:** Vercel Hobby(Function 리전 sin1) → Render Free(Singapore, 0.1 CPU·512MB) → Neon Free(Singapore). 측정은 서울의 Mac 에서 했다.
+
+## 기술 설명: 문제 → 방식 → 확인한 테스트
+
+| 주제 | 해결한 문제 | 방식 | 확인한 테스트 |
+|---|---|---|---|
+| 회차 행 잠금 | 마지막 자리에 동시에 예약하면 정원을 넘길 수 있다 | 예약·대기·취소가 회차 행을 `SELECT … FOR UPDATE` 로 잠근 뒤 같은 트랜잭션에서 잔여석·대기열을 판단. 같은 회차는 직렬화, 다른 회차는 서로 막지 않음. 활성 신청은 부분 unique 인덱스로 한 건 | [`ReservationConcurrencyTests`](backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java), [`CapacityConcurrencyTests`](backend/src/test/java/com/daumjari/CapacityConcurrencyTests.java), [`SchemaConstraintTests`](backend/src/test/java/com/daumjari/SchemaConstraintTests.java), 부하 시나리오 A |
+| 취소·승격 트랜잭션 | 취소와 승격 사이에 신규 예약이 끼면 대기자가 밀린다. 승격만 실패하면 좌석이 사라진다 | 취소와 첫 대기자(id 순) 승격을 같은 트랜잭션·같은 회차 잠금 아래에서 처리(`WaitlistPromoter` 는 `MANDATORY`). 대기자가 있으면 빈자리가 보여도 신규 예약은 409. 실패하면 취소까지 롤백. 탈퇴도 같은 규칙(계정 → 회차 순 잠금) | [`PromotionRollbackTests`](backend/src/test/java/com/daumjari/PromotionRollbackTests.java), [`WaitlistConcurrencyTests`](backend/src/test/java/com/daumjari/WaitlistConcurrencyTests.java), [`WaitlistApiTests`](backend/src/test/java/com/daumjari/WaitlistApiTests.java), [`WithdrawalConcurrencyTests`](backend/src/test/java/com/daumjari/WithdrawalConcurrencyTests.java), 부하 시나리오 B·SQL ③④ |
+| 5초 폴링 | 다른 사람의 취소로 내가 확정돼도 화면이 그대로다 | 상세 화면이 보이고 온라인일 때만 5초마다 조회, 탭 복귀(`visibilitychange`)·네트워크 복구(`online`) 때 즉시 조회, 늦게 온 옛 응답은 버림. 숨긴 탭은 요청 0 | [`auto-refresh.spec.ts`](frontend/e2e/auto-refresh.spec.ts) (반영 4.8초, 탭 복귀 28ms, [측정](#회차-상세-자동-갱신)) |
+| 방문자별 데모 격리 | 가입 없는 공개 체험이 서로의 데이터를 보거나 바꾸면 안 된다 | 체험마다 방문자·샘플 계정·회차를 `demo_trial_id` 로 묶고, 회차는 같은 체험 계정에게만 보임(아니면 404). 샘플 취소는 파라미터 없이 세션의 체험에서 대상을 찾음. 30분 뒤 통째로 정리 | [`DemoApiTests`](backend/src/test/java/com/daumjari/DemoApiTests.java), [`demo.spec.ts`](frontend/e2e/demo.spec.ts) (두 브라우저 격리) |
+| 프록시 전달 헤더 | 프록시 뒤에서는 모든 요청이 프록시 IP 로 보여 IP 제한이 무의미하고, 클라이언트가 `X-Forwarded-For` 를 위조할 수 있다 | 프런트(Vercel·`server.mjs`)가 클라이언트가 보낸 전달 헤더를 버리고 실제 접속 주소로 다시 씀. 백엔드는 공유 비밀 토큰이 맞을 때만 그 IP 를 믿고(토큰 없는 직접 호출 403), 로컬은 loopback 프록시만 신뢰 | [`ProxyTokenTests`](backend/src/test/java/com/daumjari/ProxyTokenTests.java), [`ForwardedHeaderTrustTests`](backend/src/test/java/com/daumjari/ForwardedHeaderTrustTests.java), [`proxy.test.mjs`](frontend/test/proxy.test.mjs), 공개 배포 IP 집계 실측(모바일 데이터 vs Mac) |
+| 로그인 제한 | 비밀번호 대입을 막되, 남의 아이디로 일부러 틀려 그 사람을 잠그게 하면 안 된다 | (아이디+IP) 15분 5회, IP 15분 50회. 비밀번호 확인 전에 PostgreSQL upsert 로 원자적으로 셈. 탈퇴 비밀번호 재확인도 같이 셈. 가입·데모 시작도 IP 한도 | [`LoginThrottleApiTests`](backend/src/test/java/com/daumjari/LoginThrottleApiTests.java), [`LoginThrottleConcurrencyTests`](backend/src/test/java/com/daumjari/LoginThrottleConcurrencyTests.java) (동시 10건 → 정확히 5건만 인증까지), [`login-throttle.spec.ts`](frontend/e2e/login-throttle.spec.ts) |
+
+### 절전 후 체험 시작 2분 51초: 조건과 한계
+
+- **조건:** 2026-11-21 04:20 UTC, 공개 사이트에 약 55분 요청 없음, Playwright 새 컨텍스트(저장 상태 없음), 데스크톱 1280x800, 배포 커밋 `4ed83a75`(앱 코드 `5489d26c`). Vercel Hobby sin1 → Render Free Singapore → Neon Free Singapore.
+- **결과:** 버튼 1.6초 노출 → 클릭 → 첫 `/api` 응답이 87.3초에 503(프록시가 85초에 끊음) → 5초 뒤 자동 재시도 → 체험 화면까지 **170.9초**. 상세는 아래 [절전 후 첫 접속](#절전-후-첫-접속-2026-11-21-0420-utc).
+- **한계:** 대부분이 Render Free 인스턴스 기동 시간이라 앱 코드로 줄일 수 없고, 날·시간대·Render 상태에 따라 달라진다 (2026-11-20 측정 약 2분 40초~2분 52초, 한 번씩만 잼). 브라우저 자동 재시도 상한은 5분이라 그보다 오래 걸리면 `다시 시도하기` 로 돌아온다(시뮬레이션으로 확인). 기다리는 동안 볼 수 있게 `/tour` 를 연결했다.
+
 ## 구조
 
 ```

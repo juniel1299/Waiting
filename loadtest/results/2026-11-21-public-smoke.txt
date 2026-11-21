@@ -1,0 +1,6 @@
+시작 2026-11-21T10:46:40.044Z https://waiting-mauve.vercel.app
+순차 1: 확정까지 정상 /sessions/33 | GET /api/auth/csrf 200 353ms | POST /api/demo/start 201 478ms | GET /api/sessions/:id 200 514ms | POST /api/sessions/:id/waitlist 201 369ms | POST /api/demo/sample-cancel 200 231ms | GET /api/sessions/:id 200 215ms
+순차 2: 확정까지 정상 /sessions/34 | GET /api/auth/csrf 200 174ms | POST /api/demo/start 201 509ms | GET /api/sessions/:id 200 200ms | POST /api/sessions/:id/waitlist 201 221ms | POST /api/demo/sample-cancel 200 321ms | GET /api/sessions/:id 200 186ms
+순차 3: 확정까지 정상 /sessions/35 | GET /api/auth/csrf 200 137ms | POST /api/demo/start 201 155ms | GET /api/sessions/:id 200 157ms | POST /api/sessions/:id/waitlist 201 155ms | POST /api/demo/sample-cancel 200 403ms | GET /api/sessions/:id 200 411ms
+동시 3건 데모 시작: 201 205ms, 201 170ms, 201 637ms (전체 934ms)
+요청 21건 상태 {"200":12,"201":9} | p50 221ms p95 514ms max 637ms
