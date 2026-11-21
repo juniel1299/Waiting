@@ -27,9 +27,12 @@ export default function Home() {
   }, [router]);
 
   return (
-    <main className="container narrow">
+    <main className="container home">
       <h1>다음자리</h1>
-      <p>정원이 찬 스터디도 놓치지 않게: 대기를 걸어 두면 취소로 빈자리가 생길 때 순서대로 자동 확정돼요.</p>
+      <p>
+        정원이 찬 스터디도 놓치지 않게: 대기를 걸어 두면 취소로 빈자리가 생길 때 순서대로 자동 확정돼요. 가입 없이
+        나만의 샘플 회차로 직접 눌러 볼 수 있어요.
+      </p>
       <ol className="flow" aria-label="체험 흐름">
         <li>
           <strong>대기 신청</strong>
@@ -44,17 +47,22 @@ export default function Home() {
           <span>첫 대기자가 자동으로, 새로고침 없이</span>
         </li>
       </ol>
-      <p className="meta">가입 없이 체험해 보세요. 나만의 샘플 회차로 이 흐름을 직접 눌러 볼 수 있어요.</p>
-      <DemoStartButton />
+      <section className="demo-action" aria-label="데모 체험">
+        <DemoStartButton />
+      </section>
       <Link href="/tour" className="link">
         1분 시연 보기 (영상·화면)
       </Link>
-      <Link href="/login" className="link">
-        계정으로 로그인
-      </Link>
-      <Link href="/signup" className="link">
-        회원가입
-      </Link>
+      <p className="auth-links">
+        계정이 있나요?{" "}
+        <Link href="/login" className="link">
+          로그인
+        </Link>{" "}
+        ·{" "}
+        <Link href="/signup" className="link">
+          회원가입
+        </Link>
+      </p>
     </main>
   );
 }

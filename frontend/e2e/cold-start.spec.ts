@@ -24,7 +24,7 @@ test("로그인 확인 응답을 기다리지 않고 홈에 데모 체험·로�
   });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "데모 체험하기" })).toBeVisible({ timeout: 2000 });
-  await expect(page.getByRole("link", { name: "계정으로 로그인" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "로그인", exact: true })).toBeVisible();
 });
 
 test("로그인 상태는 확인 응답이 오면 반영해 역할별 첫 화면으로 보낸다", async ({ page }) => {

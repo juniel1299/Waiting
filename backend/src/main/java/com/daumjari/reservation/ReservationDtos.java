@@ -9,12 +9,13 @@ public final class ReservationDtos {
 
 	/** waitingPosition 은 WAITING 일 때만 값이 있다 (1부터). */
 	public record ReservationResponse(Long id, Long sessionId, String sessionTitle, Instant startsAt,
-			ReservationStatus status, Integer waitingPosition, Instant createdAt, Instant cancelledAt) {
+			String location, ReservationStatus status, Integer waitingPosition, Instant createdAt,
+			Instant cancelledAt) {
 
 		static ReservationResponse from(Reservation r, Integer waitingPosition) {
 			return new ReservationResponse(r.getId(), r.getStudySession().getId(), r.getStudySession().getTitle(),
-					r.getStudySession().getStartsAt(), r.getStatus(), waitingPosition, r.getCreatedAt(),
-					r.getCancelledAt());
+					r.getStudySession().getStartsAt(), r.getStudySession().getLocation(), r.getStatus(),
+					waitingPosition, r.getCreatedAt(), r.getCancelledAt());
 		}
 
 	}

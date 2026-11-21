@@ -230,6 +230,28 @@ class DemoApiTests extends ApiTestSupport {
 	// --- 만료·정리 ---
 
 	@Test
+	void myReservationsShowOnlyMyTrialAndExpireWithIt() throws Exception {
+		Trial mine = startTrial();
+		Trial theirs = startTrial();
+		mockMvc.perform(withXsrf(post("/api/sessions/{id}/waitlist", mine.sessionId()), mine.visitor()))
+			.andExpect(status().isCreated());
+		mockMvc.perform(withXsrf(post("/api/sessions/{id}/waitlist", theirs.sessionId()), theirs.visitor()))
+			.andExpect(status().isCreated());
+
+		mockMvc.perform(get("/api/me/reservations").session(mine.visitor()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1))
+			.andExpect(jsonPath("$[0].sessionId").value(mine.sessionId()))
+			.andExpect(jsonPath("$[0].status").value("WAITING"))
+			.andExpect(jsonPath("$[0].location").value("온라인 체험룸"));
+
+		clock.setInstant(now.plus(TTL));
+		mockMvc.perform(get("/api/me/reservations").session(mine.visitor()))
+			.andExpect(status().isGone())
+			.andExpect(jsonPath("$.code").value("DEMO_EXPIRED"));
+	}
+
+	@Test
 	void expiredTrialIsRejectedAndCleanupDeletesItsData() throws Exception {
 		Trial trial = startTrial();
 		long trialId = count("select demo_trial_id from study_session where id = ?", trial.sessionId());

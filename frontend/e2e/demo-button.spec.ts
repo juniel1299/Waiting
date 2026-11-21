@@ -32,7 +32,7 @@ test("누르면 '체험 준비 중…' 으로 바뀌고, 포커스를 유지한 
   await expect(button).toHaveAttribute("aria-busy", "true");
   await expect(button).toHaveAttribute("aria-disabled", "true");
   await expect(button).toBeFocused();
-  await expect(page.getByRole("status").filter({ hasText: "서버를 켜는 중" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "서버를 깨우는 중" })).toBeVisible();
   // 진행 중 모양은 별도 스타일이고, 모바일 탭 강조(눌린 모양)는 남기지 않는다
   await expect(button).toHaveClass(/loading/);
   await expect(button).toHaveCSS("-webkit-tap-highlight-color", "rgba(0, 0, 0, 0)");
