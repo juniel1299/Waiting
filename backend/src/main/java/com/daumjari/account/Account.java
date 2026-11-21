@@ -15,6 +15,8 @@ import jakarta.persistence.Table;
 @Table(name = "account")
 public class Account {
 
+	public static final String WITHDRAWN_DISPLAY_NAME = "탈퇴한 회원";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -34,6 +36,10 @@ public class Account {
 
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
+
+	/** 탈퇴 시각. 탈퇴하지 않았으면 null. */
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
 
 	/** 데모 체험 계정이면 그 체험 ID. 일반 계정은 null. */
 	@Column(name = "demo_trial_id")
@@ -58,6 +64,25 @@ public class Account {
 		Account account = create(loginId, "!demo-no-password", displayName, Role.PARTICIPANT, now);
 		account.demoTrialId = demoTrialId;
 		return account;
+	}
+
+	/**
+	 * 탈퇴: 아이디·이름·비밀번호 해시를 익명 값으로 바꾸고 탈퇴 시각을 남긴다. 행은 신청 기록 때문에 지우지 않는다.
+	 * 해시는 형식이 맞지 않는 값이라 어떤 비밀번호와도 일치하지 않는다.
+	 */
+	public void withdraw(Instant now) {
+		loginId = "deleted-" + id;
+		displayName = WITHDRAWN_DISPLAY_NAME;
+		passwordHash = "!withdrawn-no-password";
+		deletedAt = now;
+	}
+
+	public boolean isDeleted() {
+		return deletedAt != null;
+	}
+
+	public Instant getDeletedAt() {
+		return deletedAt;
 	}
 
 	public Long getDemoTrialId() {

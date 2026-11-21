@@ -60,6 +60,8 @@ export class ApiError extends Error {
     message: string,
     /** 429·503 의 Retry-After(초). */
     readonly retryAfterSeconds?: number,
+    /** 400 VALIDATION_FAILED 의 칸별 안내 (칸 이름 → 문구). */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
   }
@@ -103,7 +105,9 @@ function retryDelayMs(res: Response | null): number {
  * 늦거나 다시 보내는 동안엔 깨우는 중 안내를 켠다.
  */
 async function sendWhileWaking(send: () => Promise<Response>, retry: boolean): Promise<Response> {
-  const deadline = Date.now() + WAKE_MAX_WAIT_MS;
+  // e2e 가 상한 초과를 짧게 재현하도록 페이지 전역 값으로만 줄일 수 있다
+  const maxWait = (globalThis as { __daumjariWakeMaxWaitMs?: number }).__daumjariWakeMaxWaitMs ?? WAKE_MAX_WAIT_MS;
+  const deadline = Date.now() + maxWait;
   let waking = false;
   const markWaking = () => {
     if (!waking) {
@@ -153,13 +157,14 @@ async function xsrfToken(): Promise<string> {
 
 async function toApiError(res: Response): Promise<ApiError> {
   try {
-    const body = (await res.json()) as { code?: string; message?: string };
+    const body = (await res.json()) as { code?: string; message?: string; fields?: Record<string, string> };
     const retryAfter = Number(res.headers.get("Retry-After"));
     return new ApiError(
       res.status,
       body.code ?? "UNKNOWN",
       body.message ?? "요청을 처리하지 못했어요.",
       retryAfter > 0 ? retryAfter : undefined,
+      body.fields,
     );
   } catch {
     return new ApiError(res.status, "UNKNOWN", "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");

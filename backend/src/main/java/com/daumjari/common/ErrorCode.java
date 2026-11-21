@@ -6,6 +6,11 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
+	LOGIN_ID_TAKEN(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
+	// 필터 단계의 401 과 같은 코드: 탈퇴와 겹친 요청이 트랜잭션 안에서 막힐 때
+	UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+	PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "비밀번호가 올바르지 않습니다."),
+	WITHDRAWAL_NOT_ALLOWED(HttpStatus.FORBIDDEN, "운영자·체험 계정은 탈퇴할 수 없습니다."),
 	SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "회차를 찾을 수 없습니다."),
 	SESSION_FULL(HttpStatus.CONFLICT, "정원이 마감되었습니다."),
 	SESSION_STARTED(HttpStatus.CONFLICT, "이미 시작된 회차는 예약하거나 취소할 수 없습니다."),

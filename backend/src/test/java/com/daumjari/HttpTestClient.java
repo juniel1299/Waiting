@@ -83,6 +83,10 @@ final class HttpTestClient {
 		return post("/api/sessions/" + sessionId + "/waitlist", "");
 	}
 
+	HttpResponse<String> withdraw(String password) throws Exception {
+		return post("/api/me/withdraw", "{\"password\":\"%s\"}".formatted(password));
+	}
+
 	HttpResponse<String> cancel(Long reservationId) throws Exception {
 		return post("/api/reservations/" + reservationId + "/cancel", "");
 	}

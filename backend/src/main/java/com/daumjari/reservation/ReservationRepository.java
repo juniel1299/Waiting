@@ -41,6 +41,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
 	List<Reservation> findByAccountIdAndStatusNot(Long accountId, ReservationStatus status);
 
+	/** 계정의 활성 신청이 있는 회차 ID, 오름차순 (여러 회차를 잠글 때 순서를 고정해 교착을 막는다). */
+	@Query("""
+			select r.studySession.id from Reservation r
+			where r.account.id = :accountId and r.status <> com.daumjari.reservation.ReservationStatus.CANCELLED
+			group by r.studySession.id
+			order by r.studySession.id
+			""")
+	List<Long> findActiveSessionIdsByAccountId(@Param("accountId") Long accountId);
+
 	Optional<Reservation> findByStudySessionIdAndAccountIdAndStatusNot(Long studySessionId, Long accountId,
 			ReservationStatus status);
 

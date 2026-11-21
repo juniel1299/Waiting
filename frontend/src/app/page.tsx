@@ -38,6 +38,9 @@ export default function Home() {
       <Link href="/login" className="link">
         계정으로 로그인
       </Link>
+      <Link href="/signup" className="link">
+        회원가입
+      </Link>
     </main>
   );
 }

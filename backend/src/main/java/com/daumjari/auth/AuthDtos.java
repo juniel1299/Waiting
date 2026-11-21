@@ -21,6 +21,13 @@ final class AuthDtos {
 
 	}
 
+	/** 역할은 받지 않는다: 서버가 참가자로 정한다. 형식 검증은 SignupService 가 칸별로 한다. */
+	record SignupRequest(String loginId, String password, String passwordConfirm) {
+	}
+
+	record SignupResponse(Long id, String loginId, Role role) {
+	}
+
 	record CsrfResponse(String headerName, String token) {
 	}
 

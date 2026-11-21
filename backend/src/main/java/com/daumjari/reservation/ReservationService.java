@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.daumjari.account.Account;
 import com.daumjari.account.AccountRepository;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
@@ -45,8 +47,9 @@ public class ReservationService {
 	@Transactional
 	public ReserveResult reserve(Long sessionId, Long accountId) {
 		Instant now = Instant.now(clock);
+		Account account = lockActiveAccount(accountId);
 		StudySession session = lockOpenSession(sessionId, now);
-		requireVisible(session, accountId);
+		requireVisible(session, account);
 		Optional<Reservation> existing = activeOf(sessionId, accountId);
 		if (existing.isPresent()) {
 			return new ReserveResult(toResponse(existing.get()), false);
@@ -56,7 +59,7 @@ public class ReservationService {
 			throw new ApiException(ErrorCode.SESSION_FULL);
 		}
 		Reservation saved = reservations
-			.save(Reservation.confirm(session, accounts.getReferenceById(accountId), now));
+			.save(Reservation.confirm(session, account, now));
 		return new ReserveResult(toResponse(saved), true);
 	}
 
@@ -64,8 +67,9 @@ public class ReservationService {
 	@Transactional
 	public ReserveResult waitlist(Long sessionId, Long accountId) {
 		Instant now = Instant.now(clock);
+		Account account = lockActiveAccount(accountId);
 		StudySession session = lockOpenSession(sessionId, now);
-		requireVisible(session, accountId);
+		requireVisible(session, account);
 		Optional<Reservation> existing = activeOf(sessionId, accountId);
 		if (existing.isPresent()) {
 			return new ReserveResult(toResponse(existing.get()), false);
@@ -74,7 +78,7 @@ public class ReservationService {
 			throw new ApiException(ErrorCode.SEATS_AVAILABLE);
 		}
 		Reservation saved = reservations
-			.save(Reservation.waitlist(session, accounts.getReferenceById(accountId), now));
+			.save(Reservation.waitlist(session, account, now));
 		return new ReserveResult(toResponse(saved), true);
 	}
 
@@ -96,6 +100,32 @@ public class ReservationService {
 		return toResponse(reservation);
 	}
 
+	/**
+	 * 탈퇴하는 계정의 신청 정리. 호출한 탈퇴 트랜잭션(계정 행 잠금 보유) 안에서만 동작하고, 여기서 실패하면 탈퇴도 롤백된다.
+	 * 회차를 id 순으로 하나씩 잠근 뒤: 시작 전 확정은 취소하고 기존 승격 로직으로 대기자를 확정, 대기는 모두 취소,
+	 * 시작된 회차의 확정은 참가 기록으로 남긴다.
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void releaseAllOf(Long accountId, Instant now) {
+		for (Long sessionId : reservations.findActiveSessionIdsByAccountId(accountId)) {
+			StudySession session = sessions.findByIdForUpdate(sessionId)
+				.orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+			Optional<Reservation> active = activeOf(sessionId, accountId);
+			if (active.isEmpty()) {
+				continue;
+			}
+			Reservation reservation = active.get();
+			boolean confirmed = reservation.getStatus() == ReservationStatus.CONFIRMED;
+			if (confirmed && session.hasStarted(now)) {
+				continue;
+			}
+			reservation.cancel(now);
+			if (confirmed) {
+				promoter.promoteNext(sessionId);
+			}
+		}
+	}
+
 	@Transactional(readOnly = true)
 	public List<ReservationResponse> mine(Long accountId) {
 		return reservations.findWithSessionByAccountId(accountId).stream().map(this::toResponse).toList();
@@ -110,10 +140,16 @@ public class ReservationService {
 		return session;
 	}
 
+	/** 탈퇴와 겹친 요청: 탈퇴가 먼저 커밋됐으면 여기서 막혀 탈퇴된 계정에 새 신청이 생기지 않는다. */
+	private Account lockActiveAccount(Long accountId) {
+		return accounts.findByIdForShare(accountId)
+			.filter(account -> !account.isDeleted())
+			.orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED));
+	}
+
 	/** 일반 계정은 일반 회차만, 데모 방문자는 자기 체험 회차만. 아니면 존재를 드러내지 않고 404. */
-	private void requireVisible(StudySession session, Long accountId) {
-		Long trial = accounts.findById(accountId).map(com.daumjari.account.Account::getDemoTrialId).orElse(null);
-		if (!session.isVisibleTo(trial)) {
+	private void requireVisible(StudySession session, Account account) {
+		if (!session.isVisibleTo(account.getDemoTrialId())) {
 			throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
 		}
 	}

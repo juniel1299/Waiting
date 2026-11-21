@@ -140,6 +140,9 @@ button {
 }
 
 button {
+  /* 모바일 탭 강조가 눌린 모양처럼 남지 않게 한다. 키보드 포커스는 아래 :focus-visible 링으로 보인다 */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   cursor: pointer;
   background: var(--accent);
   border-color: var(--accent);
@@ -150,6 +153,24 @@ button.secondary {
   background: transparent;
   color: var(--foreground);
   border-color: var(--line);
+}
+
+/* 요청 중: 눌린(비활성) 모양 대신 진행 중 모양. 포커스 링은 그대로 보인다 */
+button.loading {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.effects {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 button:disabled {
@@ -214,6 +235,21 @@ input:focus-visible {
 
 [role="status"] {
   color: var(--ok);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
 }
 
 [role="alert"] {
