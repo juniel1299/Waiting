@@ -577,6 +577,78 @@ VM 대안 (월 약 $7~12, 예: Lightsail 1~2GB): 위 compose 앞에 Caddy 를 �
 cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-my-reservations-check.mjs 20
 ```
 
+#### 일반 가입 계정 '내 신청' 공개 실행 (사용자 실행, 2026-11-21 22:12 UTC): 운영 로그인 500 발견·수정
+
+사용자가 공개 주소에서 `node loadtest/public-my-reservations-check.mjs 20` 을 실행한 출력:
+
+```
+22:12:02 가입·로그인 A 403/401 B 201/500
+22:12:03 회차 20 시작 전 (참가자 화면 값): undefined 확정 undefined/undefined 대기 undefined
+22:12:03 중단: 남은 자리 1·대기 0 인 시작 전 회차가 아니라 멈춤
+22:12:04 정리: A 탈퇴 401 B 탈퇴 401
+22:12:08 확인용 C 가입·로그인 201/500
+22:12:08 회차 20 정리 뒤 (참가자 화면 값): undefined 확정 undefined/undefined 대기 undefined
+22:12:08 C 탈퇴 401
+```
+
+- **A 가입 403:** 백엔드가 잠들어 있어(직전 접속 21:49 UTC) 첫 CSRF 토큰 요청이 503 이었고, 스크립트가 토큰 없이 가입을 보내 `403 CSRF_INVALID`. 스크립트 문제 (계정은 만들어지지 않음).
+- **B·C 로그인 500: 실제 서버 버그.** prod 프로필(Spring Session JDBC)을 로컬에서 띄워 같은 스크립트로 재현했다. 로그: `DataIntegrityViolationException … INSERT INTO SPRING_SESSION … value too long for type character varying(100)`.
+  - `SessionUser` 가 인증 이름을 정의하지 않아 세션 저장소의 `principal_name`(varchar(100)) 에 record 의 `toString()` 전체(약 76자 + 아이디 길이 x2)가 들어갔다.
+  - **아이디가 11자 이상인 일반 회원은 운영에서 로그인할 수 없었다** (가입은 4~20자 허용). 메모리 세션을 쓰는 로컬·e2e, 짧은 아이디(이전 공개 검증의 10자 `qa_apt72g1` 등), 이름이 짧은 데모 계정에서는 드러나지 않았다.
+  - **수정:** `SessionUser` 가 `AuthenticatedPrincipal` 을 구현해 인증 이름을 아이디(최대 50자)로 한다. 회귀 테스트 [`ProdSessionTests`](backend/src/test/java/com/daumjari/ProdSessionTests.java) `signedUpMemberWithTheLongestAllowedLoginIdCanLogIn`: prod 프로필에서 20자 아이디 가입 → 로그인 200, `principal_name` = 아이디. 수정 전 500 으로 실패하는 것을 먼저 확인했다.
+- **회차 조회 undefined:** 로그인 실패로 비로그인 요청이 401 이었다. 스크립트가 상태 코드를 확인하지 않아 `undefined` 로 찍혔다.
+- **남은 계정:** 가입만 되고 로그인에 실패한 `qa_b…`·`qa_c…` 2개는 비밀번호를 남기지 않아 탈퇴할 수 없다. 신청은 하지 않아(안전 중단) 회차 20 은 바뀌지 않았다. 정리는 아래 SQL 초안으로 사용자가 Neon SQL 콘솔에서 한다 (Claude 는 실행하지 않음).
+
+스크립트 보강:
+- CSRF 토큰을 서버가 깰 때까지 최대 5분 다시 받는다.
+- 응답 코드·오류 코드를 출력한다.
+- 계정마다 가입 → 로그인 200 을 확인한 뒤에만 다음 단계로 간다. 로그인이 실패하면 남는 아이디를 알리고 멈춘다.
+- 확인용 세 번째 계정 없이 B 로 최종 상태를 본다.
+
+수정 뒤 prod 프로필 로컬 실행 결과:
+
+```
+22:22:08 A qa_a11212222 가입 201 / 로그인 200
+22:22:08 회차 2 시작 전 (참가자 화면 값): OPEN 확정 0/1 대기 0
+22:22:09 B qa_b11212222 가입 201 / 로그인 200
+22:22:09 B 예약 201 CONFIRMED, A 대기 201 WAITING 1번
+22:22:09 A 내 신청: [[2,"운영 프로필 재현 2","재현룸","WAITING",1]]
+22:22:09 B 내 신청: [[1,"운영 프로필 재현 2","재현룸","CONFIRMED",null]]
+22:22:09 A 목록에 B 신청 없음: true | B 목록에 A 신청 없음: true
+22:22:09 B 취소 200 뒤 A 내 신청: [[2,"CONFIRMED"]]
+22:22:09 정리: A 탈퇴 204
+22:22:09 회차 2 정리 뒤 (참가자 화면 값): OPEN 확정 0/1 대기 0
+22:22:09 정리: B 탈퇴 204
+22:22:09 남은 로그인 계정 없음
+```
+
+공개 재실행은 이 수정이 배포된 뒤 사용자가 한다: `cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-my-reservations-check.mjs 20`.
+
+남은 공개 계정 정리 SQL 초안 (Neon SQL 콘솔, 사용자가 실행). 탈퇴와 같은 익명화이고, 활성 신청이 없는 계정만 바꾼다. 아이디는 스크립트가 실행 시각으로 만든 `qa_[bc]` + `MMDDHHmm` 이다 (`1121221x`, 22:11~22:12 UTC 시작).
+
+```sql
+-- 1) 먼저 확인: 대상 2행, active_reservations 모두 0 이어야 한다
+select a.id, a.login_id, a.created_at, a.deleted_at,
+       (select count(*) from reservation r where r.account_id = a.id and r.status <> 'CANCELLED') as active_reservations
+from account a
+where a.login_id ~ '^qa_[bc]1121221[0-9]$'
+  and a.created_at between '2026-11-21 22:05:00+00' and '2026-11-21 22:20:00+00'
+  and a.deleted_at is null;
+
+-- 2) 위 결과가 맞으면 탈퇴와 같은 방식으로 익명화 (영향 행 수 2 확인 뒤 commit)
+begin;
+update account
+set login_id = 'deleted-' || id,
+    display_name = '탈퇴한 회원',
+    password_hash = '!withdrawn-no-password',
+    deleted_at = now()
+where login_id ~ '^qa_[bc]1121221[0-9]$'
+  and created_at between '2026-11-21 22:05:00+00' and '2026-11-21 22:20:00+00'
+  and deleted_at is null
+  and not exists (select 1 from reservation r where r.account_id = account.id and r.status <> 'CANCELLED');
+commit;
+```
+
 ## 미검증·확인 대기 항목
 
 | 항목 | 상태 | 비고 |
