@@ -152,6 +152,12 @@ button.secondary {
   border-color: var(--line);
 }
 
+/* 요청 중: 눌린(비활성) 모양 대신 진행 중 모양. 포커스 링은 그대로 보인다 */
+button.loading {
+  cursor: progress;
+  opacity: 0.8;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;

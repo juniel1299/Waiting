@@ -103,7 +103,9 @@ function retryDelayMs(res: Response | null): number {
  * 늦거나 다시 보내는 동안엔 깨우는 중 안내를 켠다.
  */
 async function sendWhileWaking(send: () => Promise<Response>, retry: boolean): Promise<Response> {
-  const deadline = Date.now() + WAKE_MAX_WAIT_MS;
+  // e2e 가 상한 초과를 짧게 재현하도록 페이지 전역 값으로만 줄일 수 있다
+  const maxWait = (globalThis as { __daumjariWakeMaxWaitMs?: number }).__daumjariWakeMaxWaitMs ?? WAKE_MAX_WAIT_MS;
+  const deadline = Date.now() + maxWait;
   let waking = false;
   const markWaking = () => {
     if (!waking) {

@@ -1,22 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 
-import { api, ApiError, errorMessage, formatWait } from "@/lib/api";
+import { api, ApiError, errorMessage, formatWait, isServerWaking, subscribeServerWaking } from "@/lib/api";
 
 interface DemoStartButtonProps {
   label?: string;
   className?: string;
 }
 
-/** 로그인 없이 새 데모 체험을 만들고 체험 회차 상세로 간다. 다시 누르면 새 체험으로 바뀐다. */
+/**
+ * 로그인 없이 새 데모 체험을 만들고 체험 회차 상세로 간다. 다시 누르면 새 체험으로 바뀐다.
+ * 요청 중엔 disabled 대신 aria-disabled 로 막아 키보드 포커스를 유지하고, 실패하면 다시 시도할 수 있게 되살린다.
+ */
 export function DemoStartButton({ label = "데모 체험하기", className }: DemoStartButtonProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 같은 렌더 안의 연속 클릭(Enter·Space·클릭)도 한 번만 보내도록 상태와 별도로 즉시 막는다
+  const inFlight = useRef(false);
+  const waking = useSyncExternalStore(subscribeServerWaking, isServerWaking, () => false);
 
   async function start() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -30,15 +39,23 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
       } else {
         setError(errorMessage(e));
       }
+      inFlight.current = false;
       setBusy(false);
+      setFailed(true);
     }
   }
 
+  const classes = [className, busy ? "loading" : null].filter(Boolean).join(" ") || undefined;
   return (
     <>
-      <button type="button" className={className} disabled={busy} onClick={start}>
-        {label}
+      <button type="button" className={classes} aria-busy={busy} aria-disabled={busy} onClick={start}>
+        {busy ? "체험 준비 중…" : failed ? "다시 시도하기" : label}
       </button>
+      {busy && (
+        <p role="status">
+          {waking ? "서버를 켜는 중이라 자동으로 다시 시도하고 있어요. 최대 5분쯤 걸릴 수 있어요." : "체험을 준비하고 있어요."}
+        </p>
+      )}
       {error && <p role="alert">{error}</p>}
     </>
   );
