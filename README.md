@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
-| 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 원본 [`frontend/public/tour/demo-flow.webm`](frontend/public/tour/demo-flow.webm)) |
+| 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
 | 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [`loadtest/results/2026-11-21-local.md`](loadtest/results/2026-11-21-local.md) |
 | 공개 배포 검증 | [공개 배포 검증 (2026-11-21)](#공개-배포-검증-2026-11-21) |

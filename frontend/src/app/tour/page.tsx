@@ -34,7 +34,6 @@ export default function TourPage() {
       <p className="meta">공개 서비스에서 녹화한 핵심 흐름이에요: 대기 신청 → 빈자리 발생 → 예약 확정.</p>
       <video
         className="tour-video"
-        src="/tour/demo-flow.webm"
         poster="/tour/poster.png"
         controls
         muted
@@ -43,6 +42,9 @@ export default function TourPage() {
         width={390}
         height={844}
       >
+        {/* iOS Safari 는 webm 을 못 틀 수 있어 H.264 mp4 를 먼저 둔다 */}
+        <source src="/tour/demo-flow.mp4" type="video/mp4" />
+        <source src="/tour/demo-flow.webm" type="video/webm" />
         이 브라우저는 영상을 재생할 수 없어요. 아래 단계별 화면을 봐 주세요.
       </video>
       <ol className="tour-steps">
