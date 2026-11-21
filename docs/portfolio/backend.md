@@ -1,0 +1,115 @@
+# 다음자리 — 백엔드 포트폴리오
+
+> 정원이 있는 스터디 회차의 **예약·취소 대기**에서, 동시에 몰리는 요청에도 정원을 넘기지 않고 대기 순서대로 확정되게 만든 서비스.
+> 공개 데모: https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연: [/tour](https://waiting-mauve.vercel.app/tour)
+
+## 서비스 소개
+
+- **역할:** 참가자는 회차를 예약하고, 마감된 회차에는 대기를 건다. 확정자가 취소하거나 운영자가 정원을 늘리면 **먼저 대기한 사람부터** 자동 확정된다.
+- **구성:** Spring Boot 4.1(Java 17) + PostgreSQL 16(Flyway), 서버 세션 인증(Spring Session JDBC).
+- **배포:** Next.js 프런트의 `/api` 프록시 뒤에 둔다.
+
+## 주요 구현
+
+### 1. 회차 행 잠금으로 마지막 자리 직렬화
+
+- **문제:** "잔여석 확인 → 저장" 사이에 다른 요청이 끼면 정원을 넘긴다.
+- **방식:**
+  - 예약·대기·취소·정원 변경이 모두 회차 행을 `SELECT … FOR UPDATE` 로 먼저 잠근다.
+  - 같은 트랜잭션에서 확정 수·대기 수를 세고 상태를 바꾼다.
+  - 같은 회차의 요청만 줄을 서고, 다른 회차끼리는 서로 막지 않는다.
+  - 잠금 순서는 항상 회차 → 신청이라 교착을 만들지 않는다.
+- **확인:**
+  - [`ReservationConcurrencyTests`](../../backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java): 실제 포트·PostgreSQL, 마지막 1석 동시 예약을 30회 반복해 매번 정확히 1명 확정.
+  - 로컬 부하 시나리오 A: 정원 1 회차에 동시 10~400건 → 모든 단계 확정 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0. [결과](../../loadtest/results/2026-11-21-local.md)
+
+### 2. 취소·승격의 원자성
+
+- **문제:** 취소와 승격 사이에 신규 예약이 끼면 대기자가 밀린다. 승격만 실패하면 좌석이 사라진다.
+- **방식:**
+  - 취소와 "가장 먼저 대기한 사람(id 순) 확정"을 같은 트랜잭션·같은 회차 잠금 아래에서 처리한다.
+  - `WaitlistPromoter.promoteNext` 는 `Propagation.MANDATORY` 라 호출한 트랜잭션 밖에서는 아예 돌지 않는다.
+  - 대기자가 있으면 빈자리가 보여도 신규 예약은 `409` 로 막아 대기자 몫으로 남긴다.
+  - 정원 증설도 같은 승격 객체로, 늘어난 자리만큼 순서대로 확정한다.
+- **확인:**
+  - [`PromotionRollbackTests`](../../backend/src/test/java/com/daumjari/PromotionRollbackTests.java): 승격 직후 실패를 주입하면 취소까지 롤백된다.
+  - [`WaitlistConcurrencyTests`](../../backend/src/test/java/com/daumjari/WaitlistConcurrencyTests.java), [`CapacityConcurrencyTests`](../../backend/src/test/java/com/daumjari/CapacityConcurrencyTests.java): 취소·증설과 신규 예약 경합을 각 30회 반복.
+  - 로컬 부하 B·C에서 승격된 사람 = 대기 순번 1~k 를 모든 단계에서 확인:
+    - B: 확정자 5명 취소와 신규 요청 혼합. [결과](../../loadtest/results/2026-11-21-local.md)
+    - C: 정원 1→6 증설·축소·취소·신규 요청 혼합, 처리 순서 표 포함. [결과](../../loadtest/results/2026-11-21-local-capacity.md)
+
+### 3. DB 제약을 마지막 방어선으로
+
+- **방식:**
+  - 활성 신청(취소 아님)은 부분 unique 인덱스 `ux_reservation_active (study_session_id, account_id) where status <> 'CANCELLED'` 로 한 건만 허용.
+  - `check` 제약: 상태 값, 취소 시각 일관성, 정원 > 0.
+  - 아이디는 `login_id unique`. 동시 가입의 제약 위반도 `409 LOGIN_ID_TAKEN` 으로 바꾼다.
+- **확인:**
+  - [`SchemaConstraintTests`](../../backend/src/test/java/com/daumjari/SchemaConstraintTests.java)
+  - [`SignupConcurrencyTests`](../../backend/src/test/java/com/daumjari/SignupConcurrencyTests.java): 같은 아이디 8건 동시 → 201 하나, 나머지 409.
+  - 부하 뒤 SQL 검사 [`checks.sql`](../../loadtest/checks.sql) 4종(정원 초과·활성 중복·대기 추월·승격 누락) 0행. 검사식이 일부러 만든 위반을 잡는지는 셀프테스트로 먼저 확인했다.
+
+### 4. 로그인 시도 제한
+
+- **문제:** 비밀번호 대입은 막되, 남의 아이디로 일부러 틀려 그 사람을 잠그게 하면 안 된다.
+- **방식:**
+  - (정규화한 아이디 + 클라이언트 IP) 15분 5회, IP 15분 50회.
+  - 비밀번호 확인 **전에** PostgreSQL `INSERT … ON CONFLICT DO UPDATE … RETURNING` 으로 원자적으로 센다. 키는 SHA-256.
+  - 탈퇴 비밀번호 재확인도 같은 한도에 센다.
+  - 가입(15분 5회)·데모 시작(15분 10회)은 IP 한도.
+- **확인:**
+  - [`LoginThrottleConcurrencyTests`](../../backend/src/test/java/com/daumjari/LoginThrottleConcurrencyTests.java): 실패 요청 10건 동시 → 정확히 5건 401, 5건 429 (10회 반복).
+  - [`LoginThrottleApiTests`](../../backend/src/test/java/com/daumjari/LoginThrottleApiTests.java)
+
+### 5. 프록시 뒤의 클라이언트 IP 신뢰
+
+- **문제:** 프록시 뒤에서는 모든 요청이 프록시 IP 로 보여 IP 한도가 무의미하다. 클라이언트가 `X-Forwarded-For` 를 위조할 수도 있다.
+- **방식:**
+  - 프런트 프록시가 클라이언트가 보낸 전달 헤더를 버리고 실제 접속 IP 를 `X-Daumjari-Client-IP` 로 보낸다.
+  - 함께 공유 비밀 `X-Daumjari-Proxy-Token` 을 붙인다.
+  - 백엔드(`ProxyTokenFilter`)는 토큰이 맞을 때만 그 IP 를 믿고, 토큰 없는 직접 호출은 `403 PROXY_REQUIRED`.
+  - 로컬은 Tomcat RemoteIpValve 가 loopback 프록시만 신뢰한다.
+- **확인:**
+  - [`ProxyTokenTests`](../../backend/src/test/java/com/daumjari/ProxyTokenTests.java), [`ForwardedHeaderTrustTests`](../../backend/src/test/java/com/daumjari/ForwardedHeaderTrustTests.java): 위조 XFF 로 한도 키를 바꿀 수 없음.
+  - 공개 배포 실측(2026-11-20): Mac IP 로 데모 시작 한도(15분 10회)를 채워 11번째가 `429` + `Retry-After`. 같은 시각 휴대폰 모바일 데이터에서는 정상 시작.
+
+### 6. 회원탈퇴의 일관성
+
+- **방식:**
+  - 계정 행 `FOR UPDATE` → 활성 신청이 있는 회차를 id 순으로 잠그고 정리(시작 전 확정은 취소 + 승격, 대기는 취소) → 익명화.
+  - 예약·대기는 계정 행을 `FOR SHARE` 로 먼저 잠가 탈퇴와 직렬화한다 (잠금 순서 계정 → 회차).
+  - 남은 다른 기기 세션은 요청마다 탈퇴 여부를 보는 필터가 끊는다.
+- **확인:**
+  - [`WithdrawalConcurrencyTests`](../../backend/src/test/java/com/daumjari/WithdrawalConcurrencyTests.java): 탈퇴와 예약 동시 20회 → 탈퇴 계정의 활성 신청 0.
+  - [`WithdrawalRollbackTests`](../../backend/src/test/java/com/daumjari/WithdrawalRollbackTests.java)
+  - [`WithdrawalApiTests`](../../backend/src/test/java/com/daumjari/WithdrawalApiTests.java)
+
+## 기술 선택의 이유
+
+| 선택 | 이유 | 대안과 비교 |
+|---|---|---|
+| 비관적 잠금(`FOR UPDATE`) | 마감 직전 경합이 핵심이라 충돌이 잦다. 재시도 없이 한 번에 정답을 낸다 | 낙관적 잠금은 충돌 시 재시도·실패 응답이 늘고, 분산 락(Redis)은 인프라가 하나 더 필요하다 |
+| 승격을 같은 트랜잭션에 | "취소됐는데 승격 안 됨" 상태가 생기지 않는다 | 비동기 이벤트 승격은 순서·중복 처리를 따로 보장해야 한다 |
+| DB 제약 병행 | 애플리케이션 버그가 있어도 활성 중복은 DB 가 막는다 | 애플리케이션 검사만으로는 동시성 버그를 못 막는다 |
+| 서버 세션 + 쿠키 CSRF | 같은 출처 프록시라 쿠키가 자연스럽고, 세션 무효화(탈퇴·로그아웃)가 즉시 된다 | JWT 는 탈퇴 즉시 차단에 블랙리스트가 필요하다 |
+| PostgreSQL upsert 로 시도 집계 | 별도 저장소 없이 원자적 카운트 | Redis 는 무료 배포 구성에 서비스가 하나 늘어난다 |
+
+## 검증 결과 요약
+
+| 항목 | 결과 | 환경 · 근거 |
+|---|---|---|
+| 자동 테스트 | 백엔드 306개 통과 (2026-11-21) | JUnit + Testcontainers PostgreSQL |
+| 마지막 자리 (A) | N=400: 확정 1, 409 ×399, 오류 0, p95 429ms, 870 req/s | 로컬 · [결과](../../loadtest/results/2026-11-21-local.md) |
+| 취소·승격 (B) | N=400 대기 + 205건 혼합: 승격 = 대기 순번 1~5, p95 303ms | 로컬 · [결과](../../loadtest/results/2026-11-21-local.md) |
+| 정원 증설 (C) | N=400 대기 + 203건 혼합: 최종 정원 6, 승격 = 순번 1~6, p95 288ms, 축소 요청은 순서에 따라 200/409 | 로컬 · [결과](../../loadtest/results/2026-11-21-local-capacity.md) |
+| SQL 정합성 | 4종 0행 (A·B 실행 뒤, C 실행 뒤 각각) | [`checks.sql`](../../loadtest/checks.sql) |
+
+로컬 환경: Apple M4 Pro(12코어, 24GB), macOS 27.2, JDK 17.0.13, Spring Boot 4.1.2, Hikari 풀 10, PostgreSQL 16.16(docker), Node 23.7 부하 발생기. 부하 발생기·서버·DB 가 같은 기기라 절대 수치보다 "단계를 올려도 정합성이 유지되는지"가 요점이다.
+
+## 한계와 개선 방향
+
+- **잠금 범위:** 회차 단위 잠금이라 한 회차에 요청이 아주 몰리면 그 회차 요청은 줄을 선다 (N=400 대기 p95 660~749ms). 인기 회차가 많아지면 대기열을 큐로 분리하는 방안을 검토할 수 있다.
+- **부하 측정 환경:** 같은 기기에서 돌렸고, 공개 무료 서버(0.1 CPU)에는 부하를 주지 않았다. 운영 수준 처리량은 측정하지 않았다.
+- **시도 제한:** 고정 창이라 경계 앞뒤로 최대 2배까지 몰아 시도할 수 있고, 여러 IP 로 한 계정을 나눠 대는 분산 시도는 (아이디+IP) 키로 막지 못한다.
+- **변경 이력:** 상태 변경 이력을 남기지 않아 "직접 확정"과 "늦은 승격"을 사후에 구분할 수 없다. 이력 테이블이나 감사 로그가 다음 단계다.
+- **인스턴스:** 단일 인스턴스 배포다. 수평 확장 시에도 DB 잠금이라 정합성은 유지되지만 처리량은 검증하지 않았다.

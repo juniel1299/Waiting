@@ -6,6 +6,9 @@ import { performance } from "node:perf_hooks";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:18090";
 const LEVELS = (process.env.LEVELS ?? "10,50,100,200,400").split(",").map(Number);
+// 실행할 시나리오 (A 마지막 자리, B 취소·승격, C 정원 증설). 예: SCENARIOS=C
+const SCENARIOS = (process.env.SCENARIOS ?? "A,B,C").split(",");
+const ADDED_SEATS = 5; // 시나리오 C 증설 폭
 const PASSWORD = "loadtest-pass-1!";
 const HOLDERS = 5; // 시나리오 B 회차 정원
 const RUN_ID = new Date().toISOString().replace(/[:.]/g, "-");
@@ -26,6 +29,8 @@ class Client {
     const started = performance.now();
     let status = 0;
     let code = "";
+    let id = null;
+    let waitingPosition = null;
     try {
       const res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
       for (const c of res.headers.getSetCookie()) {
@@ -38,13 +43,15 @@ class Client {
       try {
         const json = JSON.parse(text);
         code = json.code ?? json.status ?? "";
+        id = json.id ?? null;
+        waitingPosition = json.waitingPosition ?? null;
       } catch {
         code = "";
       }
     } catch (e) {
       code = e.name === "TimeoutError" ? "TIMEOUT" : `NETWORK:${e.cause?.code ?? e.message}`;
     }
-    return { status, code, ms: performance.now() - started };
+    return { status, code, id, waitingPosition, startedAt: started, ms: performance.now() - started };
   }
   async csrf() {
     await this.request("GET", "/api/auth/csrf");
@@ -63,8 +70,8 @@ async function pool(items, limit, fn) {
   return out;
 }
 
-async function prepareUsers(count) {
-  const ids = Array.from({ length: count }, (_, i) => `lt_${RUN_ID.slice(11, 19).replace(/-/g, "")}_${i}`.toLowerCase().slice(0, 20));
+async function prepareUsers(count, prefix = "lt") {
+  const ids = Array.from({ length: count }, (_, i) => `${prefix}_${RUN_ID.slice(11, 19).replace(/-/g, "")}_${i}`.toLowerCase().slice(0, 20));
   return pool(ids, 16, async (loginId) => {
     const c = new Client();
     await c.csrf();
@@ -85,8 +92,8 @@ function newSession(title, capacity) {
 /** 모든 요청을 같은 순간에 출발시켜(준비 끝난 뒤 한꺼번에) 결과와 지연을 모은다. */
 async function burst(requests) {
   const started = performance.now();
-  const results = await Promise.all(requests.map(({ client, method, path, expect, label }) =>
-    client.request(method, path).then((r) => ({ ...r, label, expected: expect.includes(`${r.status} ${r.code}`) }))));
+  const results = await Promise.all(requests.map(({ client, method, path, body, expect, label }) =>
+    client.request(method, path, body).then((r) => ({ ...r, label, expected: expect.includes(`${r.status} ${r.code}`) }))));
   return { wallMs: performance.now() - started, results };
 }
 
@@ -155,22 +162,80 @@ async function scenarioB(users, n) {
   return [b1, b2];
 }
 
+// 시나리오 C: 정원 1(확정자 1명) 회차에 N명 대기(동시) → 다음을 한꺼번에:
+//   운영자 정원 증설 1→1+5, 운영자 정원 축소 →1(순서에 따라 200 또는 409 CAPACITY_BELOW_CONFIRMED),
+//   확정자 취소, 신규 예약 N/4, 신규 대기 N/4
+// → 정원은 어느 순서든 6 으로 끝나고, 먼저 대기한 6명(대기 순번 1~6)이 확정, 신규 예약은 대기자가 있어 409.
+async function scenarioC(users, operator, n) {
+  const capacity = 1 + ADDED_SEATS;
+  const sid = newSession(`LOAD-C n=${n}`, 1);
+  const holder = users[0];
+  const waiters = users.slice(1, 1 + n);
+  const quarter = Math.max(1, Math.floor(n / 4));
+  const newcomers = users.slice(1 + n, 1 + n + quarter * 2);
+  const held = await holder.request("POST", `/api/sessions/${sid}/reservations`);
+  if (held.status !== 201) throw new Error(`holder ${held.status} ${held.code}`);
+
+  const wait = await burst(waiters.map((client) => ({ client, method: "POST", path: `/api/sessions/${sid}/waitlist`, label: "waitlist", expect: ["201 WAITING"] })));
+  const c1 = summarize("C1 동시 대기", n, wait);
+  // 대기자 우선 근거: 요청 출발 순서·응답 시간과 DB 가 매긴 id·대기 순번
+  const queue = wait.results
+    .map((r, sendIndex) => ({ sendIndex, startedMs: Math.round(r.startedAt - wait.results[0].startedAt), responseMs: Math.round(r.ms), id: r.id, position: r.waitingPosition }))
+    .sort((a, b) => a.id - b.id);
+
+  const mixed = [
+    { client: operator, method: "PATCH", path: `/api/operator/sessions/${sid}/capacity`, body: { capacity }, label: "capacity+", expect: ["200 "] },
+    { client: operator, method: "PATCH", path: `/api/operator/sessions/${sid}/capacity`, body: { capacity: 1 }, label: "capacity-", expect: ["200 ", "409 CAPACITY_BELOW_CONFIRMED"] },
+    { client: holder, method: "POST", path: `/api/reservations/${held.id}/cancel`, label: "cancel", expect: ["200 CANCELLED"] },
+  ];
+  newcomers.slice(0, quarter).forEach((client) => mixed.push({ client, method: "POST", path: `/api/sessions/${sid}/reservations`, label: "reserve", expect: ["409 SESSION_FULL"] }));
+  newcomers.slice(quarter).forEach((client) => mixed.push({ client, method: "POST", path: `/api/sessions/${sid}/waitlist`, label: "waitlist", expect: ["201 WAITING"] }));
+  const c2 = summarize("C2 증설·축소·취소 혼합", mixed.length, await burst(mixed));
+
+  const finalCapacity = Number(sql(`select capacity from study_session where id = ${sid}`));
+  const confirmedIds = sql(`select id from reservation where study_session_id = ${sid} and status = 'CONFIRMED' order by id`).split("\n").map(Number);
+  const expected = queue.slice(0, capacity).map((q) => q.id);
+  const promotedInOrder = JSON.stringify(confirmedIds) === JSON.stringify(expected);
+  const waitingLeft = Number(sql(`select count(*) from reservation where study_session_id = ${sid} and status = 'WAITING'`));
+  for (const x of [c1, c2]) x.sessionId = sid;
+  c1.queue = queue;
+  c1.pass = c1.unexpected === 0 && queue.every((q, i) => q.position === i + 1);
+  Object.assign(c2, { finalCapacity, confirmedIds, expectedConfirmedIds: expected, promotedInOrder, waitingLeft,
+    promotedPositions: queue.filter((q) => confirmedIds.includes(q.id)).map((q) => q.position) });
+  c2.pass = c2.unexpected === 0 && finalCapacity === capacity && promotedInOrder && waitingLeft === n - capacity + quarter;
+  return [c1, c2];
+}
+
+/** 운영자: 참가자로 가입·로그인한 계정을 SQL 로 OPERATOR 로 바꾼 뒤 다시 로그인한다 (시드 비밀번호를 쓰지 않음). */
+async function prepareOperator() {
+  const [op] = await prepareUsers(1, "op");
+  const loginId = sql(`select login_id from account order by id desc limit 1`);
+  sql(`update account set role = 'OPERATOR' where login_id = '${loginId}'`);
+  const relogin = await op.request("POST", "/api/auth/login", { loginId, password: PASSWORD });
+  if (relogin.status !== 200) throw new Error(`operator login ${relogin.status}`);
+  await op.csrf();
+  return op;
+}
+
 const maxN = Math.max(...LEVELS);
 const t0 = performance.now();
 console.log(`준비: 계정 ${HOLDERS + maxN + Math.floor(maxN / 4) * 2}개 가입·로그인 (${BASE})`);
 const users = await prepareUsers(HOLDERS + maxN + Math.floor(maxN / 4) * 2);
+const operator = SCENARIOS.includes("C") ? await prepareOperator() : null;
 console.log(`준비 끝 ${Math.round(performance.now() - t0)}ms`);
 const summary = [];
 for (const n of LEVELS) {
-  const a = await scenarioA(users, n);
-  const [b1, b2] = await scenarioB(users, n);
-  for (const s of [a, b1, b2]) {
+  const results = [];
+  if (SCENARIOS.includes("A")) results.push(await scenarioA(users, n));
+  if (SCENARIOS.includes("B")) results.push(...(await scenarioB(users, n)));
+  if (SCENARIOS.includes("C")) results.push(...(await scenarioC(users, operator, n)));
+  for (const s of results) {
     summary.push(s);
     console.log(`${s.pass ? "PASS" : "FAIL"} ${s.scenario} N=${s.concurrency} req=${s.requests} wall=${s.wallMs}ms ${s.throughputRps}req/s p50=${s.p50Ms} p95=${s.p95Ms} max=${s.maxMs} unexpected=${s.unexpected} ${JSON.stringify(s.responses)}`);
   }
 }
 mkdirSync("loadtest/results", { recursive: true });
 const file = `loadtest/results/${RUN_ID}.json`;
-writeFileSync(file, JSON.stringify({ runId: RUN_ID, base: BASE, levels: LEVELS, summary }, null, 2));
+writeFileSync(file, JSON.stringify({ runId: RUN_ID, base: BASE, levels: LEVELS, scenarios: SCENARIOS, summary }, null, 2));
 console.log(`결과 저장: ${file}`);
 process.exitCode = summary.every((s) => s.pass) ? 0 : 1;
