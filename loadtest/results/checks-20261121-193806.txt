@@ -1,0 +1,20 @@
+① 정원 초과: 회차별 CONFIRMED 수 > capacity
+ session_id | capacity | confirmed 
+------------+----------+-----------
+(0 rows)
+
+② 활성 신청 중복: 같은 (회차, 계정)에 CANCELLED 가 아닌 신청 2건 이상
+ study_session_id | account_id | active 
+------------------+------------+--------
+(0 rows)
+
+③ 대기 추월: 아직 WAITING 인 신청보다 늦은 id 의 신청이 CONFIRMED
+ session_id | confirmed_id | earlier_waiting_id 
+------------+--------------+--------------------
+(0 rows)
+
+④ 승격 누락: 빈자리가 있는데 WAITING 이 남은 회차
+ session_id | capacity | confirmed | waiting 
+------------+----------+-----------+---------
+(0 rows)
+

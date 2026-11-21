@@ -1,0 +1,368 @@
+{
+  "runId": "2026-11-21T10-37-50-736Z",
+  "base": "http://localhost:18090",
+  "levels": [
+    10,
+    50,
+    100,
+    200,
+    400
+  ],
+  "summary": [
+    {
+      "scenario": "A 마지막 자리",
+      "concurrency": 10,
+      "requests": 10,
+      "wallMs": 47,
+      "throughputRps": 211,
+      "p50Ms": 39,
+      "p95Ms": 47,
+      "maxMs": 47,
+      "responses": {
+        "reserve 409 SESSION_FULL": 9,
+        "reserve 201 CONFIRMED": 1
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 3,
+      "confirmedInDb": 1,
+      "pass": true
+    },
+    {
+      "scenario": "B1 동시 대기",
+      "concurrency": 10,
+      "requests": 10,
+      "wallMs": 38,
+      "throughputRps": 260,
+      "p50Ms": 23,
+      "p95Ms": 38,
+      "maxMs": 38,
+      "responses": {
+        "waitlist 201 WAITING": 10
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 4,
+      "pass": true
+    },
+    {
+      "scenario": "B2 취소·승격 혼합",
+      "concurrency": 9,
+      "requests": 9,
+      "wallMs": 45,
+      "throughputRps": 201,
+      "p50Ms": 35,
+      "p95Ms": 45,
+      "maxMs": 45,
+      "responses": {
+        "cancel 200 CANCELLED": 5,
+        "reserve 409 SESSION_FULL": 2,
+        "waitlist 201 WAITING": 2
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 4,
+      "promotedIds": [
+        "9",
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
+      "expectedPromotedIds": [
+        "9",
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
+      "promotedInOrder": true,
+      "waitingLeft": 7,
+      "pass": true
+    },
+    {
+      "scenario": "A 마지막 자리",
+      "concurrency": 50,
+      "requests": 50,
+      "wallMs": 76,
+      "throughputRps": 662,
+      "p50Ms": 47,
+      "p95Ms": 73,
+      "maxMs": 74,
+      "responses": {
+        "reserve 409 SESSION_FULL": 49,
+        "reserve 201 CONFIRMED": 1
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 5,
+      "confirmedInDb": 1,
+      "pass": true
+    },
+    {
+      "scenario": "B1 동시 대기",
+      "concurrency": 50,
+      "requests": 50,
+      "wallMs": 96,
+      "throughputRps": 520,
+      "p50Ms": 54,
+      "p95Ms": 92,
+      "maxMs": 94,
+      "responses": {
+        "waitlist 201 WAITING": 50
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 6,
+      "pass": true
+    },
+    {
+      "scenario": "B2 취소·승격 혼합",
+      "concurrency": 29,
+      "requests": 29,
+      "wallMs": 59,
+      "throughputRps": 492,
+      "p50Ms": 39,
+      "p95Ms": 57,
+      "maxMs": 58,
+      "responses": {
+        "cancel 200 CANCELLED": 5,
+        "reserve 409 SESSION_FULL": 12,
+        "waitlist 201 WAITING": 12
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 6,
+      "promotedIds": [
+        "27",
+        "28",
+        "29",
+        "30",
+        "31"
+      ],
+      "expectedPromotedIds": [
+        "27",
+        "28",
+        "29",
+        "30",
+        "31"
+      ],
+      "promotedInOrder": true,
+      "waitingLeft": 57,
+      "pass": true
+    },
+    {
+      "scenario": "A 마지막 자리",
+      "concurrency": 100,
+      "requests": 100,
+      "wallMs": 135,
+      "throughputRps": 742,
+      "p50Ms": 80,
+      "p95Ms": 126,
+      "maxMs": 131,
+      "responses": {
+        "reserve 409 SESSION_FULL": 99,
+        "reserve 201 CONFIRMED": 1
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 7,
+      "confirmedInDb": 1,
+      "pass": true
+    },
+    {
+      "scenario": "B1 동시 대기",
+      "concurrency": 100,
+      "requests": 100,
+      "wallMs": 179,
+      "throughputRps": 558,
+      "p50Ms": 94,
+      "p95Ms": 169,
+      "maxMs": 178,
+      "responses": {
+        "waitlist 201 WAITING": 100
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 8,
+      "pass": true
+    },
+    {
+      "scenario": "B2 취소·승격 혼합",
+      "concurrency": 55,
+      "requests": 55,
+      "wallMs": 96,
+      "throughputRps": 573,
+      "p50Ms": 55,
+      "p95Ms": 94,
+      "maxMs": 95,
+      "responses": {
+        "cancel 200 CANCELLED": 5,
+        "reserve 409 SESSION_FULL": 25,
+        "waitlist 201 WAITING": 25
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 8,
+      "promotedIds": [
+        "95",
+        "96",
+        "97",
+        "98",
+        "99"
+      ],
+      "expectedPromotedIds": [
+        "95",
+        "96",
+        "97",
+        "98",
+        "99"
+      ],
+      "promotedInOrder": true,
+      "waitingLeft": 120,
+      "pass": true
+    },
+    {
+      "scenario": "A 마지막 자리",
+      "concurrency": 200,
+      "requests": 200,
+      "wallMs": 233,
+      "throughputRps": 858,
+      "p50Ms": 123,
+      "p95Ms": 219,
+      "maxMs": 228,
+      "responses": {
+        "reserve 409 SESSION_FULL": 199,
+        "reserve 201 CONFIRMED": 1
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 9,
+      "confirmedInDb": 1,
+      "pass": true
+    },
+    {
+      "scenario": "B1 동시 대기",
+      "concurrency": 200,
+      "requests": 200,
+      "wallMs": 364,
+      "throughputRps": 549,
+      "p50Ms": 201,
+      "p95Ms": 345,
+      "maxMs": 362,
+      "responses": {
+        "waitlist 201 WAITING": 200
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 10,
+      "pass": true
+    },
+    {
+      "scenario": "B2 취소·승격 혼합",
+      "concurrency": 105,
+      "requests": 105,
+      "wallMs": 185,
+      "throughputRps": 567,
+      "p50Ms": 104,
+      "p95Ms": 175,
+      "maxMs": 182,
+      "responses": {
+        "cancel 200 CANCELLED": 5,
+        "reserve 409 SESSION_FULL": 50,
+        "waitlist 201 WAITING": 50
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 10,
+      "promotedIds": [
+        "226",
+        "227",
+        "228",
+        "229",
+        "230"
+      ],
+      "expectedPromotedIds": [
+        "226",
+        "227",
+        "228",
+        "229",
+        "230"
+      ],
+      "promotedInOrder": true,
+      "waitingLeft": 245,
+      "pass": true
+    },
+    {
+      "scenario": "A 마지막 자리",
+      "concurrency": 400,
+      "requests": 400,
+      "wallMs": 460,
+      "throughputRps": 870,
+      "p50Ms": 227,
+      "p95Ms": 429,
+      "maxMs": 448,
+      "responses": {
+        "reserve 409 SESSION_FULL": 399,
+        "reserve 201 CONFIRMED": 1
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 11,
+      "confirmedInDb": 1,
+      "pass": true
+    },
+    {
+      "scenario": "B1 동시 대기",
+      "concurrency": 400,
+      "requests": 400,
+      "wallMs": 797,
+      "throughputRps": 502,
+      "p50Ms": 369,
+      "p95Ms": 749,
+      "maxMs": 786,
+      "responses": {
+        "waitlist 201 WAITING": 400
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 12,
+      "pass": true
+    },
+    {
+      "scenario": "B2 취소·승격 혼합",
+      "concurrency": 205,
+      "requests": 205,
+      "wallMs": 321,
+      "throughputRps": 639,
+      "p50Ms": 152,
+      "p95Ms": 303,
+      "maxMs": 315,
+      "responses": {
+        "cancel 200 CANCELLED": 5,
+        "reserve 409 SESSION_FULL": 100,
+        "waitlist 201 WAITING": 100
+      },
+      "unexpected": 0,
+      "unexpectedDetail": [],
+      "sessionId": 12,
+      "promotedIds": [
+        "482",
+        "483",
+        "484",
+        "485",
+        "486"
+      ],
+      "expectedPromotedIds": [
+        "482",
+        "483",
+        "484",
+        "485",
+        "486"
+      ],
+      "promotedInOrder": true,
+      "waitingLeft": 495,
+      "pass": true
+    }
+  ]
+}
