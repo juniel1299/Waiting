@@ -9,7 +9,9 @@
 | 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
 | 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
-| 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [`loadtest/results/2026-11-21-local.md`](loadtest/results/2026-11-21-local.md) |
+| 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [마지막 자리·취소/승격](loadtest/results/2026-11-21-local.md) · [정원 증설](loadtest/results/2026-11-21-local-capacity.md) (로컬) |
+| 직무별 포트폴리오 | [프런트엔드](docs/portfolio/frontend.md) · [백엔드](docs/portfolio/backend.md) · [풀스택](docs/portfolio/fullstack.md) |
+| 미검증·확인 대기 | [미검증 항목](#미검증확인-대기-항목) |
 | 공개 배포 검증 | [공개 배포 검증 (2026-11-21)](#공개-배포-검증-2026-11-21) |
 
 <p>
@@ -40,6 +42,7 @@
 |---|---|---|
 | 마지막 자리 동시 예약 (정원 1, N=10·50·100·200·400) | 모든 단계 확정 정확히 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0. N=400: 460ms, 870 req/s, p95 429ms | 로컬 실제 PostgreSQL · [결과](loadtest/results/2026-11-21-local.md) |
 | 취소·승격 혼합 (확정자 5명 취소 + 신규 예약·대기 동시) | 먼저 대기한 5명이 id 순서대로 승격, 신규 예약은 모두 409, 오류 0. N=400 대기 + 205건 혼합: p95 303ms | 로컬 실제 PostgreSQL · [결과](loadtest/results/2026-11-21-local.md) |
+| 정원 증설 동시 (정원 1 + 대기 N, 증설 1→6·축소·취소·신규 요청 혼합) | 모든 단계 최종 정원 6, 확정 = 대기 순번 1~6, 신규 예약 409, 축소는 순서에 따라 200/`409 CAPACITY_BELOW_CONFIRMED`, 오류 0. N=400: C2 203건 p95 288ms | 로컬 실제 PostgreSQL · [결과](loadtest/results/2026-11-21-local-capacity.md) |
 | SQL 정합성 (정원 초과·활성 중복·대기 추월·승격 누락) | 4종 모두 0행. 검사식은 일부러 만든 위반을 각각 검출함(셀프테스트) | [`checks.sql`](loadtest/checks.sql) |
 | 공개 서비스 정상 흐름 (데모 3회 순차 + 동시 3건, 21요청) | 3회 모두 `대기 신청 → 샘플 취소 → 확정`, 상태 200·201 만, p50 221ms · p95 514ms · max 637ms (웜) | 공개 배포 2026-11-21 10:46 UTC · [결과](loadtest/results/2026-11-21-public-smoke.txt) |
 | 절전 후 첫 체험 시작 | 클릭 → 체험 화면 **170.9초 (2분 51초)**, 버튼은 1.6초에 노출, 안내 4.7초, 중복 요청 0 | 공개 배포 · [측정 조건과 한계](#절전-후-첫-접속-2026-11-21-0420-utc) |
@@ -498,6 +501,15 @@ VM 대안 (월 약 $7~12, 예: Lightsail 1~2GB): 위 compose 앞에 Caddy 를 �
 - 가로채기를 풀고 `다시 시도하기` 를 누르자 2.2초 만에 체험 화면(`/sessions/23`)으로 이동.
 
 스크린샷: `docs/screenshots/cold-start-loading-desktop.png` (클릭 3초 뒤 로딩·안내), `cold-start-arrived-desktop.png` (체험 화면 도착), `timeout-recovered-simulated-desktop.png` (상한 초과 뒤 복구, 시뮬레이션).
+
+## 미검증·확인 대기 항목
+
+| 항목 | 상태 | 비고 |
+|---|---|---|
+| 휴대폰 화면 (공개 배포) | **에뮬레이션 통과**: Playwright Chromium 의 iPhone 13 기기 에뮬레이션, 2026-11-21 11:01 UTC (배포 `f985ac24`) | 첫 화면 흐름·가로 넘침 없음, `/tour` `/api` 0건·mp4 `readyState 4`·이미지 4/4, 데모 시작 2.1초. 실제 기기 아님 |
+| 실제 iPhone Safari 영상 재생 | **확인 대기** (실기기 미확인) | H.264 mp4 를 먼저 제공하도록 했지만 실제 iOS Safari 에서 재생은 확인하지 못했다. 실기기 확인 뒤 이 행을 갱신한다 |
+| 공개 운영자 화면 (회차 명단·정원·탈퇴한 회원 표시) | **미검증** | 운영자 비밀번호를 쓰지 않았다. 정원 변경·명단은 로컬 자동 테스트로만 확인 |
+| 공개 서버 부하 | **하지 않음** (의도) | 무료 서버라 소수 요청 점검만 했다. 부하는 로컬 결과만 있다 |
 
 ## 후속 작업
 
