@@ -3,6 +3,23 @@
 > 정원이 있는 스터디 회차의 **예약·취소 대기**에서, 동시에 몰리는 요청에도 정원을 넘기지 않고 대기 순서대로 확정되게 만든 서비스.
 > 공개 데모: https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연: [/tour](https://waiting-mauve.vercel.app/tour)
 
+## 지원서용 요약
+
+**프로젝트 소개.** 다음자리는 정원이 있는 스터디 회차의 예약·취소 대기 서비스입니다. 백엔드에서는 마지막 자리에 요청이 몰려도 정원을 넘기지 않고, 취소나 정원 증설로 생긴 자리를 먼저 대기한 사람부터 확정하도록 잠금·트랜잭션·DB 제약을 설계했습니다. 공개 데모 https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연 [/tour](https://waiting-mauve.vercel.app/tour) (34초 영상 + 단계별 화면, 백엔드 없이 열림)
+
+**핵심 구현·검증 결과**
+
+1. **회차 행 잠금(`SELECT … FOR UPDATE`)**: 정원 1 회차에 동시 예약 10~400건을 보낸 모든 단계에서 확정 정확히 1건, 나머지 `409 SESSION_FULL`, 예상 못한 오류 0 (로컬 M4 Pro·PostgreSQL 16.16 docker). 근거: [`ReservationConcurrencyTests`](../../backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java), [결과](../../loadtest/results/2026-11-21-local.md)
+2. **취소·승격·정원 증설의 원자성**: 같은 트랜잭션·같은 회차 잠금에서 첫 대기자를 확정한다. 대기자 400명 상태의 혼합 요청(C2, 203건)에서 확정 = 대기 순번 1~6, 636 req/s, p95 288ms (로컬). 승격 실패 주입 시 취소까지 롤백. 근거: [`PromotionRollbackTests`](../../backend/src/test/java/com/daumjari/PromotionRollbackTests.java), [결과](../../loadtest/results/2026-11-21-local-capacity.md)
+3. **로그인 제한·프록시 신뢰**: 시도를 비밀번호 확인 전에 PostgreSQL upsert 로 원자적으로 세어, 동시 실패 10건 중 정확히 5건만 인증까지 간다. 프록시 공유 토큰이 맞을 때만 전달된 클라이언트 IP 를 믿어 위조 `X-Forwarded-For` 로 한도를 피할 수 없다. 근거: [`LoginThrottleConcurrencyTests`](../../backend/src/test/java/com/daumjari/LoginThrottleConcurrencyTests.java), [`ProxyTokenTests`](../../backend/src/test/java/com/daumjari/ProxyTokenTests.java)
+
+**[직접 작성]** 아래는 저장소 기록만으로 확인할 수 없어 비워 둔 항목이다.
+
+- 개발 기간: [직접 작성: 예) 2026.11 ~ 2026.11, 주 n시간] (참고: 저장소 커밋 기준 날짜 2026-11-15 ~ 2026-11-21)
+- 개인 담당 범위·팀 구성: [직접 작성: 예) 1인 개발 / 기획·설계·구현·배포 전부]
+- AI 활용 방식: [직접 작성: 예) 어떤 도구로 무엇을 맡겼고, 무엇을 직접 판단·검증했는지]
+- 지원 직무·회사에 맞춰 강조할 점: [직접 작성]
+
 ## 서비스 소개
 
 - **역할:** 참가자는 회차를 예약하고, 마감된 회차에는 대기를 건다. 확정자가 취소하거나 운영자가 정원을 늘리면 **먼저 대기한 사람부터** 자동 확정된다.
