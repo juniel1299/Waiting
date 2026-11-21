@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { api, ApiError, errorMessage, formatWait, isServerWaking, subscribeServerWaking } from "@/lib/api";
 
@@ -22,6 +22,16 @@ export function DemoStartButton({ label = "데모 체험하기", className }: De
   // 같은 렌더 안의 연속 클릭(Enter·Space·클릭)도 한 번만 보내도록 상태와 별도로 즉시 막는다
   const inFlight = useRef(false);
   const waking = useSyncExternalStore(subscribeServerWaking, isServerWaking, () => false);
+
+  // cacheComponents 는 떠난 화면을 숨긴 채 상태를 남긴다: 체험 화면으로 간 뒤 돌아오면 처음 상태로
+  useEffect(
+    () => () => {
+      inFlight.current = false;
+      setBusy(false);
+      setFailed(false);
+    },
+    [],
+  );
 
   async function start() {
     if (inFlight.current) return;

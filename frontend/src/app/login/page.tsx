@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { api, errorMessage, type Me } from "@/lib/api";
@@ -34,6 +34,14 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // cacheComponents 는 떠난 화면을 숨긴 채 상태를 남긴다: 숨겨질 때 진행 중 표시와 비밀번호를 비운다
+  useEffect(
+    () => () => {
+      setBusy(false);
+      setPassword("");
+    },
+    [],
+  );
 
   async function submit(event: FormEvent) {
     event.preventDefault();

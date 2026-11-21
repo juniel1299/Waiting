@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { api, ApiError, errorMessage, formatWait } from "@/lib/api";
 
@@ -37,6 +37,15 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputs = useRef<Partial<Record<Field, HTMLInputElement | null>>>({});
+  // cacheComponents 는 떠난 화면을 숨긴 채 상태를 남긴다: 숨겨질 때 진행 중 표시와 비밀번호를 비운다
+  useEffect(
+    () => () => {
+      setBusy(false);
+      setPassword("");
+      setPasswordConfirm("");
+    },
+    [],
+  );
 
   function showFieldErrors(errors: FieldErrors) {
     setFieldErrors(errors);

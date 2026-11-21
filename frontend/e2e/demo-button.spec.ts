@@ -42,6 +42,11 @@ test("누르면 '체험 준비 중…' 으로 바뀌고, 포커스를 유지한 
 
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
   expect(calls).toBe(2);
+
+  // 뒤로 가면 버튼은 다시 쓸 수 있는 처음 상태다
+  await page.goBack();
+  await expect(demoButton(page)).toHaveText("데모 체험하기");
+  await expect(demoButton(page)).not.toHaveAttribute("aria-busy", "true");
 });
 
 test("재시도 상한을 넘기면 버튼을 되살리고 오류와 함께 수동 재시도를 제공한다", async ({ page }) => {
