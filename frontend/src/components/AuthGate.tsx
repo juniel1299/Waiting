@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { api, ApiError, errorMessage, type Me } from "@/lib/api";
@@ -51,6 +51,17 @@ export function AuthGate({ children }: AuthGateProps) {
   );
 }
 
+/** 현재 위치는 aria-current 로 알린다. 운영자 메뉴는 하위 탭(/operator/...)에서도 현재 위치다. */
+function NavLink({ href, children }: { href: string; children: ReactNode }) {
+  const pathname = usePathname();
+  const current = pathname === href || (href === "/operator" && pathname.startsWith("/operator/"));
+  return (
+    <Link href={href} aria-current={current ? "page" : undefined}>
+      {children}
+    </Link>
+  );
+}
+
 function Header({ me }: { me: Me }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +80,12 @@ function Header({ me }: { me: Me }) {
       <Link href="/" className="brand">
         다음자리
       </Link>
-      <nav className="nav">
-        <Link href="/sessions">회차 목록</Link>
-        {me.role === "PARTICIPANT" && <Link href="/me/reservations">내 신청</Link>}
-        {!me.demo && <Link href="/me/sessions">내가 만든 회차</Link>}
-        {!me.demo && <Link href="/sessions/new">회차 만들기</Link>}
-        {me.role === "OPERATOR" && <Link href="/operator">운영자</Link>}
+      <nav className="nav" aria-label="주 메뉴">
+        <NavLink href="/sessions">회차 목록</NavLink>
+        {me.role === "PARTICIPANT" && <NavLink href="/me/reservations">내 신청</NavLink>}
+        {!me.demo && <NavLink href="/me/sessions">내가 만든 회차</NavLink>}
+        {!me.demo && <NavLink href="/sessions/new">회차 만들기</NavLink>}
+        {me.role === "OPERATOR" && <NavLink href="/operator">운영자</NavLink>}
       </nav>
       <span className="who">{me.displayName} 님</span>
       {me.role === "PARTICIPANT" && !me.demo && (

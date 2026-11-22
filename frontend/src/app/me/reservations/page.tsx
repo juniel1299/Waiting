@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { api, errorMessage, formatSeoul, type Reservation } from "@/lib/api";
 import { useVisiblePolling } from "@/lib/useVisiblePolling";
+import { describeChange, HIGHLIGHT_MS } from "@/lib/reservationChange";
 
 export default function MyReservationsPage() {
   return (
@@ -30,9 +31,23 @@ function MyReservations() {
   // 숨겨 뒀던 화면이 다시 보일 때 서버 응답 전까지 옛 상태를 현재처럼 보이지 않게 한다 (상세와 같은 방식)
   const [verifying, setVerifying] = useState(false);
   const requestSeq = useRef(0);
+  // 다른 사람의 취소로 순번이 앞당겨지거나 확정된 신청: 잠깐 강조하고 안내한다
+  const previous = useRef<Map<number, Reservation>>(new Map());
+  const [changes, setChanges] = useState<{ ids: number[]; text: string } | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
 
   const applyIfLatest = useCallback((seq: number, data: Reservation[]) => {
     if (seq === requestSeq.current) {
+      const found = data
+        .map((r) => ({ r, text: describeChange(previous.current.get(r.id) ?? null, r) }))
+        .filter((c): c is { r: Reservation; text: string } => c.text !== null);
+      if (found.length > 0) {
+        setChanges({ ids: found.map((c) => c.r.id), text: found.map((c) => `${c.r.sessionTitle}: ${c.text}`).join(" ") });
+        clearTimeout(highlightTimer.current);
+        highlightTimer.current = setTimeout(() => setChanges((c) => c && { ...c, ids: [] }), HIGHLIGHT_MS);
+      }
+      previous.current = new Map(data.map((r) => [r.id, r]));
       setItems(data);
       setError(null);
       setConnectionLost(false);
@@ -78,6 +93,7 @@ function MyReservations() {
     <>
       <h1>내 신청</h1>
       {verifying && !error && <p role="status">최신 상태 확인 중…</p>}
+      {changes && <p role="status">{changes.text}</p>}
       {error && (
         <p role="alert">
           {error}{" "}
@@ -106,7 +122,10 @@ function MyReservations() {
                 {formatSeoul(r.startsAt)} · {r.location}
               </span>
               <span>
-                <span data-testid="reservation-status" className={r.status === "WAITING" ? "badge" : "badge confirmed"}>
+                <span
+                  data-testid="reservation-status"
+                  data-changed={changes?.ids.includes(r.id) || undefined}
+                  className={r.status === "WAITING" ? "badge" : "badge confirmed"}>
                   {verifying || error ? "확인 중…" : statusLabel(r)}
                 </span>
               </span>

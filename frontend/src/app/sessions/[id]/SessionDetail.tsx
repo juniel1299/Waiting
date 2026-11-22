@@ -17,6 +17,7 @@ import {
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { useVisiblePolling } from "@/lib/useVisiblePolling";
 import { lastListHref } from "@/lib/sessionSearch";
+import { describeChange, HIGHLIGHT_MS } from "@/lib/reservationChange";
 
 export function SessionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +38,9 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const lastSession = useRef<StudySession | null>(null);
+  const [changed, setChanged] = useState(false);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
   const requestSeq = useRef(0);
 
   const fetchSession = useCallback(
@@ -44,11 +48,14 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
     [sessionId],
   );
 
-  /** 화면 반영. 대기 → 확정으로 바뀐 순간에만 한 번 안내한다 (폴링마다 반복하지 않음). */
+  /** 화면 반영. 대기 → 확정, 대기 순번이 앞당겨진 순간에만 한 번 안내하고 잠깐 강조한다 (폴링마다 반복하지 않음). */
   const applySession = useCallback((next: StudySession) => {
-    const before = lastSession.current?.myReservation?.status;
-    if (before === "WAITING" && next.myReservation?.status === "CONFIRMED") {
-      setNotice({ kind: "status", text: "대기 순번이 되어 예약이 확정됐어요." });
+    const message = describeChange(lastSession.current?.myReservation ?? null, next.myReservation);
+    if (message) {
+      setNotice({ kind: "status", text: message });
+      setChanged(true);
+      clearTimeout(highlightTimer.current);
+      highlightTimer.current = setTimeout(() => setChanged(false), HIGHLIGHT_MS);
     }
     lastSession.current = next;
     setSession(next);
@@ -208,7 +215,7 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
         <dt>대기 인원</dt>
         <dd data-testid="waiting-count">{live(`${session.waitingCount}명`)}</dd>
         <dt>내 예약</dt>
-        <dd data-testid="my-reservation">{live(myReservationLabel(mine))}</dd>
+        <dd data-testid="my-reservation" data-changed={changed || undefined}>{live(myReservationLabel(mine))}</dd>
       </dl>
       <div className="actions">
         {mine ? (
