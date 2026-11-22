@@ -39,7 +39,7 @@ test("운영자는 로그인 후 운영자 화면으로 이동한다", async ({ 
   await loginInBrowser(page, "operator");
 
   await expect(page).toHaveURL(/\/operator$/);
-  await expect(page.getByRole("heading", { name: "회차 관리" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "운영자 · 사용량" })).toBeVisible();
 });
 
 test("로그아웃한 뒤 같은 화면에서 다시 로그인할 수 있다 (이전 로그인의 진행 상태가 남지 않는다)", async ({ page }) => {

@@ -2,30 +2,36 @@ import { expect, test } from "@playwright/test";
 
 import { ApiActor, appAlert, loginInBrowser, uniqueTitle } from "./support";
 
-test("운영자가 회차를 등록하고 확정 명단을 확인한다", async ({ page }) => {
+test("운영자가 회차를 만들고 '전체 회차' 탭에서 찾아 확정 명단을 확인한다", async ({ page }) => {
   const title = uniqueTitle("운영자 등록");
 
   await loginInBrowser(page, "operator");
-  await expect(page.getByRole("heading", { name: "회차 관리" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "운영자 · 사용량" })).toBeVisible();
+  await page.getByRole("link", { name: "회차 만들기" }).click();
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("시작 일시 (서울)").fill("2030-03-02T19:30");
   await page.getByLabel("장소").fill("판교 스터디룸");
   await page.getByLabel("정원").fill("4");
-  await page.getByRole("button", { name: "회차 등록" }).click();
+  await page.getByRole("button", { name: "회차 만들기" }).click();
+  await expect(page).toHaveURL(/\/sessions\/\d+$/);
+  const sessionId = Number(new URL(page.url()).pathname.split("/").pop());
 
-  await expect(page.getByRole("status")).toContainText("회차를 등록했어요");
-  const row = page.getByRole("listitem").filter({ hasText: title });
+  await page.getByRole("link", { name: "운영자", exact: true }).click();
+  await page.getByRole("navigation", { name: "운영자 메뉴" }).getByRole("link", { name: "전체 회차" }).click();
+  await expect(page).toHaveURL(/\/operator\/sessions$/);
+  const search = page.getByLabel("검색어", { exact: true }).filter({ visible: true });
+  await search.fill(title);
+  await search.press("Enter");
+  const row = page.locator(".cards .card:visible").filter({ hasText: title });
   await expect(row).toContainText("2030. 3. 2.");
   await expect(row).toContainText("오후 7:30");
-  await expect(row).toContainText("0 / 4");
+  await expect(row).toContainText("0 / 정원 4");
 
-  const href = await row.getByRole("link", { name: "명단 보기" }).getAttribute("href");
-  const sessionId = Number(href?.split("/")[2]); // /sessions/{id}/manage
   const alice = await ApiActor.login("alice");
   expect((await alice.reserve(sessionId)).status()).toBe(201);
   await alice.dispose();
 
-  await row.getByRole("link", { name: "명단 보기" }).click();
+  await row.getByRole("link", { name: `${title} 명단·삭제` }).click();
   await expect(page.getByRole("heading", { name: `회차 관리 · ${title}` })).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: "alice" })).toContainText("앨리스");
 });

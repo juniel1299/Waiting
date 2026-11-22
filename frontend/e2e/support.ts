@@ -41,6 +41,11 @@ export class ApiActor {
     return this.ctx.post(path, { data, headers: { [csrf.headerName]: csrf.token } });
   }
 
+  async delete(path: string) {
+    const csrf = await (await this.ctx.get("/api/auth/csrf")).json();
+    return this.ctx.delete(path, { headers: { [csrf.headerName]: csrf.token } });
+  }
+
   async createSession(title: string, capacity: number, startsAt?: Date): Promise<number> {
     const start = startsAt ?? new Date(Date.now() + 7 * 24 * 3600 * 1000);
     const res = await this.post("/api/operator/sessions", {

@@ -40,6 +40,8 @@ function Accounts() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [version, setVersion] = useState(0);
+  // 조치 결과 안내는 목록 위에 둔다: 강제탈퇴하면 검색 결과에서 그 계정(과 조치 영역)이 사라지기 때문
+  const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams({ status: query.status, page: String(query.page), size: "10" });
@@ -52,13 +54,17 @@ function Accounts() {
       .catch((e: unknown) => setError(errorMessage(e)));
   }, [query, version]);
 
-  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  const refresh = useCallback((message: string) => {
+    setFlash(message);
+    setVersion((v) => v + 1);
+  }, []);
 
   return (
     <>
       <OperatorHead title="계정 관리" />
       <AccountSearch query={query} onSearch={(q, status) => setQuery({ q, status, page: 1 })} />
       {error && <p role="alert">{error}</p>}
+      {flash && <p role="status">{flash}</p>}
       <p className="result-count" aria-live="polite">
         {result ? `${result.totalElements}개 계정` : error ? "" : "불러오는 중…"}
       </p>
@@ -162,7 +168,7 @@ function AccountSearch({ query, onSearch }: AccountSearchProps) {
 }
 
 /** 영향 범위를 먼저 보여 주고, 사유를 받아 조치한다. 강제탈퇴는 한 번 더 확인한다. */
-function ActionPanel({ accountId, onDone }: { accountId: number; onDone: () => void }) {
+function ActionPanel({ accountId, onDone }: { accountId: number; onDone: (message: string) => void }) {
   const [impact, setImpact] = useState<Impact | null>(null);
   const [reason, setReason] = useState("");
   const [notice, setNotice] = useState<{ kind: "status" | "alert"; text: string } | null>(null);
@@ -178,8 +184,14 @@ function ActionPanel({ accountId, onDone }: { accountId: number; onDone: () => v
   );
 
   useEffect(() => {
-    load().then(() => heading.current?.focus());
+    load();
   }, [load]);
+
+  // 패널이 처음 그려지면 제목으로 포커스를 옮겨 화면 낭독기·키보드 사용자가 영향 범위부터 읽게 한다
+  const loaded = impact !== null;
+  useEffect(() => {
+    if (loaded) heading.current?.focus();
+  }, [loaded]);
 
   async function act(action: ModerationAction) {
     if (!impact) return;
@@ -192,9 +204,9 @@ function ActionPanel({ accountId, onDone }: { accountId: number; onDone: () => v
     setBusy(true);
     try {
       await api(`/api/operator/accounts/${accountId}/${path}`, { method: "POST", body: { reason } });
-      setNotice({ kind: "status", text: `${impact.label} 계정을 ${ACTION_LABEL[action]}했어요.` });
+      setNotice(null);
       setReason("");
-      onDone();
+      onDone(`${impact.label} 계정을 ${ACTION_LABEL[action]}했어요.`);
       await load();
     } catch (e) {
       setNotice({ kind: "alert", text: errorMessage(e) });
