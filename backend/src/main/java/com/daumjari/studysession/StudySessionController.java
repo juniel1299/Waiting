@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,6 +22,7 @@ import com.daumjari.studysession.SessionDtos.ChangeCapacityRequest;
 import com.daumjari.studysession.SessionDtos.CreateSessionRequest;
 import com.daumjari.studysession.SessionDtos.EditSessionRequest;
 import com.daumjari.studysession.SessionDtos.RosterEntry;
+import com.daumjari.studysession.SessionDtos.SessionPage;
 import com.daumjari.studysession.SessionDtos.SessionResponse;
 
 import jakarta.validation.Valid;
@@ -41,6 +43,16 @@ public class StudySessionController {
 	@GetMapping("/api/sessions")
 	public List<SessionResponse> list(@AuthenticationPrincipal SessionUser user) {
 		return service.list(user);
+	}
+
+	/** 검색·필터·정렬·페이지네이션 (README "회차 검색"). 값이 틀리면 400 VALIDATION_FAILED. */
+	@GetMapping("/api/sessions/search")
+	public SessionPage search(@RequestParam(required = false) String scope, @RequestParam(required = false) String q,
+			@RequestParam(required = false) String field, @RequestParam(required = false) String from,
+			@RequestParam(required = false) String to, @RequestParam(required = false) String status,
+			@RequestParam(required = false) String sort, @RequestParam(required = false) String page,
+			@RequestParam(required = false) String size, @AuthenticationPrincipal SessionUser user) {
+		return service.search(SessionSearch.parse(scope, q, field, from, to, status, sort, page, size), user);
 	}
 
 	@GetMapping("/api/sessions/{sessionId}")
