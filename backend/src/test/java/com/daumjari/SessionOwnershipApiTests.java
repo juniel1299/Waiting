@@ -177,6 +177,9 @@ class SessionOwnershipApiTests extends ApiTestSupport {
 
 		assertThat(jdbc.queryForObject("select count(*) from study_session where id = ?", Long.class, id)).isZero();
 		assertThat(reservations.findById(joined.getId())).isEmpty();
+		// 회차 삭제(영속성 컨텍스트 비움) 뒤에도 계정 익명화가 저장된다 (회귀: 2026-11-22 발견)
+		assertThat(jdbc.queryForObject("select deleted_at is not null and login_id like 'deleted-%' from account where id = ?",
+				Boolean.class, creator.getId())).isTrue();
 	}
 
 	private ResultActions create(MockHttpSession session, String json) throws Exception {
