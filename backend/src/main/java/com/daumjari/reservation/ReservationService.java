@@ -39,6 +39,10 @@ public class ReservationService {
 
 	private final Clock clock;
 
+	/** 탈퇴 정리 결과: 취소한 신청 수, 함께 삭제한 본인 회차 수 (운영 조치 기록용). */
+	public record Release(int cancelledReservations, int deletedSessions) {
+	}
+
 	public ReservationService(ReservationRepository reservations, StudySessionRepository sessions,
 			AccountRepository accounts, WaitlistPromoter promoter, UsageCounter usage, Clock clock) {
 		this.usage = usage;
@@ -116,7 +120,9 @@ public class ReservationService {
 	 * 시작된 회차의 확정은 참가 기록으로 남긴다.
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
-	public void releaseAllOf(Long accountId, Instant now) {
+	public Release releaseAllOf(Long accountId, Instant now) {
+		int cancelled = 0;
+		int deleted = 0;
 		// 본인이 만든 회차는 신청째 삭제하고(승격 없음), 다른 회차의 신청은 정리한다. 회차 id 순으로 하나씩 잠가 교착을 막는다.
 		java.util.SortedSet<Long> owned = new java.util.TreeSet<>(sessions.findIdsByCreatorAccountId(accountId));
 		java.util.SortedSet<Long> all = new java.util.TreeSet<>(owned);
@@ -127,6 +133,7 @@ public class ReservationService {
 			if (owned.contains(sessionId)) {
 				sessions.deleteRowById(sessionId);
 				usage.increment(Metric.SESSION_DELETED, false);
+				deleted++;
 				continue;
 			}
 			Optional<Reservation> active = activeOf(sessionId, accountId);
@@ -140,10 +147,12 @@ public class ReservationService {
 			}
 			usage.increment(Metric.RESERVATION_CANCELLED, session.isDemo());
 			reservation.cancel(now);
+			cancelled++;
 			if (confirmed) {
 				promoter.promoteNext(sessionId);
 			}
 		}
+		return new Release(cancelled, deleted);
 	}
 
 	@Transactional(readOnly = true)

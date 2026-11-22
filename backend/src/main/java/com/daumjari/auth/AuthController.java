@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import com.daumjari.account.Account;
+import com.daumjari.account.AccountRepository;
+import com.daumjari.common.ApiException;
+import com.daumjari.common.ErrorCode;
 import com.daumjari.auth.AuthDtos.SignupRequest;
 import com.daumjari.auth.AuthDtos.SignupResponse;
 
@@ -37,8 +40,11 @@ public class AuthController {
 
 	private final SignupService signupService;
 
+	private final AccountRepository accounts;
+
 	public AuthController(AuthenticationManager authenticationManager, SessionLogin sessionLogin,
-			LoginThrottle loginThrottle, SignupService signupService) {
+			LoginThrottle loginThrottle, SignupService signupService, AccountRepository accounts) {
+		this.accounts = accounts;
 		this.authenticationManager = authenticationManager;
 		this.sessionLogin = sessionLogin;
 		this.loginThrottle = loginThrottle;
@@ -61,6 +67,10 @@ public class AuthController {
 			.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(body.loginId(), body.password()));
 		loginThrottle.onSuccess(body.loginId(), clientIp);
 		SessionUser user = ((AccountUserDetails) verified.getPrincipal()).toSessionUser();
+		// 정지 사실은 비밀번호가 맞을 때만 알린다 (틀리면 일반 로그인 실패와 같은 응답)
+		if (accounts.findById(user.id()).map(Account::isSuspended).orElse(true)) {
+			throw new ApiException(ErrorCode.ACCOUNT_SUSPENDED);
+		}
 		sessionLogin.establish(user, request, response);
 		return MeResponse.from(user);
 	}
