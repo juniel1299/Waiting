@@ -1,0 +1,25 @@
+시작 2026-11-22T08:53:47.541Z https://waiting-mauve.vercel.app
+성공 | CSRF 토큰 | 200 200ms
+성공 | 데모 시작 API | 201 220ms 체험 회차 54
+성공 | 검색 API 정렬 7종 (scope=all) | SOON 200, LATEST_START 200, EARLIEST_START 200, NEWEST 200, MOST_CONFIRMED 200, FEWEST_CONFIRMED 200, MOST_SEATS 200
+성공 | 검색 API 없앤 정렬 거절 | sort=TITLE 400 VALIDATION_FAILED
+성공 | 비로그인 보호 API 401 | /api/operator/usage 401, /api/operator/accounts 401, /api/operator/actions 401, /api/sessions/search 401
+성공 | [desktop] 메뉴 현재 위치 | 회차 목록 aria-current=page
+성공 | [desktop] 카드 hover 모션 | transform=matrix(1, 0, 0, 1, 0, -2), transition=0.18s
+성공 | [desktop] 가로 스크롤 없음 | scrollWidth - clientWidth = 0
+성공 | [desktop] 버튼 키보드 포커스 링 | 포커스 '검색', outline-style=solid
+성공 | [desktop] 카드 클릭 영역 | 장소 글자 클릭 → /sessions/55
+성공 | [desktop] 확정 강조·안내 | data-changed=true, role=status 안내 1건
+성공 | [desktop] 강조 해제 | 2초 뒤 data-changed=null
+성공 | [mobile] 메뉴 현재 위치 | 회차 목록 aria-current=page
+성공 | [mobile] 가로 스크롤 없음 | scrollWidth - clientWidth = 0
+성공 | [mobile] 카드 클릭 영역 | 장소 글자 클릭 → /sessions/56
+성공 | [mobile] 확정 강조·안내 | data-changed=true, role=status 안내 1건
+성공 | [mobile] 강조 해제 | 2초 뒤 data-changed=null
+성공 | [reduced] 메뉴 현재 위치 | 회차 목록 aria-current=page
+성공 | [reduced] 카드 hover 모션 | transform=none, transition=0.00001s
+성공 | [reduced] 가로 스크롤 없음 | scrollWidth - clientWidth = 0
+성공 | [reduced] 카드 클릭 영역 | 장소 글자 클릭 → /sessions/57
+성공 | [reduced] 확정 강조·안내 | data-changed=true, role=status 안내 1건
+성공 | [reduced] 강조 해제 | 2초 뒤 data-changed=null
+결과: 성공 23 / 실패 0
