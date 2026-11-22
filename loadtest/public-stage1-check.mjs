@@ -2,7 +2,7 @@
 // 운영 환경에서 비밀번호로 로그인하는 단계가 있어, 사람이 직접 실행한다: node loadtest/public-stage1-check.mjs
 // 비밀번호는 실행 중에만 무작위로 만들고 출력·저장하지 않는다. 가입은 3회 (IP 당 15분 5회 한도 안).
 //
-// 흐름: A 가입 → A 가 [QA] 회차(정원 1) 생성 → B·C 가입 → B 예약, C 대기 → B 가 A 회차 관리 API 직접 호출 403
+// 흐름: A 가입 → A 가 [QA] 회차(정원 1) 생성·수정·내가 만든 회차 조회 → B·C 가입 → B 예약, C 대기 → B 가 A 회차 관리 API 직접 호출 403
 //      → A 명단 → A 정원 2 증설 → C 승격 → A 회차 삭제 → B·C 내 신청에서 사라짐·상세 404 → A·B·C 탈퇴.
 // 남는 것이 없게: 계정마다 로그인 200 을 확인한 뒤에만 다음 단계로 가고, finally 에서 회차 삭제(남아 있으면)와 탈퇴를 한다.
 // A 의 탈퇴는 A 가 만든 회차를 신청째 지우므로, 삭제 단계 전에 멈춰도 회차가 남지 않는다.
@@ -100,6 +100,14 @@ try {
   expect(created.status === 201, `A 회차 생성 실패 ${brief(created)}`);
   sessionId = created.body.id;
   log(`A 회차 생성 201 /sessions/${sessionId}: ${summary(created.body)} canManage=${created.body.canManage} canDelete=${created.body.canDelete}`);
+  const edited = await a.req("PATCH", `/api/sessions/${sessionId}`, {
+    title: `[QA] 1단계 점검 ${tag} 수정`,
+    startsAt: created.body.startsAt,
+    location: "QA 점검실 2",
+  });
+  const mineSessions = await a.req("GET", `/api/sessions/search?scope=mine&q=${encodeURIComponent(`[QA] 1단계 점검 ${tag}`)}`);
+  log(`A 본인 회차 수정 ${brief(edited)} "${edited.body?.title}" | 내가 만든 회차 검색 ${brief(mineSessions)} ${mineSessions.body?.totalElements}건`);
+  expect(edited.status === 200 && edited.body.location === "QA 점검실 2" && mineSessions.body?.totalElements === 1, "본인 회차 수정·조회가 예상과 달라 멈춤");
 
   log("B", b.loginId, await b.signupAndLogin());
   log("C", c.loginId, await c.signupAndLogin());
@@ -132,10 +140,12 @@ try {
   const del = await a.req("DELETE", `/api/sessions/${sessionId}`);
   expect(del.status === 204, `A 회차 삭제 실패 ${brief(del)}`);
   deleted = true;
-  const leftB = (await b.mine()).some((r) => r.sessionId === sessionId);
-  const leftC = (await c.mine()).some((r) => r.sessionId === sessionId);
+  // 물리 삭제: 취소(CANCELLED) 로 남는 게 아니라 신청 행 자체가 없어야 한다 (내 신청은 취소 이력도 돌려준다)
+  const allOf = async (v) => (await v.req("GET", "/api/me/reservations")).body ?? [];
+  const leftB = (await allOf(b)).some((r) => r.sessionId === sessionId);
+  const leftC = (await allOf(c)).some((r) => r.sessionId === sessionId);
   const detail = await b.req("GET", `/api/sessions/${sessionId}`);
-  log(`A 회차 삭제 204 | B 내 신청에 남음: ${leftB}, C 내 신청에 남음: ${leftC} | 상세 ${brief(detail)} "${detail.body?.message}"`);
+  log(`A 회차 삭제 204 | B 신청 행 남음(취소 포함): ${leftB}, C 신청 행 남음(취소 포함): ${leftC} | 상세 ${brief(detail)} "${detail.body?.message}"`);
   expect(!leftB && !leftC && detail.status === 404, "삭제한 회차가 남아 있어 멈춤");
   log("1단계 공개 점검 통과");
 } catch (e) {
