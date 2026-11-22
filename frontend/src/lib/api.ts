@@ -264,3 +264,26 @@ export const STATUS_LABEL: Record<SessionStatus, string> = {
   FULL: "마감",
   STARTED: "시작됨",
 };
+
+const seoulLocalFormat = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** UTC ISO 문자열을 datetime-local 값(서울 기준 "2030-03-02T19:30")으로. */
+export function isoToSeoulLocal(iso: string): string {
+  return seoulLocalFormat.format(new Date(iso)).replace(" ", "T");
+}
+
+export interface SessionPage {
+  items: StudySession[];
+  /** 1부터 */
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

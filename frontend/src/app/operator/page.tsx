@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
-import { CreateSessionForm } from "@/components/CreateSessionForm";
+import { SessionForm } from "@/components/SessionForm";
 import { api, errorMessage, formatSeoul, type StudySession } from "@/lib/api";
 
 export default function OperatorPage() {
@@ -38,7 +38,7 @@ function OperatorHome() {
   return (
     <>
       <h1>회차 관리</h1>
-      <CreateSessionForm submitLabel="회차 등록" onCreated={() => reload()} />
+      <SessionForm submitLabel="회차 등록" onSaved={() => reload()} />
       <h2>등록된 회차</h2>
       {listError && <p role="alert">{listError}</p>}
       <ul className="cards">

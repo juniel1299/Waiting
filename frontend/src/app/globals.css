@@ -363,3 +363,145 @@ td {
   padding: 8px;
   border-bottom: 1px solid var(--line);
 }
+
+/* ── 회차 검색 목록 (전체 회차·내가 만든 회차) ── */
+select {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.search-row .field {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.search-row .field.grow {
+  flex: 3 1 220px;
+}
+
+.search-row input,
+.search-row select {
+  width: 100%;
+  min-width: 0;
+  font-size: 1rem;
+}
+
+.result-count {
+  color: var(--muted);
+  min-height: 1.5em;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.card-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+}
+
+.card-facts dt {
+  color: var(--muted);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.badge.status-open {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.card-actions,
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.page-head {
+  justify-content: space-between;
+}
+
+.button-link {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.pagination a,
+.pagination span {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.pagination a {
+  color: var(--accent);
+}
+
+.pagination .current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.pagination [aria-disabled="true"] {
+  color: var(--muted);
+  opacity: 0.6;
+}

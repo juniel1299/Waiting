@@ -54,6 +54,11 @@ function RosterTable({ sessionId }: { sessionId: string }) {
       {entries && (
         <>
           <h1>회차 관리 · {data?.session.title}</h1>
+          {data?.session.canManage && data.session.status !== "STARTED" && (
+            <Link href={`/sessions/${sessionId}/edit`} className="link">
+              제목·시작·장소 수정
+            </Link>
+          )}
           {data?.session.canManage && (
             <CapacityForm session={data.session} onChanged={() => fetchRoster().then(setData)} />
           )}
@@ -153,7 +158,7 @@ function DeleteSession({ session }: { session: StudySession }) {
     setBusy(true);
     try {
       await api(`/api/sessions/${session.id}`, { method: "DELETE" });
-      router.replace("/sessions");
+      router.replace(session.canManage ? "/me/sessions" : "/sessions");
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
