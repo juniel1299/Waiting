@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
-import { api, errorMessage, formatSeoul, seoulLocalToIso, type StudySession } from "@/lib/api";
+import { CreateSessionForm } from "@/components/CreateSessionForm";
+import { api, errorMessage, formatSeoul, type StudySession } from "@/lib/api";
 
 export default function OperatorPage() {
   return (
@@ -37,7 +38,7 @@ function OperatorHome() {
   return (
     <>
       <h1>회차 관리</h1>
-      <CreateSessionForm onCreated={reload} />
+      <CreateSessionForm submitLabel="회차 등록" onCreated={() => reload()} />
       <h2>등록된 회차</h2>
       {listError && <p role="alert">{listError}</p>}
       <ul className="cards">
@@ -50,73 +51,12 @@ function OperatorHome() {
             <span>
               확정 {s.confirmedCount} / {s.capacity}
             </span>
-            <Link href={`/operator/sessions/${s.id}`} className="link">
+            <Link href={`/sessions/${s.id}/manage`} className="link">
               명단 보기
             </Link>
           </li>
         ))}
       </ul>
     </>
-  );
-}
-
-function CreateSessionForm({ onCreated }: { onCreated: () => Promise<void> }) {
-  const [title, setTitle] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [location, setLocation] = useState("");
-  const [capacity, setCapacity] = useState("");
-  const [notice, setNotice] = useState<{ kind: "status" | "alert"; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await api("/api/operator/sessions", {
-        method: "POST",
-        body: { title, startsAt: seoulLocalToIso(startsAt), location, capacity: Number(capacity) },
-      });
-      setNotice({ kind: "status", text: "회차를 등록했어요." });
-      setTitle("");
-      setStartsAt("");
-      setLocation("");
-      setCapacity("");
-      await onCreated();
-    } catch (e) {
-      setNotice({ kind: "alert", text: errorMessage(e) });
-    }
-    setBusy(false);
-  }
-
-  return (
-    <form onSubmit={submit} className="form">
-      <label>
-        제목
-        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} required />
-      </label>
-      <label>
-        시작 일시 (서울)
-        <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required />
-      </label>
-      <label>
-        장소
-        <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={200} required />
-      </label>
-      <label>
-        정원
-        <input
-          type="number"
-          min={1}
-          max={1000}
-          value={capacity}
-          onChange={(e) => setCapacity(e.target.value)}
-          required
-        />
-      </label>
-      <button type="submit" disabled={busy}>
-        회차 등록
-      </button>
-      {notice && <p role={notice.kind}>{notice.text}</p>}
-    </form>
   );
 }

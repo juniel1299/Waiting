@@ -171,7 +171,13 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
     return (
       <>
         <p role="alert">{notice.text}</p>
-        {demoVisitor && <DemoStartButton label="새 체험 시작하기" />}
+        {demoVisitor ? (
+          <DemoStartButton label="새 체험 시작하기" />
+        ) : (
+          <Link href="/sessions" className="link">
+            회차 목록으로
+          </Link>
+        )}
       </>
     );
   }
@@ -186,6 +192,11 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
         ← 회차 목록
       </Link>
       <h1>{session.title}</h1>
+      {session.canDelete && (
+        <Link href={`/sessions/${session.id}/manage`} className="link">
+          회차 관리
+        </Link>
+      )}
       <dl className="facts">
         <dt>시작</dt>
         <dd>{formatSeoul(session.startsAt)}</dd>

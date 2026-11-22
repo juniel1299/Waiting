@@ -64,7 +64,7 @@ test("별도 브라우저의 두 방문자는 서로의 체험에 영향을 주�
 
   // B 가 A 의 체험 회차 주소로 들어가도 볼 수 없다
   await b.page.goto(`/sessions/${a.sessionId}`);
-  await expect(appAlert(b.page)).toContainText("회차를 찾을 수 없습니다");
+  await expect(appAlert(b.page)).toContainText("삭제되었거나 찾을 수 없는 회차입니다");
 
   await Promise.all([a.browser.close(), b.browser.close()]);
 });

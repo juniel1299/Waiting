@@ -20,13 +20,13 @@ test("운영자가 회차를 등록하고 확정 명단을 확인한다", async 
   await expect(row).toContainText("0 / 4");
 
   const href = await row.getByRole("link", { name: "명단 보기" }).getAttribute("href");
-  const sessionId = Number(href?.split("/").pop());
+  const sessionId = Number(href?.split("/")[2]); // /sessions/{id}/manage
   const alice = await ApiActor.login("alice");
   expect((await alice.reserve(sessionId)).status()).toBe(201);
   await alice.dispose();
 
   await row.getByRole("link", { name: "명단 보기" }).click();
-  await expect(page.getByRole("heading", { name: `확정 명단 · ${title}` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `회차 관리 · ${title}` })).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: "alice" })).toContainText("앨리스");
 });
 
@@ -40,7 +40,7 @@ test("참가자가 운영자 명단 주소에 직접 들어가도 명단을 볼 
   await loginInBrowser(page, "alice");
   await expect(page).toHaveURL(/\/sessions$/);
 
-  const rosterResponse = page.waitForResponse((r) => r.url().endsWith(`/api/operator/sessions/${sessionId}/roster`));
+  const rosterResponse = page.waitForResponse((r) => r.url().endsWith(`/api/sessions/${sessionId}/roster`));
   await page.goto(`/operator/sessions/${sessionId}`);
   expect((await rosterResponse).status()).toBe(403);
 

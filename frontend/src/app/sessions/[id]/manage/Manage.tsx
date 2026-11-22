@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
 import { api, errorMessage, formatSeoul, type RosterEntry, type StudySession } from "@/lib/api";
 
-export function Roster() {
+/** 회차 관리: 생성자는 명단·정원·삭제, 운영자는 명단·삭제. 권한은 서버가 정하고(다른 회원은 403) 화면은 응답을 따른다. */
+export function Manage() {
   const { id } = useParams<{ id: string }>();
   return <AuthGate>{() => <RosterTable sessionId={id} />}</AuthGate>;
 }
@@ -29,7 +30,7 @@ function RosterTable({ sessionId }: { sessionId: string }) {
 
   const fetchRoster = useCallback(async (): Promise<RosterData> => {
     const [roster, session] = await Promise.all([
-      api<RosterEntry[]>(`/api/operator/sessions/${sessionId}/roster`),
+      api<RosterEntry[]>(`/api/sessions/${sessionId}/roster`),
       api<StudySession>(`/api/sessions/${sessionId}`),
     ]);
     return { entries: roster.data, session: session.data };
@@ -45,17 +46,18 @@ function RosterTable({ sessionId }: { sessionId: string }) {
 
   return (
     <>
-      <Link href="/operator" className="link">
-        ← 회차 관리
+      <Link href={`/sessions/${sessionId}`} className="link">
+        ← 회차 상세
       </Link>
       {error && <p role="alert">{error}</p>}
       {!error && entries === null && <p>불러오는 중…</p>}
       {entries && (
         <>
-          <h1>확정 명단 · {data?.session.title}</h1>
-          {data && (
+          <h1>회차 관리 · {data?.session.title}</h1>
+          {data?.session.canManage && (
             <CapacityForm session={data.session} onChanged={() => fetchRoster().then(setData)} />
           )}
+          <h2>확정 명단</h2>
           {entries.length === 0 ? (
             <p>확정된 참가자가 없어요.</p>
           ) : (
@@ -78,6 +80,7 @@ function RosterTable({ sessionId }: { sessionId: string }) {
               </tbody>
             </table>
           )}
+          {data?.session.canDelete && <DeleteSession session={data.session} />}
         </>
       )}
     </>
@@ -93,7 +96,7 @@ function CapacityForm({ session, onChanged }: { session: StudySession; onChanged
     event.preventDefault();
     setBusy(true);
     try {
-      const { data } = await api<CapacityChangeResult>(`/api/operator/sessions/${session.id}/capacity`, {
+      const { data } = await api<CapacityChangeResult>(`/api/sessions/${session.id}/capacity`, {
         method: "PATCH",
         body: { capacity: Number(capacity) },
       });
@@ -131,6 +134,38 @@ function CapacityForm({ session, onChanged }: { session: StudySession; onChanged
       </form>
       {session.status === "STARTED" && <p className="meta">시작된 회차는 정원을 바꿀 수 없어요.</p>}
       {notice && <p role={notice.kind}>{notice.text}</p>}
+    </section>
+  );
+}
+
+/** 물리 삭제. 연결된 신청(확정·대기·취소)도 함께 지워지고 복구할 수 없다고 확인받는다. */
+function DeleteSession({ session }: { session: StudySession }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    const message =
+      `'${session.title}' 회차를 삭제할까요?\n` +
+      `확정 ${session.confirmedCount}명·대기 ${session.waitingCount}명을 포함한 이 회차의 신청이 모두 함께 삭제되고, ` +
+      "대기자 승격 없이 끝나며 복구할 수 없어요.";
+    if (!window.confirm(message)) return;
+    setBusy(true);
+    try {
+      await api(`/api/sessions/${session.id}`, { method: "DELETE" });
+      router.replace("/sessions");
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="form" aria-label="회차 삭제">
+      <button type="button" className="danger" onClick={remove} disabled={busy}>
+        회차 삭제
+      </button>
+      {error && <p role="alert">{error}</p>}
     </section>
   );
 }

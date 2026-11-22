@@ -20,7 +20,13 @@ export class ApiActor {
   /** 새 참가자를 가입시키고 그 계정으로 로그인한다. */
   static async signup(loginId: string, password: string): Promise<ApiActor> {
     const ctx = await request.newContext({ baseURL });
-    const res = await new ApiActor(ctx).post("/api/auth/signup", { loginId, password, passwordConfirm: password });
+    const actor = new ApiActor(ctx);
+    let res = await actor.post("/api/auth/signup", { loginId, password, passwordConfirm: password });
+    // e2e 는 가입 한도 창을 짧게(E2E_THROTTLE_WINDOW_SECONDS) 두므로, 여러 계정을 만들다 걸리면 창이 끝난 뒤 한 번 다시 보낸다
+    if (res.status() === 429) {
+      await new Promise((r) => setTimeout(r, (Number(res.headers()["retry-after"]) || 10) * 1000 + 200));
+      res = await actor.post("/api/auth/signup", { loginId, password, passwordConfirm: password });
+    }
     expect(res.status(), `${loginId} 가입: ${await res.text()}`).toBe(201);
     await ctx.dispose();
     return ApiActor.login(loginId, password);
