@@ -27,6 +27,10 @@ export interface StudySession {
   myReservation: { id: number; status: ReservationStatus; waitingPosition: number | null } | null;
   /** 데모 체험 회차일 때만: 체험 데이터 삭제 시각과 지정 샘플 예약이 아직 확정인지 */
   demo: { expiresAt: string; sampleReservationActive: boolean } | null;
+  /** 생성자: 수정·정원 변경 가능 */
+  canManage: boolean;
+  /** 생성자·운영자: 명단 조회·삭제 가능 */
+  canDelete: boolean;
 }
 
 export interface Reservation {

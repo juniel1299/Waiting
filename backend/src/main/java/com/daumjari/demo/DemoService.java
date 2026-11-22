@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import com.daumjari.usage.Metric;
+import com.daumjari.usage.UsageCounter;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.daumjari.account.Account;
@@ -48,11 +50,14 @@ public class DemoService {
 
 	private final DemoProperties properties;
 
+	private final UsageCounter usage;
+
 	private final Clock clock;
 
 	public DemoService(DemoTrials trials, AccountRepository accounts, StudySessionRepository sessions,
 			ReservationRepository reservations, ReservationService reservationService, LoginThrottle throttle,
-			DemoProperties properties, Clock clock) {
+			DemoProperties properties, UsageCounter usage, Clock clock) {
+		this.usage = usage;
 		this.trials = trials;
 		this.accounts = accounts;
 		this.sessions = sessions;
@@ -88,6 +93,7 @@ public class DemoService {
 
 		SessionUser user = new SessionUser(visitor.getId(), visitor.getLoginId(), visitor.getDisplayName(),
 				visitor.getRole(), trialId);
+		usage.increment(Metric.DEMO_STARTED, true);
 		return new DemoStart(user, session.getId(), expiresAt);
 	}
 

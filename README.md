@@ -246,6 +246,34 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 로그인·세션 | 탈퇴한 계정은 로그인 불가. 탈퇴한 세션은 즉시 무효화하고, 같은 계정의 다른 기기 세션은 요청마다 계정 상태를 확인하는 필터가 무효화해 `401 UNAUTHENTICATED` (메모리·JDBC 세션 저장소 공통) |
 | 일관성 | 한 트랜잭션: 계정 행 `FOR UPDATE` → 활성 신청이 있는 회차를 id 순으로 `FOR UPDATE` → 정리 → 익명화. 중간 실패는 전부 롤백. 예약·대기는 계정 행을 `FOR SHARE` 로 먼저 잠가(잠금 순서 계정 → 회차) 탈퇴와 겹치면 탈퇴 뒤 `401` 이 된다. 탈퇴와 예약 동시 요청 20회 반복에서 탈퇴된 계정의 활성 신청 0건 |
 
+## 회차 생성자·삭제·누적 사용량 (V8, 2026-11-22)
+
+| 동작 | API | 생성자 | 운영자 | 다른 회원 |
+|---|---|---|---|---|
+| 회차 만들기 | `POST /api/sessions` | 만든 사람이 생성자 (요청 본문의 생성자 값은 무시) | 같음 | 같음 (체험 방문자는 403 `SESSION_CREATE_FORBIDDEN`) |
+| 수정 (제목·시작·장소) | `PATCH /api/sessions/{id}` | 시작 전만 | 403 | 403 `NOT_SESSION_OWNER` |
+| 정원 변경 (늘어난 만큼 대기자 승격) | `PATCH /api/sessions/{id}/capacity` | 가능 | 403 | 403 |
+| 확정 명단 | `GET /api/sessions/{id}/roster` | 가능 | 가능 | 403 |
+| 삭제 (물리 삭제) | `DELETE /api/sessions/{id}` → 204 | 가능 | 가능 | 403 |
+| 내가 만든 회차 | `GET /api/me/sessions` | | | |
+
+- 생성자가 없는 일반 회차(백필할 운영자가 없던 DB)는 운영자가 생성자처럼 관리한다. 데모 체험 회차는 관리 대상이 아니다(404). 예전 운영자 API(`/api/operator/sessions/**`)는 같은 권한 규칙으로 남겨 둔다.
+- 회차 응답에 `canManage`(생성자)·`canDelete`(생성자·운영자)가 있어 화면은 이 값으로 관리 링크를 보인다. 권한의 근거는 서버다.
+- **삭제:** 회차 행을 `FOR UPDATE` 로 잠근 뒤 한 문장으로 지우고, 신청(확정·대기·취소)은 `reservation → study_session` FK 의 `ON DELETE CASCADE` 로 같은 트랜잭션에서 함께 지워진다. 회차 전체가 사라지므로 대기자 승격은 없다. 같은 회차의 예약·대기·정원 변경은 같은 행 잠금으로 줄을 서서 삭제 전에 끝나 함께 지워지거나 삭제 뒤에 와서 404 가 된다. 검증: [`SessionDeleteConcurrencyTests`](backend/src/test/java/com/daumjari/SessionDeleteConcurrencyTests.java) (삭제 vs 예약·대기·정원 증설 각 20회, 고아 신청 0), [`UsageCountTests`](backend/src/test/java/com/daumjari/UsageCountTests.java) (삭제 중 실패 → 회차·신청 그대로).
+- **생성자 탈퇴:** 본인이 만든 회차를 신청째 삭제하고(승격 없음), 다른 회차의 신청은 기존 탈퇴 규칙대로 정리한다. 모든 회차를 id 순으로 잠근다. 탈퇴 확인 화면에 "내가 만든 회차(n개)와 그 신청(m건)" 삭제를 안내한다. 운영자 강제탈퇴(3단계)도 같은 처리를 쓴다.
+- **누적 사용량:** `usage_daily(day, metric, demo, count)` 에 날짜(서울)·지표·데모 여부별 성공 횟수만 둔다 (계정·회차·신청 id 같은 개인 식별 정보 없음). 지표: 가입, 체험 시작, 회차 생성, 직접 예약 확정, 자동 승격 확정, 대기 신청, 신청 취소(탈퇴로 인한 취소 포함), 회차 삭제. 동작과 같은 트랜잭션에서 늘어나 롤백되면 함께 사라지고, 같은 계정의 중복 예약·대기·이미 취소된 신청의 재취소는 세지 않는다. 원본을 지워도 줄지 않는다. 체험 회차의 샘플 신청은 세지 않는다.
+- **집계 시작 시각:** `usage_meta.counting_started_at` (V8 적용 시각). 그 전 누적치는 만들지 않는다. 기존 데이터에서 알 수 있는 값(남아 있는 일반 계정·회차·확정·대기 수)은 "현재 데이터" 로 따로 보인다(3단계 대시보드).
+
+### V8 운영 적용 주의
+
+- Render 배포 때 Flyway 가 Neon 에 자동 적용한다. 되돌리려면 새 마이그레이션이 필요하다.
+- 행 수 변화 없음: `study_session.creator_account_id` 칸 추가 후 일반 회차를 가장 먼저 만든 미탈퇴 운영자 id 로 채운다. 데모 회차는 null.
+- FK 교체(`reservation_study_session_id_fkey` → `ON DELETE CASCADE`): 기존 행은 그대로다. 이후 회차 삭제가 신청까지 지운다.
+- 새 표 `usage_daily`(빈 표), `usage_meta`(1행).
+- 적용 전 백업 권장: `pg_dump … -Fc` (위 "백업과 롤백").
+
+화면: 머리글 `회차 만들기` → `/sessions/new`, 회차 상세의 `회차 관리` → `/sessions/{id}/manage` (생성자: 명단·정원·삭제, 운영자: 명단·삭제). 스크린샷 `docs/screenshots/stage1-*.png`.
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.

@@ -25,7 +25,12 @@ public final class SessionDtos {
 	/** 참가자·운영자 공통 회차 응답. 다른 참가자 정보는 담지 않는다. */
 	public record SessionResponse(Long id, String title, Instant startsAt, String location, int capacity,
 			long confirmedCount, long remainingSeats, long waitingCount, SessionStatus status,
-			MyReservation myReservation, DemoInfo demo) {
+			MyReservation myReservation, DemoInfo demo, boolean canManage, boolean canDelete) {
+	}
+
+	/** 회차 수정 (제목·시작·장소). 정원은 ChangeCapacityRequest. 생성자는 받지 않는다. */
+	public record EditSessionRequest(@NotBlank @Size(max = 100) String title, @NotNull Instant startsAt,
+			@NotBlank @Size(max = 200) String location) {
 	}
 
 	/** 조회한 사용자 본인의 활성 신청(확정·대기). 없으면 null. waitingPosition 은 대기일 때만 (1부터). */

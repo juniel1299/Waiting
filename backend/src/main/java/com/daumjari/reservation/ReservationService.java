@@ -17,6 +17,8 @@ import com.daumjari.reservation.ReservationDtos.ReservationResponse;
 import com.daumjari.reservation.ReservationDtos.ReserveResult;
 import com.daumjari.studysession.StudySession;
 import com.daumjari.studysession.StudySessionRepository;
+import com.daumjari.usage.Metric;
+import com.daumjari.usage.UsageCounter;
 
 /**
  * 예약·대기·취소는 회차 행을 FOR UPDATE 로 잠근 뒤 같은 트랜잭션에서 잔여석·대기열을 판단하고 상태를 바꾼다.
@@ -33,10 +35,13 @@ public class ReservationService {
 
 	private final WaitlistPromoter promoter;
 
+	private final UsageCounter usage;
+
 	private final Clock clock;
 
 	public ReservationService(ReservationRepository reservations, StudySessionRepository sessions,
-			AccountRepository accounts, WaitlistPromoter promoter, Clock clock) {
+			AccountRepository accounts, WaitlistPromoter promoter, UsageCounter usage, Clock clock) {
+		this.usage = usage;
 		this.reservations = reservations;
 		this.sessions = sessions;
 		this.accounts = accounts;
@@ -60,6 +65,7 @@ public class ReservationService {
 		}
 		Reservation saved = reservations
 			.save(Reservation.confirm(session, account, now));
+		usage.increment(Metric.RESERVATION_CONFIRMED, session.isDemo());
 		return new ReserveResult(toResponse(saved), true);
 	}
 
@@ -79,6 +85,7 @@ public class ReservationService {
 		}
 		Reservation saved = reservations
 			.save(Reservation.waitlist(session, account, now));
+		usage.increment(Metric.WAITLIST_JOINED, session.isDemo());
 		return new ReserveResult(toResponse(saved), true);
 	}
 
@@ -88,10 +95,13 @@ public class ReservationService {
 		Long sessionId = reservations.findSessionIdByIdAndAccountId(reservationId, accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.RESERVATION_NOT_FOUND));
 		// 잠금 순서: 회차 → 신청 (예약·대기와 같은 순서로 교착 방지)
-		lockOpenSession(sessionId, now);
+		StudySession session = lockOpenSession(sessionId, now);
 		Reservation reservation = reservations.findByIdAndAccountIdForUpdate(reservationId, accountId)
 			.orElseThrow(() -> new ApiException(ErrorCode.RESERVATION_NOT_FOUND));
 		boolean freesASeat = reservation.getStatus() == ReservationStatus.CONFIRMED;
+		if (reservation.isActive()) {
+			usage.increment(Metric.RESERVATION_CANCELLED, session.isDemo());
+		}
 		reservation.cancel(now);
 		if (freesASeat) {
 			// 같은 트랜잭션·같은 회차 잠금 아래에서 승격한다. 실패하면 이 취소도 롤백된다.
@@ -107,9 +117,18 @@ public class ReservationService {
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void releaseAllOf(Long accountId, Instant now) {
-		for (Long sessionId : reservations.findActiveSessionIdsByAccountId(accountId)) {
+		// 본인이 만든 회차는 신청째 삭제하고(승격 없음), 다른 회차의 신청은 정리한다. 회차 id 순으로 하나씩 잠가 교착을 막는다.
+		java.util.SortedSet<Long> owned = new java.util.TreeSet<>(sessions.findIdsByCreatorAccountId(accountId));
+		java.util.SortedSet<Long> all = new java.util.TreeSet<>(owned);
+		all.addAll(reservations.findActiveSessionIdsByAccountId(accountId));
+		for (Long sessionId : all) {
 			StudySession session = sessions.findByIdForUpdate(sessionId)
 				.orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+			if (owned.contains(sessionId)) {
+				sessions.deleteRowById(sessionId);
+				usage.increment(Metric.SESSION_DELETED, false);
+				continue;
+			}
 			Optional<Reservation> active = activeOf(sessionId, accountId);
 			if (active.isEmpty()) {
 				continue;
@@ -119,6 +138,7 @@ public class ReservationService {
 			if (confirmed && session.hasStarted(now)) {
 				continue;
 			}
+			usage.increment(Metric.RESERVATION_CANCELLED, session.isDemo());
 			reservation.cancel(now);
 			if (confirmed) {
 				promoter.promoteNext(sessionId);

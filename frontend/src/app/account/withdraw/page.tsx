@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
-import { api, ApiError, errorMessage, type Me, type Reservation } from "@/lib/api";
+import { api, ApiError, errorMessage, type Me, type Reservation, type StudySession } from "@/lib/api";
 
 export default function WithdrawPage() {
   return <AuthGate>{(me) => <Withdraw me={me} />}</AuthGate>;
@@ -33,6 +33,7 @@ function count(n: number | undefined): string {
 function Withdraw({ me }: { me: Me }) {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [owned, setOwned] = useState<{ sessions: number; applications: number } | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,6 +51,11 @@ function Withdraw({ me }: { me: Me }) {
     if (!allowed) return;
     api<Reservation[]>("/api/me/reservations")
       .then(({ data }) => setSummary(summarize(data, Date.now())))
+      .catch((e: unknown) => setError(errorMessage(e)));
+    api<StudySession[]>("/api/me/sessions")
+      .then(({ data }) =>
+        setOwned({ sessions: data.length, applications: data.reduce((n, s) => n + s.confirmedCount + s.waitingCount, 0) }),
+      )
       .catch((e: unknown) => setError(errorMessage(e)));
   }, [allowed]);
 
@@ -98,6 +104,10 @@ function Withdraw({ me }: { me: Me }) {
           <li>
             이미 시작된 회차의 참가 기록{count(summary?.startedConfirmed)}은 운영 기록으로 남고 &lsquo;탈퇴한
             회원&rsquo;으로 표시돼요.
+          </li>
+          <li>
+            내가 만든 회차{owned ? `(지금 ${owned.sessions}개)` : ""}와 그 신청{owned ? `(지금 ${owned.applications}건)` : ""}은
+            함께 삭제되고 복구할 수 없어요. 참가자의 대기는 승격되지 않아요.
           </li>
           <li>다른 기기에서 로그인한 상태도 모두 끊겨요. 탈퇴는 되돌릴 수 없어요.</li>
         </ul>
