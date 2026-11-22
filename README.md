@@ -463,6 +463,50 @@ cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/publ
 
 후속 작업: 예약 변경 이력 화면 (요청대로 이번 범위에서 제외).
 
+## 공개 검증 (2026-11-22, 개편 4단계 후)
+
+**최종 배포 커밋:** 프런트(Vercel) `5942cf15` (PR #34 병합, 배포 상태 success). 백엔드(Render) `a9d77d4c` (PR #33 병합, V10 포함). GitHub 배포 기록상 백엔드 배포는 08:25:57 시작 → 08:29:50 UTC success 였다. PR #34 는 프런트·문서만 바꿔 백엔드는 다시 배포되지 않았다(백엔드 코드는 `a9d77d4c` 와 같다). 공개 CSS 에 4단계 규칙(`changed-flash`, `aria-current` 메뉴 스타일, `prefers-reduced-motion`)이 들어 있는 것도 확인했다(08:52 UTC).
+
+검증 방법: 비밀번호 없이 [`loadtest/public-stage4-check.mjs`](loadtest/public-stage4-check.mjs) (데모 체험 계정만 사용, 데모 시작 4회, Playwright Chromium 데스크톱 1280px·iPhone 13 에뮬레이션 375px·동작 줄이기). 실제 출력: [`loadtest/results/2026-11-22-public-stage4.txt`](loadtest/results/2026-11-22-public-stage4.txt). 쓴 데이터는 데모 체험 4개뿐이고, 데모 체험은 30분 뒤 서버가 통째로 지운다(별도 정리 불필요).
+
+### 성공 (08:52~08:54 UTC, 실패 0)
+
+| 항목 | 결과 |
+|---|---|
+| 백엔드 health | 200 (0.26초) |
+| 프런트 `/` `/sessions` `/me/sessions` `/operator` `/operator/accounts` `/operator/sessions` | 모두 200 (0.07~0.52초, 화면은 로그인 확인 뒤 그려짐) |
+| CSRF·데모 시작 API | 200 (0.2초) · 201 (0.22초) |
+| 검색 API 정렬 7종 (`scope=all&status=ALL`) | 7종 모두 200 |
+| 없앤 정렬 거절 (`sort=TITLE`) | 400 `VALIDATION_FAILED` |
+| 비로그인 보호 API | `/api/operator/usage` `/api/operator/accounts` `/api/operator/actions` `/api/sessions/search` 모두 401 |
+| 메뉴 현재 위치 | 데스크톱·모바일·동작 줄이기 모두 `회차 목록` `aria-current=page` |
+| 버튼 키보드 포커스 링 (데스크톱) | 정렬 칸에서 Tab → `검색` 버튼, `outline-style: solid` |
+| 카드 hover 모션 | 데스크톱 `translateY(-2px)` · 전환 0.18초 / 동작 줄이기 `transform: none` · 전환 0.00001초 |
+| 카드 클릭 영역 | 세 환경 모두 장소 글자를 눌러 상세로 이동 |
+| 확정 강조·안내 (데모: 대기 신청 → 샘플 참가자 취소) | 세 환경 모두 `data-changed=true` + `role=status` "대기 순번이 되어 예약이 확정됐어요." 1건, 2초 뒤 강조 해제 |
+| 가로 스크롤 | 세 환경 모두 0 |
+
+공개 모바일 화면(데모 확정 강조): `docs/screenshots/stage4-public-demo-confirm-mobile.png`.
+
+### 실패
+
+없음. 수정·재검증할 항목이 없었다.
+
+### 미검증 (이유와 확인 방법)
+
+| 항목 | 이유 | 확인 방법 |
+|---|---|---|
+| V10 마이그레이션 이력 (직접) | Render 배포 로그·Neon `flyway_schema_history` 는 대시보드 로그인이 필요해 보지 못했다. **간접 근거만** 있다: `a9d77d4c` 배포 success 와 백엔드 기동(health 200). Flyway 마이그레이션이 실패하면 백엔드가 뜨지 않는다 | Neon SQL 편집기: `select version, description, success, installed_on from flyway_schema_history order by installed_rank desc limit 3;` → `10 account moderation true` 가 맨 위면 확정 |
+| 대기 순번 앞당겨짐(2번 → 1번) 공개 확인 | 데모 체험 회차는 대기자가 방문자 1명뿐이라 순번이 앞당겨지는 경우를 만들 수 없다. 이 경우는 로컬 e2e `full-flow.spec.ts`(데스크톱·모바일)로 확인했다 | 일반 계정 셋이 필요하다 (비밀번호 로그인) |
+| 1단계 공개 점검 [`public-stage1-check.mjs`](loadtest/public-stage1-check.mjs) | 운영 주소에 일반 계정 비밀번호로 로그인한다. Claude 는 운영 환경 비밀번호 로그인을 하지 않는다. 로컬 운영 이미지 리허설만 통과 | 사용자 실행: `node loadtest/public-stage1-check.mjs` |
+| 3단계 공개 점검 [`public-stage3-check.mjs`](loadtest/public-stage3-check.mjs) (운영자 계정 관리·대시보드) | 운영자 비밀번호가 필요하다. 로컬 운영 이미지 리허설만 통과 | 사용자 실행: `node loadtest/public-stage3-check.mjs` (운영자 아이디·비밀번호는 실행할 때 입력) |
+| 공개 운영자 화면 (사용량·전체 회차·계정 관리) | 운영자 로그인이 필요하다. 페이지 응답 200 만 확인 | 위 3단계 스크립트 또는 운영자 계정으로 직접 확인 |
+| 실제 iPhone Safari | 실기기가 없다. 모두 Chromium 기기 에뮬레이션 | 실기기에서 터치 피드백·강조·영상 재생 확인 |
+
+### 스크린샷 교체
+
+`docs/screenshots/stage4-position-change-mobile.png` 를 터치 hover 수정(`6f7d938b`) 뒤 화면으로 다시 찍었다 (**로컬**, iPhone 13 에뮬레이션, 탭으로 조작). 대기 2번 → 1번 앞당겨짐은 공개 데모에서 만들 수 없어 로컬에서 찍었다. 탭한 `대기 취소` 버튼의 배경은 투명(`rgba(0, 0, 0, 0)`)으로 hover 모양이 남지 않는다.
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
@@ -901,7 +945,10 @@ commit;
 | 휴대폰 화면 (공개 배포) | **에뮬레이션 통과**: Playwright Chromium 의 iPhone 13 기기 에뮬레이션, 2026-11-21 11:01 UTC (배포 `f985ac24`), 21:22 UTC (배포 `cd6d49e6`, 첫 화면·내 신청) | 첫 화면 흐름·가로 넘침 없음, `/tour` `/api` 0건·mp4 `readyState 4`·이미지 4/4, 데모 시작 2.1초. 실제 기기 아님 |
 | 실제 iPhone Safari 영상 재생 | **확인 대기** (실기기 미확인) | H.264 mp4 를 먼저 제공하도록 했지만 실제 iOS Safari 에서 재생은 확인하지 못했다. 실기기 확인 뒤 이 행을 갱신한다 |
 | 공개 내 신청 (일반 가입 계정) | **완료** (2026-11-21 22:36 UTC, 사용자 실행) | 예약·대기 표시, 계정 간 비노출, 승격, 탈퇴 정리 모두 통과. 위 "일반 가입 계정 '내 신청' 공개 실행 완료" |
-| 공개 운영자 화면 (회차 명단·정원·탈퇴한 회원 표시) | **미검증** | 운영자 비밀번호를 쓰지 않았다. 정원 변경·명단은 로컬 자동 테스트로만 확인 |
+| 공개 운영자 화면 (회차 명단·정원·탈퇴한 회원 표시, 개편 뒤 사용량·계정 관리) | **미검증** | 운영자 비밀번호를 쓰지 않았다. 로컬 자동 테스트와 로컬 운영 이미지 리허설로만 확인. 위 "공개 검증 (2026-11-22, 개편 4단계 후)" |
+| 개편 1·3단계 공개 점검 스크립트 | **사용자 실행 대기** | `public-stage1-check.mjs`(일반 계정 비밀번호), `public-stage3-check.mjs`(운영자 비밀번호). 로컬 운영 이미지 리허설은 통과 |
+| V10 마이그레이션 이력 | **간접 확인만** (직접 이력 미확인) | 배포 success·백엔드 기동만 확인. Neon `flyway_schema_history` 조회로 확정 |
+| 개편 4단계 공개 화면 | **통과** (2026-11-22 08:54 UTC, 23/23) | 비밀번호 없는 데모 체험으로 확인. 위 절 |
 | 공개 서버 부하 | **하지 않음** (의도) | 무료 서버라 소수 요청 점검만 했다. 부하는 로컬 결과만 있다 |
 
 ## 후속 작업
