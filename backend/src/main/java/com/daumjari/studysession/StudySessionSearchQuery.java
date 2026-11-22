@@ -52,7 +52,7 @@ class StudySessionSearchQuery {
 		}
 		params.addValue("limit", search.size()).addValue("offset", (long) (search.page() - 1) * search.size());
 		List<Long> ids = jdbc.queryForList(
-				base.formatted("id") + " order by " + order(search.sort()) + ", id limit :limit offset :offset",
+				base.formatted("id") + " order by " + order(search.sort(), search.status()) + ", id limit :limit offset :offset",
 				params, Long.class);
 		return new Result(ids, total);
 	}
@@ -101,15 +101,27 @@ class StudySessionSearchQuery {
 		};
 	}
 
-	private static String order(SessionSearch.Sort sort) {
+	private static String order(SessionSearch.Sort sort, SessionSearch.StatusFilter status) {
 		return switch (sort) {
-			case SOON -> "starts_at asc";
-			case LATE -> "starts_at desc";
+			case SOON -> soon(status);
+			case LATEST_START -> "starts_at desc";
+			case EARLIEST_START -> "starts_at asc";
 			case NEWEST -> "created_at desc";
-			case OLDEST -> "created_at asc";
-			case SEATS -> "greatest(capacity - confirmed, 0) desc";
-			case POPULAR -> "confirmed desc";
-			case TITLE -> "title asc";
+			case MOST_CONFIRMED -> "confirmed desc";
+			case FEWEST_CONFIRMED -> "confirmed asc";
+			case MOST_SEATS -> "greatest(capacity - confirmed, 0) desc";
+		};
+	}
+
+	/**
+	 * 시작 임박순: 앞으로 시작할 회차를 가까운 순으로, 시작된 회차는 그 뒤에 최근 시작부터.
+	 * 시작 전만 남는 상태 필터에서는 starts_at 오름차순과 같아 V9 인덱스 순서를 그대로 쓴다.
+	 */
+	private static String soon(SessionSearch.StatusFilter status) {
+		return switch (status) {
+			case UPCOMING, OPEN, WAITLIST -> "starts_at asc";
+			case ENDED -> "starts_at desc";
+			case ALL -> "(starts_at <= :now) asc, case when starts_at > :now then starts_at end asc, starts_at desc";
 		};
 	}
 

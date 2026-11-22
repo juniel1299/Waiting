@@ -10,19 +10,20 @@ export const FIELDS = [
 export const STATUSES = [
   ["UPCOMING", "시작 전 전체"],
   ["OPEN", "예약 가능"],
-  ["WAITLIST", "마감(대기 가능)"],
-  ["ENDED", "시작된 회차"],
+  ["WAITLIST", "대기 가능"],
+  ["ENDED", "종료"],
   ["ALL", "전체"],
 ] as const;
 
+/** 시작 임박순: 앞으로 시작할 회차를 가까운 순(시작된 회차는 뒤에). 시작일 최신·오래된순: 시작 일시 내림·오름차순. 같은 값은 id 순. */
 export const SORTS = [
   ["SOON", "시작 임박순"],
-  ["LATE", "시작 늦은순"],
+  ["LATEST_START", "시작일 최신순"],
+  ["EARLIEST_START", "시작일 오래된순"],
   ["NEWEST", "최근 등록순"],
-  ["OLDEST", "먼저 등록순"],
-  ["SEATS", "남은 자리 많은순"],
-  ["POPULAR", "확정 인원 많은순"],
-  ["TITLE", "제목순"],
+  ["MOST_CONFIRMED", "확정 참가자 많은순"],
+  ["FEWEST_CONFIRMED", "확정 참가자 적은순"],
+  ["MOST_SEATS", "잔여석 많은순"],
 ] as const;
 
 export type Field = (typeof FIELDS)[number][0];

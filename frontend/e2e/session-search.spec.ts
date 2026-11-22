@@ -39,21 +39,21 @@ test("검색 조건은 주소에 남고, 상세에 갔다가 '← 회차 목록'
   await label(page, "검색 범위").selectOption("TITLE");
   await page.getByRole("button", { name: "검색" }).click();
   await expect(count(page, 12)).toBeVisible();
-  await label(page, "정렬").selectOption("LATE");
+  await label(page, "정렬").selectOption("LATEST_START");
   await expect(titles(page).first()).toHaveText(`${token} 12`);
   await page.getByRole("navigation", { name: "쪽 이동" }).getByRole("link", { name: "2쪽" }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(titles(page)).toHaveText([`${token} 02`, `${token} 01`]);
   const listUrl = page.url();
   expect(new URL(listUrl).searchParams.get("q")).toBe(token);
-  expect(new URL(listUrl).searchParams.get("sort")).toBe("LATE");
+  expect(new URL(listUrl).searchParams.get("sort")).toBe("LATEST_START");
 
   await titles(page).first().click();
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
   await page.getByRole("link", { name: "← 회차 목록" }).click();
   await expect(page).toHaveURL(listUrl);
   await expect(label(page, "검색어")).toHaveValue(token);
-  await expect(label(page, "정렬")).toHaveValue("LATE");
+  await expect(label(page, "정렬")).toHaveValue("LATEST_START");
   await expect(page.getByRole("navigation", { name: "쪽 이동" }).locator('[aria-current="page"]')).toHaveText("2");
   await expect(titles(page)).toHaveText([`${token} 02`, `${token} 01`]);
 
@@ -83,7 +83,7 @@ test("서버 페이지네이션: 10개씩, 조건을 바꾸면 1쪽으로, 결�
   await expect(titles(page)).toHaveText([`${token} 11`, `${token} 12`]);
   await expect(nav.getByText("다음")).toHaveAttribute("aria-disabled", "true");
 
-  await label(page, "정렬").selectOption("TITLE");
+  await label(page, "정렬").selectOption("FEWEST_CONFIRMED");
   await expect(page).not.toHaveURL(/page=/);
   await expect(titles(page)).toHaveCount(10);
 
@@ -118,8 +118,8 @@ test("키보드만으로 검색하고 쪽을 옮긴다", async ({ page }) => {
   await page.keyboard.press("Shift+Tab");
   await expect(label(page, "검색 범위")).toBeFocused();
   await label(page, "정렬").focus();
-  await label(page, "정렬").selectOption("LATE");
-  await expect(page).toHaveURL(/sort=LATE/);
+  await label(page, "정렬").selectOption("LATEST_START");
+  await expect(page).toHaveURL(/sort=LATEST_START/);
   await expect(page).not.toHaveURL(/page=/);
   await expect(titles(page).first()).toHaveText(`${token} 11`);
 });

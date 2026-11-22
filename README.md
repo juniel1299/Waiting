@@ -284,10 +284,11 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | `q` | 최대 100자 | 앞뒤 공백 제거 후 부분 일치, 대소문자 무시(ILIKE). `%` `_` `\` 는 글자 그대로 찾는다 |
 | `field` | **`ALL`** · `TITLE` · `LOCATION` | 검색 범위 (제목+장소 / 제목 / 장소) |
 | `from`, `to` | `yyyy-MM-dd` | 서울 기준 시작 날짜. `to` 는 그날 23:59:59 까지 포함 (`starts_at < to+1일 00:00 KST`). `from > to` 는 400 |
-| `status` | **`UPCOMING`** · `OPEN` · `WAITLIST` · `ENDED` · `ALL` | 시작 전 전체 / 예약 가능(빈자리 있고 대기 0) / 마감(대기 가능: 빈자리 0 또는 대기자 있음) / 시작된 회차 / 전체. 회차 응답 `status` 와 같은 규칙 |
-| `sort` | **`SOON`** · `LATE` · `NEWEST` · `OLDEST` · `SEATS` · `POPULAR` · `TITLE` | 시작 임박순 / 시작 늦은순 / 최근 등록순 / 먼저 등록순 / 남은 자리 많은순 / 확정 인원 많은순 / 제목순. 보조 정렬은 항상 `id` 오름차순 (같은 값이어도 쪽마다 순서 고정) |
+| `status` | **`UPCOMING`** · `OPEN` · `WAITLIST` · `ENDED` · `ALL` | 시작 전 전체 / 예약 가능(빈자리 있고 대기 0) / 대기 가능(빈자리 0 또는 대기자 있음) / 종료(시작 시각이 지남) / 전체. 회차 응답 `status` 와 같은 규칙 |
+| `sort` | **`SOON`** · `LATEST_START` · `EARLIEST_START` · `NEWEST` · `MOST_CONFIRMED` · `FEWEST_CONFIRMED` · `MOST_SEATS` | 시작 임박순 / 시작일 최신순 / 시작일 오래된순 / 최근 등록순 / 확정 참가자 많은순 / 확정 참가자 적은순 / 잔여석 많은순. 보조 정렬은 항상 `id` 오름차순 (같은 값이어도 쪽마다 순서 고정) |
 | `page`, `size` | **1** (1~10000), **10** (1~50) | 서버 페이지네이션 |
 
+- **시작 임박순 vs 시작일 오래된순:** 시작 임박순은 앞으로 시작할 회차를 지금에서 가까운 순으로 먼저 보이고, 종료를 포함한 상태(`ALL`)에서는 시작된 회차를 그 뒤에 최근 시작부터 둔다 (`ENDED` 만 고르면 최근 시작부터). 시작일 오래된순·최신순은 종료 여부와 상관없이 시작 일시 오름·내림차순이다. 시작 전만 남는 상태(기본 `UPCOMING`, `OPEN`, `WAITLIST`)에서 시작 임박순은 `starts_at` 오름차순과 같아 V9 인덱스 순서를 그대로 쓴다.
 - 응답: `{items: [회차 응답], page, size, totalElements, totalPages}`. 범위를 넘은 쪽은 `items` 가 비고 `totalElements` 는 그대로(화면은 '마지막 쪽으로' 링크).
 - 모르는 값·틀린 날짜·범위 밖 숫자는 400 `VALIDATION_FAILED`. 비로그인 401.
 - 기본(아무 조건 없음) = **앞으로 시작할 회차를 시작 임박순으로**. 예전 `/api/sessions` 는 시작된 회차가 맨 위에 오고 전부 내려 줬다 (아래 변경 전 스크린샷).
@@ -297,7 +298,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 
 - **목록 카드:** 제목 · 시작 일시 · 장소 · 확정/정원 · 모집 상태(+대기 인원, 내 신청) 순서.
 - **검색 칸:** 검색어·날짜는 `검색`(Enter)으로, 검색 범위·모집 상태·정렬은 고르자마자 적용. 어떤 조건이 바뀌어도 1쪽부터. `초기화`, 결과 수(`N개 회차`, 화면 낭독기에 알림), 결과 없음 안내와 `조건 초기화`.
-- **주소가 조건의 원본:** 기본값이 아닌 조건만 주소에 남는다 (`/sessions?q=스프링&sort=SEATS&page=2`). 새로고침·뒤로 가기·주소 공유에 그대로. 상세의 `← 회차 목록`(내가 만든 회차에서 왔으면 `← 내가 만든 회차`)은 탭에 기억한 마지막 목록 주소로 돌아간다 (`sessionStorage`, 못 쓰면 `/sessions`). 목록으로 돌아오면 다시 조회해 최신 값을 보인다. 상세 복귀 최신 확인(위 절)은 그대로.
+- **주소가 조건의 원본:** 기본값이 아닌 조건만 주소에 남는다 (`/sessions?q=스프링&sort=MOST_SEATS&page=2`). 새로고침·뒤로 가기·주소 공유에 그대로. 상세의 `← 회차 목록`(내가 만든 회차에서 왔으면 `← 내가 만든 회차`)은 탭에 기억한 마지막 목록 주소로 돌아간다 (`sessionStorage`, 못 쓰면 `/sessions`). 목록으로 돌아오면 다시 조회해 최신 값을 보인다. 상세 복귀 최신 확인(위 절)은 그대로.
 - **참가자 동선과 생성자 관리 분리:** 전체 회차 카드에는 관리 링크가 없다. 머리글 `내가 만든 회차` → 카드마다 `수정`(시작 전·생성자) · `명단·정원·삭제`. 상세의 `회차 관리` 링크(생성자·운영자)는 1단계 그대로.
 - **등록 화면 분리:** `회차 만들기`(`/sessions/new`, 정원 포함)와 `회차 수정`(`/sessions/{id}/edit`, 제목·시작·장소만: `PATCH /api/sessions/{id}`). 정원 변경은 대기자 승격이 따르므로 회차 관리 화면에만 둔다. 생성자가 아니면 "수정할 권한이 없어요", 시작된 회차는 "이미 시작된 회차는 수정할 수 없어요" (서버도 403·409). 생성자가 관리 화면에서 삭제하면 내가 만든 회차로 돌아간다.
 - **키보드·모바일:** 모든 칸은 이름표가 있는 기본 입력 요소(`<select>`, `type=date`)이고 쪽 이동은 링크(`aria-current="page"`, 44px 터치 크기). 375px 폭에서 가로 스크롤 없음 (e2e 확인).
@@ -312,7 +313,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 
 변경 후만: 검색(`stage2-after-search-*`), 결과 없음(`stage2-after-empty-*`), 내가 만든 회차(`stage2-after-mine-*`, 2쪽 `stage2-after-mine-page2-*`), 회차 수정(`stage2-after-edit-*`).
 
-검증 (2026-11-22, 로컬): 백엔드 전체 391개 통과(실패 0, Testcontainers PostgreSQL 16), e2e 66개 통과 (`E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e`, 새 [`session-search.spec.ts`](frontend/e2e/session-search.spec.ts) 5개: 상세 왕복·뒤로 가기·새로고침 조건 유지, 페이지·1쪽 초기화·결과 없음, 키보드, 375px, 내가 만든 회차·수정), 프런트 단위 8개 (`npm test`, [`sessionSearch.test.mjs`](frontend/test/sessionSearch.test.mjs) 6개), `tsc --noEmit`·`eslint` 오류 0.
+검증 (2026-11-22, 로컬): 백엔드 전체 391개 통과(실패 0, Testcontainers PostgreSQL 16), e2e 66개 통과 (`E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e`, 새 [`session-search.spec.ts`](frontend/e2e/session-search.spec.ts) 5개: 상세 왕복·뒤로 가기·새로고침 조건 유지, 페이지·1쪽 초기화·결과 없음, 키보드, 375px, 내가 만든 회차·수정), 프런트 단위 9개 (`npm test`, [`sessionSearch.test.mjs`](frontend/test/sessionSearch.test.mjs) 7개), `tsc --noEmit`·`eslint` 오류 0.
 
 ### V9 인덱스와 운영 적용 주의
 

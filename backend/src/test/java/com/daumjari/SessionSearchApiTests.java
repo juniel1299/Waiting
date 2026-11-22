@@ -111,11 +111,11 @@ class SessionSearchApiTests extends ApiTestSupport {
 		assertThat(titles("q=" + token + "&status=OPEN")).containsExactly("빈자리");
 		assertThat(titles("q=" + token + "&status=WAITLIST")).containsExactly("마감", "대기자 있음");
 		assertThat(titles("q=" + token + "&status=ENDED")).containsExactly("끝난 회차");
-		assertThat(titles("q=" + token + "&status=ALL")).containsExactly("끝난 회차", "빈자리", "마감", "대기자 있음");
+		assertThat(titles("q=" + token + "&status=ALL")).containsExactly("빈자리", "마감", "대기자 있음", "끝난 회차");
 	}
 
 	@Test
-	void sortsByEachOptionWithIdAsTheTieBreaker() throws Exception {
+	void sortsByEachOfTheSevenOptionsWithIdAsTheTieBreaker() throws Exception {
 		Instant t = inDays(5);
 		StudySession b = save("나 회차", t, token, 5); // 남은 5, 확정 0
 		StudySession a = save("가 회차", t.plus(1, ChronoUnit.HOURS), token, 3); // 확정 1 → 남은 2
@@ -125,13 +125,31 @@ class SessionSearchApiTests extends ApiTestSupport {
 		setCreatedAt(b, NOW.minus(2, ChronoUnit.DAYS));
 		setCreatedAt(a, NOW.minus(1, ChronoUnit.DAYS));
 
+		// 같은 값(나·다: 시작·확정·잔여석 같음)은 id 오름차순으로 고정
 		assertThat(titles("q=" + token + "&sort=SOON")).containsExactly("나 회차", "다 회차", "가 회차");
-		assertThat(titles("q=" + token + "&sort=LATE")).containsExactly("가 회차", "나 회차", "다 회차");
+		assertThat(titles("q=" + token + "&sort=LATEST_START")).containsExactly("가 회차", "나 회차", "다 회차");
+		assertThat(titles("q=" + token + "&sort=EARLIEST_START")).containsExactly("나 회차", "다 회차", "가 회차");
 		assertThat(titles("q=" + token + "&sort=NEWEST")).containsExactly("가 회차", "나 회차", "다 회차");
-		assertThat(titles("q=" + token + "&sort=OLDEST")).containsExactly("다 회차", "나 회차", "가 회차");
-		assertThat(titles("q=" + token + "&sort=SEATS")).containsExactly("나 회차", "다 회차", "가 회차");
-		assertThat(titles("q=" + token + "&sort=POPULAR")).containsExactly("가 회차", "나 회차", "다 회차");
-		assertThat(titles("q=" + token + "&sort=TITLE")).containsExactly("가 회차", "나 회차", "다 회차");
+		assertThat(titles("q=" + token + "&sort=MOST_CONFIRMED")).containsExactly("가 회차", "나 회차", "다 회차");
+		assertThat(titles("q=" + token + "&sort=FEWEST_CONFIRMED")).containsExactly("나 회차", "다 회차", "가 회차");
+		assertThat(titles("q=" + token + "&sort=MOST_SEATS")).containsExactly("나 회차", "다 회차", "가 회차");
+		for (String removed : List.of("LATE", "OLDEST", "TITLE", "SEATS", "POPULAR")) {
+			mockMvc.perform(search("sort=" + removed)).andExpect(status().isBadRequest());
+		}
+
+		// 종료 포함(전체)에서: 시작 임박순은 앞으로 시작할 회차를 가까운 순으로 먼저, 시작된 회차는 그 뒤(최근 시작부터).
+		// 시작일 오래된순은 시작 일시 오름차순 그대로, 최신순은 내림차순.
+		save("어제 시작", NOW.minus(1, ChronoUnit.DAYS), token, 5);
+		save("방금 시작", NOW.minus(1, ChronoUnit.MINUTES), token, 5);
+		assertThat(titles("q=" + token + "&status=ALL&sort=SOON")).containsExactly("나 회차", "다 회차", "가 회차",
+				"방금 시작", "어제 시작");
+		assertThat(titles("q=" + token + "&status=ALL&sort=EARLIEST_START")).containsExactly("어제 시작", "방금 시작",
+				"나 회차", "다 회차", "가 회차");
+		assertThat(titles("q=" + token + "&status=ALL&sort=LATEST_START")).containsExactly("가 회차", "나 회차", "다 회차",
+				"방금 시작", "어제 시작");
+		assertThat(titles("q=" + token + "&status=ENDED&sort=SOON")).containsExactly("방금 시작", "어제 시작");
+		assertThat(titles("q=" + token + "&status=ALL&sort=FEWEST_CONFIRMED")).containsExactly("나 회차", "다 회차",
+				"어제 시작", "방금 시작", "가 회차");
 	}
 
 	@Test
@@ -167,7 +185,7 @@ class SessionSearchApiTests extends ApiTestSupport {
 		save("남의 회차", inDays(1), token, 3);
 
 		assertThat(titles("scope=mine")).containsExactly("내 회차");
-		assertThat(titles("scope=mine&status=ALL&sort=LATE")).containsExactly("내 회차", "내 끝난 회차");
+		assertThat(titles("scope=mine&status=ALL&sort=LATEST_START")).containsExactly("내 회차", "내 끝난 회차");
 		mockMvc.perform(search("scope=mine"))
 			.andExpect(jsonPath("$.items[0].canManage").value(true));
 	}

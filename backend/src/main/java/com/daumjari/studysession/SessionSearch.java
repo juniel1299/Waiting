@@ -39,9 +39,12 @@ public record SessionSearch(Scope scope, String keyword, Field field, LocalDate 
 		UPCOMING, ALL, OPEN, WAITLIST, ENDED
 	}
 
-	/** 보조 정렬은 항상 id 오름차순. */
+	/**
+	 * 시작 임박순(앞으로 시작할 회차를 가까운 순, 시작된 회차는 그 뒤에 최근 시작부터) · 시작일 최신순 · 시작일 오래된순 · 최근 등록순 ·
+	 * 확정 참가자 많은순 · 확정 참가자 적은순 · 잔여석 많은순. 보조 정렬은 항상 id 오름차순.
+	 */
 	public enum Sort {
-		SOON, LATE, NEWEST, OLDEST, SEATS, POPULAR, TITLE
+		SOON, LATEST_START, EARLIEST_START, NEWEST, MOST_CONFIRMED, FEWEST_CONFIRMED, MOST_SEATS
 	}
 
 	public static SessionSearch parse(String scope, String q, String field, String from, String to, String status,
