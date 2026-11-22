@@ -734,11 +734,27 @@ textarea:focus {
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
 }
 
-/* 터치: hover 가 남지 않게 이동은 빼고, 누르는 동안만 눌림 피드백 */
+/* 터치: 탭한 뒤 hover 모양이 남지 않게 하고, 누르는 동안만 눌림 피드백 */
 @media (hover: none) {
   .card:has(> .title):hover {
     transform: none;
     box-shadow: none;
+  }
+
+  button:not(:disabled):hover,
+  .button-link:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  button.secondary:not(:disabled):hover {
+    background: transparent;
+    border-color: var(--line);
+  }
+
+  button.danger:not(:disabled):hover {
+    background: var(--danger);
+    border-color: var(--danger);
   }
 }
 
