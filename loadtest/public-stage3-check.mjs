@@ -32,20 +32,52 @@ async function askOperator() {
       lines.push(line);
       if (lines.length === 2) break;
     }
-    return lines;
+    return [lines[0]?.trim() ?? "", lines[1] ?? ""];
   }
-  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-  let hide = false;
-  const write = rl._writeToOutput.bind(rl);
-  rl._writeToOutput = (text) => (hide ? undefined : write(text));
-  const question = (q) => new Promise((resolve) => rl.question(q, resolve));
-  const loginId = await question("운영자 아이디: ");
-  process.stdout.write("운영자 비밀번호(화면에 보이지 않음): ");
-  hide = true;
-  const password = await question("");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const loginId = await new Promise((resolve) => rl.question("운영자 아이디: ", resolve));
   rl.close();
-  process.stdout.write("\n");
-  return [loginId, password];
+  // 빈 값이면 로그인을 시도하지 않고 다시 묻는다 (최대 3번)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const password = await readSecret("운영자 비밀번호(입력해도 화면에 보이지 않음, 다 치고 Enter): ");
+    if (password) return [loginId.trim(), password];
+    console.log("비밀번호가 비어 있어요. 다시 입력해 주세요.");
+  }
+  throw new Error("비밀번호를 3번 비워 둬서 멈춤 (로그인 시도 없음)");
+}
+
+/**
+ * 비밀번호를 원시 입력(raw mode)으로 받는다. readline 은 줄을 다시 그리며 안내 문구까지 지워 버려서 쓰지 않는다.
+ * 입력 글자는 화면에 아무것도 쓰지 않고, Backspace 는 지우고, Ctrl+C 는 종료한다.
+ */
+function readSecret(prompt) {
+  process.stdout.write(prompt);
+  return new Promise((resolve) => {
+    let value = "";
+    const onData = (chunk) => {
+      for (const ch of chunk) {
+        if (ch === "\r" || ch === "\n") {
+          process.stdin.off("data", onData);
+          process.stdin.setRawMode(false);
+          process.stdin.pause();
+          process.stdout.write("\n");
+          resolve(value);
+          return;
+        }
+        if (ch === "\u0003") {
+          process.stdin.setRawMode(false);
+          process.stdout.write("\n");
+          process.exit(130);
+        }
+        if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1);
+        else value += ch;
+      }
+    };
+    process.stdin.setRawMode(true);
+    process.stdin.setEncoding("utf8");
+    process.stdin.resume();
+    process.stdin.on("data", onData);
+  });
 }
 
 class Client {
@@ -170,6 +202,9 @@ const accountIdOf = async (loginId) =>
 try {
   const ol = await op.login();
   op.password = null; // 로그인 뒤에는 들고 있지 않는다
+  if (ol.status === 401) {
+    throw new Error("운영자 로그인 실패 401: 아이디·비밀번호가 맞지 않음. 같은 아이디로 15분에 5번 넘게 틀리면 잠기니(429) 확인 뒤 다시 실행");
+  }
   expect(ol.status === 200 && ol.body?.role === "OPERATOR", `운영자 로그인 실패 ${brief(ol)}`);
   log("운영자 로그인 200");
   const v10 = await op.req("GET", "/api/operator/accounts?size=1");
