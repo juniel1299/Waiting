@@ -1,0 +1,51 @@
+# 로컬 운영 이미지 리허설 (deploy/docker-compose.prod.yml, prod 프로필·JDBC 세션·프록시 토큰, 일회용 운영자, 2026-11-22 09:09 UTC, 커밋 f52dd785 + 이 스크립트)
+## node loadtest/public-stage1-check.mjs (종료 코드 0)
+09:09:54 A qa_a11220909 가입 201 / 로그인 200
+09:09:54 A 회차 생성 201 /sessions/1: OPEN 확정 0/1 대기 0 canManage=true canDelete=true
+09:09:54 A 본인 회차 수정 200 "[QA] 1단계 점검 11220909 수정" | 내가 만든 회차 검색 200 1건
+09:09:54 B qa_b11220909 가입 201 / 로그인 200
+09:09:54 C qa_c11220909 가입 201 / 로그인 200
+09:09:55 B 예약 201 CONFIRMED, C 대기 201 WAITING 1번
+09:09:55 B 가 본 회차: canManage=false canDelete=false
+09:09:55 B 의 관리 API 직접 호출: PATCH 수정 403 NOT_SESSION_OWNER, PATCH 정원 403 NOT_SESSION_OWNER, GET 명단 403 NOT_SESSION_OWNER, DELETE 삭제 403 NOT_SESSION_OWNER
+09:09:55 A 명단 200: ["qa_b11220909"]
+09:09:55 A 정원 2 증설 200: 승격 1명, FULL 확정 2/2 대기 0 | C 내 신청: ["CONFIRMED"]
+09:09:55 A 회차 삭제 204 | B 신청 행 남음(취소 포함): false, C 신청 행 남음(취소 포함): false | 상세 404 SESSION_NOT_FOUND "삭제되었거나 찾을 수 없는 회차입니다."
+09:09:55 1단계 공개 점검 통과
+09:09:55 정리: B 탈퇴 204
+09:09:55 정리: C 탈퇴 204
+09:09:55 정리: A 탈퇴 204
+09:09:55 남은 로그인 계정 없음
+## node loadtest/public-stage3-check.mjs (운영자 아이디·비밀번호는 파이프 입력, 화면에 출력 안 됨, 종료 코드 0)
+09:09:55 운영자 로그인 200
+09:09:55 V10 기능 응답(간접): 계정 관리 API 200 — DB 이력 확인은 Neon flyway_schema_history 로 따로 한다
+09:09:55 A qa_ma11220909 가입 201 / 로그인 200
+09:09:55 B qa_mb11220909 가입 201 / 로그인 200
+09:09:55 [QA] 회차 2: A 예약 201, B 대기 201 | A 회차 생성 201 /sessions/3
+09:09:55 운영자가 A 의 회차 4 삭제 204 | B 신청 행(취소 포함) 0건
+09:09:55   현재 회차 3→2, 확정 2→1 | 누적 회차 삭제 1→2, 누적 예약 확정 3→3, 누적 회차 생성 4→4
+09:09:55 A 검색 200 (계정 #5) | 영향: 시작 전 확정 1, 승격 1, 대기 0, 만든 회차 1(신청 0)
+09:09:56 사유 없는 정지 400 VALIDATION_FAILED | 정지 200 → A 기존 세션 401 UNAUTHENTICATED, A 재로그인 403 ACCOUNT_SUSPENDED
+09:09:56 해제 200 → A 재로그인 200
+09:09:56 강제탈퇴 200 WITHDRAWN → B 신청 ["CONFIRMED"], A 회차 404 SESSION_NOT_FOUND, A 세션 401 UNAUTHENTICATED
+09:09:56 조치 기록: [["FORCE_WITHDRAW","탈퇴한 회원 #5","공개 점검: 강제탈퇴 확인",1,1],["UNSUSPEND","탈퇴한 회원 #5","공개 점검: 해제 확인",0,0],["SUSPEND","탈퇴한 회원 #5","공개 점검: 정지 확인",0,0]]
+09:09:56 운영자 화면·사용량: 14개 값 비교, 불일치 0개  | 화면 현재 회차 1, API 1
+09:09:57 운영자 화면·전체 회차: 화면 "1개 회차" [[QA] 3단계 점검 11220909] | API 1건 [[QA] 3단계 점검 11220909]
+09:09:57 운영자 화면·계정 관리: B 카드 "신청 1건 · 만든 회차 0개" 표시 true, 상태 ACTIVE | 조치 기록 화면에 A(탈퇴한 회원 #5) 3행
+09:09:57 3단계 공개 점검 통과
+09:09:57 정리: [QA] 회차 2 삭제 204
+09:09:57 정리: B 탈퇴 204
+09:09:57 정리: 운영자 로그아웃 204
+09:09:57 지운 회차 id: 4, 3, 2. 물리 삭제 확인(Neon SQL 편집기, 기대값 둘 다 0):
+select count(*) from study_session where id in (4, 3, 2);
+select count(*) from reservation where study_session_id in (4, 3, 2);
+## 리허설 DB 확인 (위 SQL 2개, flyway_schema_history 상위 3행, 남은 데이터)
+0
+0
+10|account moderation|t|2026-11-22 09:09:51.565159
+9|session search index|t|2026-11-22 09:09:51.561618
+8|session creator delete usage|t|2026-11-22 09:09:51.553288
+active_members|0
+sessions|0
+reservations|0
+moderation_action|3

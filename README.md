@@ -498,14 +498,54 @@ cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/publ
 |---|---|---|
 | V10 마이그레이션 이력 (직접) | Render 배포 로그·Neon `flyway_schema_history` 는 대시보드 로그인이 필요해 보지 못했다. **간접 근거만** 있다: `a9d77d4c` 배포 success 와 백엔드 기동(health 200). Flyway 마이그레이션이 실패하면 백엔드가 뜨지 않는다 | Neon SQL 편집기: `select version, description, success, installed_on from flyway_schema_history order by installed_rank desc limit 3;` → `10 account moderation true` 가 맨 위면 확정 |
 | 대기 순번 앞당겨짐(2번 → 1번) 공개 확인 | 데모 체험 회차는 대기자가 방문자 1명뿐이라 순번이 앞당겨지는 경우를 만들 수 없다. 이 경우는 로컬 e2e `full-flow.spec.ts`(데스크톱·모바일)로 확인했다 | 일반 계정 셋이 필요하다 (비밀번호 로그인) |
-| 1단계 공개 점검 [`public-stage1-check.mjs`](loadtest/public-stage1-check.mjs) | 운영 주소에 일반 계정 비밀번호로 로그인한다. Claude 는 운영 환경 비밀번호 로그인을 하지 않는다. 로컬 운영 이미지 리허설만 통과 | 사용자 실행: `node loadtest/public-stage1-check.mjs` |
-| 3단계 공개 점검 [`public-stage3-check.mjs`](loadtest/public-stage3-check.mjs) (운영자 계정 관리·대시보드) | 운영자 비밀번호가 필요하다. 로컬 운영 이미지 리허설만 통과 | 사용자 실행: `node loadtest/public-stage3-check.mjs` (운영자 아이디·비밀번호는 실행할 때 입력) |
+| 1단계 공개 점검 [`public-stage1-check.mjs`](loadtest/public-stage1-check.mjs) | 운영 주소에 일반 계정 비밀번호로 로그인한다. Claude 는 운영 환경 비밀번호 로그인을 하지 않는다. 로컬 운영 이미지 리허설만 통과 | 아래 "로그인이 필요한 공개 검증" |
+| 3단계 공개 점검 [`public-stage3-check.mjs`](loadtest/public-stage3-check.mjs) (운영자의 다른 회원 회차 삭제·집계 전후·계정 관리·운영자 화면과 API 일치) | 운영자 비밀번호가 필요하다. 로컬 운영 이미지 리허설만 통과 | 아래 "로그인이 필요한 공개 검증" |
 | 공개 운영자 화면 (사용량·전체 회차·계정 관리) | 운영자 로그인이 필요하다. 페이지 응답 200 만 확인 | 위 3단계 스크립트 또는 운영자 계정으로 직접 확인 |
 | 실제 iPhone Safari | 실기기가 없다. 모두 Chromium 기기 에뮬레이션 | 실기기에서 터치 피드백·강조·영상 재생 확인 |
 
 ### 스크린샷 교체
 
 `docs/screenshots/stage4-position-change-mobile.png` 를 터치 hover 수정(`6f7d938b`) 뒤 화면으로 다시 찍었다 (**로컬**, iPhone 13 에뮬레이션, 탭으로 조작). 대기 2번 → 1번 앞당겨짐은 공개 데모에서 만들 수 없어 로컬에서 찍었다. 탭한 `대기 취소` 버튼의 배경은 투명(`rgba(0, 0, 0, 0)`)으로 hover 모양이 남지 않는다.
+
+## 로그인이 필요한 공개 검증 (실행 안내, 사용자 실행 대기)
+
+Claude 는 운영 사이트에 비밀번호로 로그인하지 않는다. 아래 두 스크립트는 사용자가 터미널에서 직접 실행한다. 비밀번호·쿠키·토큰은 출력·저장하지 않는다(테스트 회원 비밀번호는 실행 중 무작위 생성, 운영자 비밀번호는 실행할 때 입력받고 화면에 보이지 않음, 브라우저 확인은 API 로그인 세션 쿠키를 메모리에서 넘김).
+
+**실행 순서** (같은 IP 의 가입 한도 15분 5회: 1단계 3회 + 3단계 2회 = 5회. 다시 돌리려면 15분 기다린다)
+
+```bash
+cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-stage1-check.mjs
+```
+
+```bash
+cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-stage3-check.mjs
+```
+
+| | `public-stage1-check.mjs` | `public-stage3-check.mjs` |
+|---|---|---|
+| 필요한 권한 | 없음 (일반 회원 3명을 새로 가입) | **운영자 아이디·비밀번호** (실행 중 입력) + 일반 회원 2명 새로 가입 |
+| 확인하는 것 | 일반 회원의 회차 생성·수정·내가 만든 회차 조회, 다른 회원의 관리 API 4종 403, 명단·정원 증설(대기자 승격), 생성자 삭제 뒤 신청 행이 취소 이력으로도 남지 않음(물리 삭제)·상세 404 | 운영자가 **다른 회원이 만든 회차**를 삭제(신청 행 0건), 삭제 전후 대시보드(현재 회차·확정 정확히 -1, 누적 회차 삭제 +1, 누적 예약 확정·회차 생성 줄지 않음), 영향 미리보기, 사유 필수, 정지(기존 세션 401·재로그인 403)·해제·강제탈퇴, 조치 기록 익명 표시, **공개 운영자 화면 3개(사용량 14개 값·전체 회차 목록·계정 관리 카드·조치 기록)가 같은 시점 API 응답과 같은지**(헤드리스 Chromium) |
+| 만드는·바꾸는 데이터 | 계정 3, `[QA] 1단계 점검 …` 회차 1, 신청 2, 누적 사용량 증가 | 계정 2, `[QA] 3단계 …` 회차 3, 신청 3~4, 조치 기록 3행, 누적 사용량 증가 |
+| 정리 | 회차 삭제(신청 함께), 3명 탈퇴 | 회차 모두 삭제, B 탈퇴, A 강제탈퇴(멈췄을 때도 finally 에서), 운영자 로그아웃 |
+| 남는 것 | 탈퇴로 익명화된 계정 행 3(`deleted-{id}`), 누적 사용량 증가분 | 익명화된 계정 행 2, **조치 기록 3행**(감사 기록, 대상은 계정 id 만), 누적 사용량 증가분 |
+| 끝에 출력되는 확인 | | 지운 회차 id 와 Neon 에서 돌릴 물리 삭제 확인 SQL 2개(기대값 둘 다 0) |
+
+중간에 멈추면 출력의 `중단:` 줄과 `정리:` 줄로 무엇이 남았는지 알 수 있다. 로그인에 실패해 탈퇴할 수 없는 계정이 생기면 아이디가 출력된다.
+
+**로컬 리허설** (로컬 운영 이미지 `deploy/docker-compose.prod.yml`, prod 프로필·JDBC 세션·프록시 토큰, 일회용 운영자, 운영자 비밀번호는 파이프 입력, 2026-11-22 09:09 UTC, 커밋 `a7a26c29`): 두 스크립트 모두 종료 코드 0. 출력에 비밀번호 0건. 운영자 삭제 전후 현재 회차 3→2·확정 2→1, 누적 회차 삭제 1→2·누적 예약 확정 3→3. 운영자 화면 비교 불일치 0. 리허설 DB 에서 지운 회차·신청 0행, 남은 활성 회원 0, 조치 기록 3. 전체 출력: [`loadtest/results/2026-11-22-rehearsal-stage1-stage3.txt`](loadtest/results/2026-11-22-rehearsal-stage1-stage3.txt).
+
+### V10 적용 확인 (미확인, 사용자 확인 대기)
+
+Render 배포 로그와 Neon 마이그레이션 이력은 로그인이 필요해 Claude 가 보지 못했다. 배포 success·백엔드 기동·계정 관리 API 응답은 **간접 근거**일 뿐이라, 아래 결과를 확인하기 전까지 **미확인**으로 둔다. Neon 콘솔 → SQL Editor 에서:
+
+```sql
+select version, description, success, installed_on
+from flyway_schema_history
+order by installed_rank desc
+limit 3;
+```
+
+기대 결과 (맨 위 행): `version = 10`, `description = account moderation`, `success = true`. 그 아래는 `9 / session search index / true`, `8 / session creator delete usage / true`. description 은 파일 이름 `V10__account_moderation.sql` 에서 Flyway 가 만든 값이고, 로컬 운영 이미지 리허설 DB 에서 같은 값을 확인했다.
 
 ## 회차 API
 
