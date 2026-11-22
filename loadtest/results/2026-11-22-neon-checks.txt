@@ -1,0 +1,10 @@
+# 공개 DB(Neon) 확인 (사용자가 Neon SQL 편집기에서 실행, 2026-11-22 09:56 UTC 전후, 결과는 사용자가 보낸 그대로)
+# 물리 삭제: 3단계 점검이 출력한 SQL (회차 61·62·63). 결과 "앞에 2개는 0".
+#   회차 60(1단계)은 안내한 두 SQL 중 어느 쪽을 실행했는지 분명하지 않아 DB 직접 확인으로 세지 않는다 (API 로 신청 행 0건은 확인).
+select count(*) from study_session where id in (63, 62, 61);              -- 0
+select count(*) from reservation where study_session_id in (63, 62, 61);  -- 0
+select version, description, success, installed_on from flyway_schema_history order by installed_rank desc limit 3;
+#  version  description                   success  installed_on
+1  10       account moderation            t        2026-11-22 08:28:14.488147
+2  9        session search index          t        2026-11-22 04:25:05.894613
+3  8        session creator delete usage  t        2026-11-22 03:13:25.952433
