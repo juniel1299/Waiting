@@ -271,7 +271,7 @@ function BackToList() {
   const href = useSyncExternalStore(noSubscribe, lastListHref, () => "/sessions");
   return (
     <Link href={href} className="link">
-      {href.startsWith("/me/sessions") ? "← 내가 만든 회차" : "← 회차 목록"}
+      {href.startsWith("/me/sessions") ? "← 내가 만든 회차" : href.startsWith("/operator") ? "← 전체 회차(운영자)" : "← 회차 목록"}
     </Link>
   );
 }

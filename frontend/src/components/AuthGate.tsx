@@ -74,7 +74,7 @@ function Header({ me }: { me: Me }) {
         {me.role === "PARTICIPANT" && <Link href="/me/reservations">내 신청</Link>}
         {!me.demo && <Link href="/me/sessions">내가 만든 회차</Link>}
         {!me.demo && <Link href="/sessions/new">회차 만들기</Link>}
-        {me.role === "OPERATOR" && <Link href="/operator">회차 관리</Link>}
+        {me.role === "OPERATOR" && <Link href="/operator">운영자</Link>}
       </nav>
       <span className="who">{me.displayName} 님</span>
       {me.role === "PARTICIPANT" && !me.demo && (

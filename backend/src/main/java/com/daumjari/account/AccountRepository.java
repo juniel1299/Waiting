@@ -17,6 +17,21 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
 	boolean existsByIdAndDeletedAtIsNotNull(Long id);
 
+	/** 탈퇴했거나 이용 정지된 계정이면 true. 남은 세션을 요청마다 끊는 데 쓴다. */
+	@Query("select count(a) > 0 from Account a where a.id = :id and (a.deletedAt is not null or a.suspendedAt is not null)")
+	boolean isBlocked(@Param("id") Long id);
+
+	/**
+	 * 운영 조치: 활성 운영자 행을 id 순으로 잠근다. 운영자끼리 동시에 서로를 정지·탈퇴시켜도 이 잠금에서 줄을 서고,
+	 * 앞선 조치로 정지된 운영자는 다음 조회에서 빠지므로 운영자가 0명이 되지 않는다.
+	 */
+	@Query(value = """
+			select id from account
+			where role = 'OPERATOR' and deleted_at is null and suspended_at is null and demo_trial_id is null
+			order by id for update
+			""", nativeQuery = true)
+	java.util.List<Long> lockActiveOperatorIds();
+
 	/** 탈퇴: 계정 행을 먼저 잠근다 (잠금 순서: 계정 → 회차). */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select a from Account a where a.id = :id")

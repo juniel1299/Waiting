@@ -127,7 +127,7 @@ export function rememberListHref(href: string): void {
 export function lastListHref(): string {
   try {
     const href = sessionStorage.getItem(LAST_LIST_KEY);
-    return href && /^\/(sessions|me\/sessions)(\?|$)/.test(href) ? href : "/sessions";
+    return href && /^\/(sessions|me\/sessions|operator\/sessions)(\?|$)/.test(href) ? href : "/sessions";
   } catch {
     return "/sessions";
   }

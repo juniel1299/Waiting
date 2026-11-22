@@ -41,6 +41,10 @@ public class Account {
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
+	/** 이용 정지 시각. 정지가 아니면 null (V10). */
+	@Column(name = "suspended_at")
+	private Instant suspendedAt;
+
 	/** 데모 체험 계정이면 그 체험 ID. 일반 계정은 null. */
 	@Column(name = "demo_trial_id")
 	private Long demoTrialId;
@@ -75,6 +79,23 @@ public class Account {
 		displayName = WITHDRAWN_DISPLAY_NAME;
 		passwordHash = "!withdrawn-no-password";
 		deletedAt = now;
+	}
+
+	/** 이용 정지: 행·신청은 그대로 두고 로그인과 기존 세션만 막는다 (AuthController, WithdrawnAccountFilter). */
+	public void suspend(Instant now) {
+		suspendedAt = now;
+	}
+
+	public void unsuspend() {
+		suspendedAt = null;
+	}
+
+	public boolean isSuspended() {
+		return suspendedAt != null;
+	}
+
+	public Instant getSuspendedAt() {
+		return suspendedAt;
 	}
 
 	public boolean isDeleted() {

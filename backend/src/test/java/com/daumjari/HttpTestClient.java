@@ -83,6 +83,11 @@ final class HttpTestClient {
 		return post("/api/sessions/" + sessionId + "/waitlist", "");
 	}
 
+	/** 운영자 계정 조치: action = suspend · unsuspend · withdraw. */
+	HttpResponse<String> moderate(Long accountId, String action, String reason) throws Exception {
+		return post("/api/operator/accounts/" + accountId + "/" + action, "{\"reason\":\"%s\"}".formatted(reason));
+	}
+
 	HttpResponse<String> withdraw(String password) throws Exception {
 		return post("/api/me/withdraw", "{\"password\":\"%s\"}".formatted(password));
 	}

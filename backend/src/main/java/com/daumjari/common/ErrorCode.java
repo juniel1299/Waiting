@@ -21,6 +21,11 @@ public enum ErrorCode {
 	DEMO_NOT_FOUND(HttpStatus.NOT_FOUND, "진행 중인 데모 체험이 없습니다."),
 	DEMO_EXPIRED(HttpStatus.GONE, "데모 체험 시간이 끝났습니다. 다시 체험해 주세요."),
 	CAPACITY_BELOW_CONFIRMED(HttpStatus.CONFLICT, "현재 확정 인원보다 적게 정원을 줄일 수 없습니다."),
+	ACCOUNT_SUSPENDED(HttpStatus.FORBIDDEN, "이용이 정지된 계정입니다. 운영자에게 문의해 주세요."),
+	ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "계정을 찾을 수 없습니다."),
+	SELF_MODERATION_NOT_ALLOWED(HttpStatus.CONFLICT, "본인 계정은 정지하거나 탈퇴시킬 수 없습니다."),
+	LAST_OPERATOR(HttpStatus.CONFLICT, "마지막 운영자 계정은 정지하거나 탈퇴시킬 수 없습니다."),
+	ACCOUNT_STATE_CONFLICT(HttpStatus.CONFLICT, "이미 처리되었거나 지금 계정 상태에서는 할 수 없는 조치입니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 

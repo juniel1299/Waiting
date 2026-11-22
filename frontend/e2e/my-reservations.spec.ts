@@ -95,7 +95,7 @@ test("데모 방문자도 메뉴에서 자기 체험 신청만 본다", async ({
 
 test("운영자 메뉴에는 '내 신청'이 없다", async ({ page }) => {
   await loginInBrowser(page, "operator");
-  await expect(page.getByRole("link", { name: "회차 관리" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "운영자", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 신청" })).toHaveCount(0);
 });
 
