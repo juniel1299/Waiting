@@ -354,6 +354,86 @@ cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/publ
 
 공개 반영 확인 (비밀번호 없이, 2026-11-22 03:14 UTC): 잠든 백엔드가 깬 뒤 데모 시작 201 (2.4초), 회차 상세·목록 응답에 `canManage`·`canDelete` 있음, 비로그인 `/api/me/sessions` 401.
 
+## 운영자 계정 관리·사용량 대시보드 (3단계, V10, 2026-11-22)
+
+운영자 화면은 탭 세 개다: `사용량`(`/operator`) · `전체 회차`(`/operator/sessions`, 2단계 검색 목록 + 카드마다 `명단·삭제`) · `계정 관리`(`/operator/accounts`). 머리글 메뉴 이름은 `운영자`. 모든 API 는 OPERATOR 전용(`/api/operator/**`, 참가자 403).
+
+### 계정 관리 API
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/api/operator/accounts?q&status&page&size` | 일반 계정 검색. 아이디·이름 부분 일치(대소문자 무시), `status` = `ALL`(기본)·`ACTIVE`·`SUSPENDED`·`WITHDRAWN`, id 순, 쪽 크기 기본 20(최대 100). 데모 체험 계정은 대상이 아니라 빠진다. 응답 줄: `{id, loginId(탈퇴면 없음), displayName, role, status, createdAt, suspendedAt, deletedAt, activeReservations, createdSessions}` |
+| GET | `/api/operator/accounts/{id}/impact` | 조치 전 영향 범위: 시작 전 확정(강제탈퇴 시 취소)·그로 인한 대기자 승격 수·대기 신청(종료)·시작된 회차 확정(남김)·만든 회차 수와 그 신청 수(함께 삭제), `canSuspend`·`canUnsuspend`·`canWithdraw`·`blockedReason` |
+| POST | `/api/operator/accounts/{id}/suspend` · `/unsuspend` · `/withdraw` | 본문 `{reason}` 필수 (앞뒤 공백 제외 1~500자, 아니면 400). 응답은 바뀐 계정 줄 |
+| GET | `/api/operator/actions?targetId&page&size` | 조치 기록, 최근 순 |
+
+### 정책
+
+- **이용 정지:** 계정 행·신청·만든 회차는 그대로 두고 접근만 막는다. 이미 로그인한 세션은 다음 요청에서 끊긴다(401, 기존 탈퇴 세션 차단 필터가 정지도 확인). 다시 로그인하면 **비밀번호가 맞을 때만** `403 ACCOUNT_SUSPENDED`("이용이 정지된 계정입니다…"), 틀리면 일반 로그인 실패와 같은 401 이라 정지 여부를 비밀번호 없이 알 수 없다. 해제하면 그대로 이어서 쓴다. 정지된 회원의 확정 자리는 유지된다(필요하면 강제탈퇴).
+- **강제탈퇴:** 본인 탈퇴와 같은 처리(`ReservationService.releaseAllOf` + 익명화)를 쓴다. 다른 사람 회차의 시작 전 확정 취소(대기자 승격), 대기 종료, 시작된 회차 확정은 참가 기록으로 남김, 본인이 만든 회차는 신청째 삭제(승격 없음). 정지된 계정도 탈퇴시킬 수 있다. 되돌릴 수 없어 화면에서 영향 범위를 한 번 더 확인받는다.
+- **보호:** 운영자 본인은 조치할 수 없다(409 `SELF_MODERATION_NOT_ALLOWED`). 조치 트랜잭션은 먼저 **활성 운영자 행을 id 순으로 잠그고** 처리자가 아직 활성인지 본다. 운영자 둘이 서로를 동시에 정지해도 뒤의 요청은 잠금을 기다린 뒤 처리자가 이미 정지돼 401 이 되므로 운영자가 0명이 되지 않는다. 마지막 활성 운영자는 정지·탈퇴시킬 수 없다(409 `LAST_OPERATOR`). 이미 처리된 상태(정지된 계정 재정지, 탈퇴 계정 조치)는 409 `ACCOUNT_STATE_CONFLICT`.
+- **잠금 순서:** 활성 운영자 행 → 대상 계정 행 → (강제탈퇴면) 회차 id 순. 예약·대기(계정 → 회차)·본인 탈퇴와 같은 방향이라 교착이 없다.
+- **조치 기록(`moderation_action`):** 처리자 계정 id·대상 계정 id·조치·사유·시각·처리 건수(취소한 신청, 삭제한 회차). 대상의 아이디·이름은 복사하지 않는다. 화면 라벨은 지금 계정 행에서 만들어, 탈퇴한 계정은 `탈퇴한 회원 #id` 로만 보인다. 사유는 운영자가 쓰는 글이라 개인정보를 적지 않도록 화면에 안내하지 않고(정책 문서 몫), 길이만 제한한다.
+
+### 사용량 대시보드
+
+`GET /api/operator/usage?from&to` (서울 날짜, 종료일 포함, 기본 오늘까지 30일, 최대 366일).
+
+- **현재 데이터** (`current.regular` / `current.demo`): 지금 남아 있는 회원 계정·운영자 계정·이용 정지 계정·회차·확정 예약·대기 신청 수. 기존 데이터에서 언제든 다시 셀 수 있는 값이고, 삭제·탈퇴되면 줄어든다.
+- **누적 사용량** (`totals`, `daily`): V8 의 `usage_daily` 성공 횟수(가입·체험 시작·회차 생성·예약 확정(직접)·예약 확정(자동 승격)·대기 신청·신청 취소·회차 삭제)를 일반/데모로 나눠 기간 합계와 일별로 준다. 원본을 지워도 줄지 않는다. 집계 시작 시각(`countingStartedAt`, V8 적용 시각)을 함께 보이고 그 전 누적치는 만들지 않는다.
+
+### V10 운영 적용 주의
+
+- `account.suspended_at` 칸 추가(전부 null), 새 표 `moderation_action`(빈 표)과 인덱스 2개. 기존 행 변화 없음.
+- Render 배포 때 Flyway 가 자동 적용한다. 되돌리려면 새 마이그레이션이 필요하다. 적용 전 백업 권장(위 "백업과 롤백").
+- `moderation_action` 의 처리자·대상 FK 는 계정 행을 가리킨다. 계정은 탈퇴해도 행이 남으므로(익명화) 문제없지만, 데모 정리(`DemoService.purgeExpired`)는 데모 계정만 지우고 데모 계정은 조치 대상이 아니라 충돌하지 않는다.
+- 배포 직후 기존 로그인 세션은 그대로다 (정지된 계정이 없으므로).
+
+### 함께 고친 운영 버그 (PR #32)
+
+회차를 만든 회원이 탈퇴하면 회차·신청은 지워지지만 계정 익명화가 저장되지 않았다(회차 삭제 쿼리가 영속성 컨텍스트를 비워 계정 엔티티가 분리됨). 정리 뒤 계정을 다시 읽어 익명화한다. 강제탈퇴도 같은 방식이다. 회귀 테스트: `SessionOwnershipApiTests.creatorWithdrawalDeletesTheirSessionsWithApplications`.
+
+### 테스트 (2026-11-22, 로컬)
+
+- 백엔드 전체 439개 통과(실패 0). 새 테스트: [`AccountModerationApiTests`](backend/src/test/java/com/daumjari/AccountModerationApiTests.java) 5 (검색·상태 필터·쪽, 사유 필수·정지 세션 차단·정지 로그인 403·해제, 영향 미리보기 → 강제탈퇴 정리·익명화·조치 기록, 본인·없는 계정, 다른 운영자 정지), [`ModerationConcurrencyTests`](backend/src/test/java/com/daumjari/ModerationConcurrencyTests.java) 40 (강제탈퇴 vs 대상의 예약 20회: 활성 신청 0·승격 1번, 운영자 둘이 서로 정지 20회: 정확히 하나만 성공·운영자 1명 남음), [`UsageDashboardApiTests`](backend/src/test/java/com/daumjari/UsageDashboardApiTests.java) 3 (현재 데이터는 삭제로 줄고 누적은 유지, 날짜 범위 합계·일별·일반/데모, 잘못된 범위 400·참가자 403).
+- e2e 70개 통과 (`E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e`). 새 [`operator-accounts.spec.ts`](frontend/e2e/operator-accounts.spec.ts) 4개: 검색 → 영향 → 사유 없으면 거절 → 정지(대상 API 401·재로그인 403) → 해제(로그인 200) → 강제탈퇴(확인창, 대기자 승격, 조치 기록 익명 표시), 대시보드 수치 변화(회차 생성 시 현재·누적 +1, 삭제 시 현재만 -1), 키보드(검색·조치 영역 열기·제목 포커스, 본인에게는 조치 버튼 없음), 375px 가로 스크롤 없음. 운영자 메뉴 이름이 바뀐 기존 e2e 3개 수정.
+- 프런트 단위 9개, `tsc`·`eslint` 오류 0.
+
+스크린샷: `docs/screenshots/stage3-usage-*`, `stage3-sessions-*`, `stage3-accounts-impact-*` (desktop·mobile).
+
+| 사용량 (데스크톱) | 계정 조치 (모바일) |
+|---|---|
+| ![](docs/screenshots/stage3-usage-desktop.png) | ![](docs/screenshots/stage3-accounts-impact-mobile.png) |
+
+### 공개 점검 스크립트
+
+[`loadtest/public-stage3-check.mjs`](loadtest/public-stage3-check.mjs): 운영자 아이디·비밀번호를 실행할 때 입력받고(비밀번호는 화면에 안 보이고 저장·출력하지 않음), 전용 테스트 회원 A·B 와 `[QA]` 회차로 영향 미리보기·정지·차단·해제·강제탈퇴·조치 기록·대시보드를 확인한 뒤 정리한다. 조치 대상은 스크립트가 만든 계정뿐이고, 조치 기록 3행은 감사 기록이라 남는다(익명화된 계정 id 만 가리킴). 사용자가 실행한다:
+
+```bash
+cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-stage3-check.mjs
+```
+
+로컬 운영 이미지 리허설(`deploy/docker-compose.prod.yml`, JDBC 세션·프록시 토큰, 일회용 운영자, 2026-11-22 08:15 UTC) 실제 출력:
+
+```
+08:15:52 운영자 로그인 200
+08:15:52 A qa_ma11220815 가입 201 / 로그인 200
+08:15:52 B qa_mb11220815 가입 201 / 로그인 200
+08:15:52 [QA] 회차 1: A 예약 201, B 대기 201 | A 회차 생성 201 /sessions/2
+08:15:52 A 검색 200 (계정 #2) | 영향: 시작 전 확정 1, 승격 1, 대기 0, 만든 회차 1(신청 0)
+08:15:52 사유 없는 정지 400 VALIDATION_FAILED | 정지 200 → A 기존 세션 401 UNAUTHENTICATED, A 재로그인 403 ACCOUNT_SUSPENDED
+08:15:52 해제 200 → A 재로그인 200
+08:15:52 강제탈퇴 200 WITHDRAWN → B 신청 ["CONFIRMED"], A 회차 404 SESSION_NOT_FOUND, A 세션 401 UNAUTHENTICATED
+08:15:52 조치 기록: [["FORCE_WITHDRAW","탈퇴한 회원 #2","공개 점검: 강제탈퇴 확인",1,1],["UNSUSPEND","탈퇴한 회원 #2","공개 점검: 해제 확인",0,0],["SUSPEND","탈퇴한 회원 #2","공개 점검: 정지 확인",0,0]]
+08:15:52 대시보드 200 집계 시작 2026-11-22T08:15:27.757099Z | 현재 일반 회차 1, 정지 계정 0
+08:15:52 3단계 공개 점검 통과
+08:15:52 정리: [QA] 회차 1 삭제 204
+08:15:52 정리: B 탈퇴 204
+08:15:53 정리: 운영자 로그아웃 204
+```
+
+리허설 뒤 DB: 회차 0·신청 0·남은 활성 회원 0, 탈퇴(익명화) 계정 2, 조치 기록 3. 리허설 컨테이너는 볼륨째 지웠다.
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
