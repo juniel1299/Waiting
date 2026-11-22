@@ -274,13 +274,93 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 
 화면: 머리글 `회차 만들기` → `/sessions/new`, 회차 상세의 `회차 관리` → `/sessions/{id}/manage` (생성자: 명단·정원·삭제, 운영자: 명단·삭제). 스크린샷 `docs/screenshots/stage1-*.png`.
 
+## 회차 검색·내가 만든 회차·수정 화면 (2단계, V9, 2026-11-22)
+
+`GET /api/sessions/search` (로그인 필요). 전체 회차(`/sessions`)와 내가 만든 회차(`/me/sessions`)가 같은 API·같은 화면 부품을 쓴다.
+
+| 파라미터 | 값 (기본값 굵게) | 설명 |
+|---|---|---|
+| `scope` | **`all`** · `mine` | `all`: 일반 회차(체험 방문자는 자기 체험 회차), `mine`: 내가 만든 회차(종료 포함) |
+| `q` | 최대 100자 | 앞뒤 공백 제거 후 부분 일치, 대소문자 무시(ILIKE). `%` `_` `\` 는 글자 그대로 찾는다 |
+| `field` | **`ALL`** · `TITLE` · `LOCATION` | 검색 범위 (제목+장소 / 제목 / 장소) |
+| `from`, `to` | `yyyy-MM-dd` | 서울 기준 시작 날짜. `to` 는 그날 23:59:59 까지 포함 (`starts_at < to+1일 00:00 KST`). `from > to` 는 400 |
+| `status` | **`UPCOMING`** · `OPEN` · `WAITLIST` · `ENDED` · `ALL` | 시작 전 전체 / 예약 가능(빈자리 있고 대기 0) / 마감(대기 가능: 빈자리 0 또는 대기자 있음) / 시작된 회차 / 전체. 회차 응답 `status` 와 같은 규칙 |
+| `sort` | **`SOON`** · `LATE` · `NEWEST` · `OLDEST` · `SEATS` · `POPULAR` · `TITLE` | 시작 임박순 / 시작 늦은순 / 최근 등록순 / 먼저 등록순 / 남은 자리 많은순 / 확정 인원 많은순 / 제목순. 보조 정렬은 항상 `id` 오름차순 (같은 값이어도 쪽마다 순서 고정) |
+| `page`, `size` | **1** (1~10000), **10** (1~50) | 서버 페이지네이션 |
+
+- 응답: `{items: [회차 응답], page, size, totalElements, totalPages}`. 범위를 넘은 쪽은 `items` 가 비고 `totalElements` 는 그대로(화면은 '마지막 쪽으로' 링크).
+- 모르는 값·틀린 날짜·범위 밖 숫자는 400 `VALIDATION_FAILED`. 비로그인 401.
+- 기본(아무 조건 없음) = **앞으로 시작할 회차를 시작 임박순으로**. 예전 `/api/sessions` 는 시작된 회차가 맨 위에 오고 전부 내려 줬다 (아래 변경 전 스크린샷).
+- 구현: [`StudySessionSearchQuery`](backend/src/main/java/com/daumjari/studysession/StudySessionSearchQuery.java). 조건 조각은 enum 에서만 고르고 값은 모두 바인딩 변수. 확정·대기 수는 회차별 `lateral` 집계. 테스트: [`SessionSearchApiTests`](backend/src/test/java/com/daumjari/SessionSearchApiTests.java) (부분 일치·와일드카드, 서울 날짜 경계 4건, 상태 필터, 정렬 7종+id, 페이지, mine, 400 11종, 401).
+
+### 화면
+
+- **목록 카드:** 제목 · 시작 일시 · 장소 · 확정/정원 · 모집 상태(+대기 인원, 내 신청) 순서.
+- **검색 칸:** 검색어·날짜는 `검색`(Enter)으로, 검색 범위·모집 상태·정렬은 고르자마자 적용. 어떤 조건이 바뀌어도 1쪽부터. `초기화`, 결과 수(`N개 회차`, 화면 낭독기에 알림), 결과 없음 안내와 `조건 초기화`.
+- **주소가 조건의 원본:** 기본값이 아닌 조건만 주소에 남는다 (`/sessions?q=스프링&sort=SEATS&page=2`). 새로고침·뒤로 가기·주소 공유에 그대로. 상세의 `← 회차 목록`(내가 만든 회차에서 왔으면 `← 내가 만든 회차`)은 탭에 기억한 마지막 목록 주소로 돌아간다 (`sessionStorage`, 못 쓰면 `/sessions`). 목록으로 돌아오면 다시 조회해 최신 값을 보인다. 상세 복귀 최신 확인(위 절)은 그대로.
+- **참가자 동선과 생성자 관리 분리:** 전체 회차 카드에는 관리 링크가 없다. 머리글 `내가 만든 회차` → 카드마다 `수정`(시작 전·생성자) · `명단·정원·삭제`. 상세의 `회차 관리` 링크(생성자·운영자)는 1단계 그대로.
+- **등록 화면 분리:** `회차 만들기`(`/sessions/new`, 정원 포함)와 `회차 수정`(`/sessions/{id}/edit`, 제목·시작·장소만: `PATCH /api/sessions/{id}`). 정원 변경은 대기자 승격이 따르므로 회차 관리 화면에만 둔다. 생성자가 아니면 "수정할 권한이 없어요", 시작된 회차는 "이미 시작된 회차는 수정할 수 없어요" (서버도 403·409). 생성자가 관리 화면에서 삭제하면 내가 만든 회차로 돌아간다.
+- **키보드·모바일:** 모든 칸은 이름표가 있는 기본 입력 요소(`<select>`, `type=date`)이고 쪽 이동은 링크(`aria-current="page"`, 44px 터치 크기). 375px 폭에서 가로 스크롤 없음 (e2e 확인).
+
+스크린샷 (로컬, bob 로그인, 왼쪽 변경 전/오른쪽 변경 후):
+
+| | 변경 전 | 변경 후 |
+|---|---|---|
+| 회차 목록 모바일 | ![](docs/screenshots/stage2-before-list-mobile.png) | ![](docs/screenshots/stage2-after-list-mobile.png) |
+| 회차 목록 데스크톱 | ![](docs/screenshots/stage2-before-list-desktop.png) | ![](docs/screenshots/stage2-after-list-desktop.png) |
+| 회차 만들기 | ![](docs/screenshots/stage2-before-create-mobile.png) | ![](docs/screenshots/stage2-after-create-mobile.png) |
+
+변경 후만: 검색(`stage2-after-search-*`), 결과 없음(`stage2-after-empty-*`), 내가 만든 회차(`stage2-after-mine-*`, 2쪽 `stage2-after-mine-page2-*`), 회차 수정(`stage2-after-edit-*`).
+
+검증 (2026-11-22, 로컬): 백엔드 전체 391개 통과(실패 0, Testcontainers PostgreSQL 16), e2e 66개 통과 (`E2E_PORT=3100 E2E_BACKEND_PORT=18080 npm run test:e2e`, 새 [`session-search.spec.ts`](frontend/e2e/session-search.spec.ts) 5개: 상세 왕복·뒤로 가기·새로고침 조건 유지, 페이지·1쪽 초기화·결과 없음, 키보드, 375px, 내가 만든 회차·수정), 프런트 단위 8개 (`npm test`, [`sessionSearch.test.mjs`](frontend/test/sessionSearch.test.mjs) 6개), `tsc --noEmit`·`eslint` 오류 0.
+
+### V9 인덱스와 운영 적용 주의
+
+- `ix_study_session_regular_starts_at on study_session (starts_at, id) where demo_trial_id is null` 하나만 추가한다 (행 변화 없음).
+- 근거 (로컬 PostgreSQL 16, 일반 회차 20,000·신청 100,000, `EXPLAIN ANALYZE`): 기본 1쪽 2.6ms → 0.03ms, `예약 가능` 필터 1쪽 143.8ms → 0.2ms (정렬 순서대로 읽다 10개에서 멈추므로 집계도 그만큼만). 내가 만든 회차는 V8 의 `ix_study_session_creator` 를 탄다 (0.1ms).
+- 넣지 않은 것: 제목·장소 부분 일치용 `pg_trgm` GIN 인덱스. 같은 데이터에서 검색어 조회가 9.7ms(순차 탐색)라 지금 규모에 필요 없고, 확장 설치가 필요하다. 일반 회차가 수십만 건이 되면 다시 본다. 전체 건수(`count`)는 상태 필터가 확정·대기 수에 기대므로 조건에 맞는 회차 전부를 집계한다 (같은 데이터 최대 43ms).
+- Render 배포 때 Flyway 가 자동 적용한다. `CREATE INDEX` 는 그동안 `study_session` 쓰기를 잠깐 막지만 운영 회차 수가 적어 순간이다 (Flyway 트랜잭션 안이라 `CONCURRENTLY` 는 쓰지 않음). 되돌리려면 새 마이그레이션에서 `drop index`.
+
+### 1단계 공개 점검 스크립트
+
+[`loadtest/public-stage1-check.mjs`](loadtest/public-stage1-check.mjs): 일반 계정 A·B·C 를 만들어 생성자 권한(B 의 관리 API 직접 호출 4종 403)·정원 증설 승격·회차 삭제(신청 함께 삭제, 상세 404)를 확인하고 모두 탈퇴한다. 가입 3회, 비밀번호는 실행 중에만 무작위로 만들고 출력하지 않는다. 운영 주소에 비밀번호로 로그인하므로 사용자가 실행한다:
+
+```bash
+cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-stage1-check.mjs
+```
+
+로컬 운영 이미지 리허설(`deploy/docker-compose.prod.yml`, JDBC 세션·프록시 토큰, 2026-11-22 03:17 UTC) 실제 출력:
+
+```
+03:17:20 A qa_a11220317 가입 201 / 로그인 200
+03:17:20 A 회차 생성 201 /sessions/1: OPEN 확정 0/1 대기 0 canManage=true canDelete=true
+03:17:20 B qa_b11220317 가입 201 / 로그인 200
+03:17:20 C qa_c11220317 가입 201 / 로그인 200
+03:17:20 B 예약 201 CONFIRMED, C 대기 201 WAITING 1번
+03:17:20 B 가 본 회차: canManage=false canDelete=false
+03:17:21 B 의 관리 API 직접 호출: PATCH 수정 403 NOT_SESSION_OWNER, PATCH 정원 403 NOT_SESSION_OWNER, GET 명단 403 NOT_SESSION_OWNER, DELETE 삭제 403 NOT_SESSION_OWNER
+03:17:21 A 명단 200: ["qa_b11220317"]
+03:17:21 A 정원 2 증설 200: 승격 1명, FULL 확정 2/2 대기 0 | C 내 신청: ["CONFIRMED"]
+03:17:21 A 회차 삭제 204 | B 내 신청에 남음: false, C 내 신청에 남음: false | 상세 404 SESSION_NOT_FOUND "삭제되었거나 찾을 수 없는 회차입니다."
+03:17:21 1단계 공개 점검 통과
+03:17:21 정리: B 탈퇴 204
+03:17:21 정리: C 탈퇴 204
+03:17:21 정리: A 탈퇴 204
+03:17:21 남은 로그인 계정 없음
+```
+
+리허설 뒤 DB: 회차 0·신청 0·남은 일반 계정 0, `usage_daily` 가입 3·회차 생성 1·직접 확정 1·대기 1·승격 1·회차 삭제 1.
+
+공개 반영 확인 (비밀번호 없이, 2026-11-22 03:14 UTC): 잠든 백엔드가 깬 뒤 데모 시작 201 (2.4초), 회차 상세·목록 응답에 `canManage`·`canDelete` 있음, 비로그인 `/api/me/sessions` 401.
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
 
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| GET | `/api/sessions` | 로그인 | 회차 목록 (시작 시각순) |
+| GET | `/api/sessions` | 로그인 | 회차 목록 (시작 시각순, 전부) |
+| GET | `/api/sessions/search` | 로그인 | 검색·필터·정렬·페이지 (위 "회차 검색") |
 | GET | `/api/sessions/{id}` | 로그인 | 회차 상세 |
 | POST | `/api/operator/sessions` | OPERATOR | 회차 등록 `{title, startsAt, location, capacity}`, 201 |
 | GET | `/api/operator/sessions/{id}/roster` | OPERATOR | 확정 명단 `[{reservationId, accountId, loginId, displayName, reservedAt}]` |
