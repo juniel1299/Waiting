@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { useVisiblePolling } from "@/lib/useVisiblePolling";
+import { lastListHref } from "@/lib/sessionSearch";
 
 export function SessionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -188,9 +189,7 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
   const live = (value: string) => (checking ? "확인 중…" : value);
   return (
     <>
-      <Link href="/sessions" className="link">
-        ← 회차 목록
-      </Link>
+      <BackToList />
       <h1>{session.title}</h1>
       {session.canDelete && (
         <Link href={`/sessions/${session.id}/manage`} className="link">
@@ -262,6 +261,18 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
       {notice && <p role={notice.kind}>{notice.text}</p>}
       {connectionLost && <p className="meta">연결이 끊겼어요. 다시 연결되면 바로 최신 상태로 바꿀게요.</p>}
     </>
+  );
+}
+
+const noSubscribe = () => () => {};
+
+/** 마지막으로 본 목록(검색 조건·쪽 포함)으로 돌아간다. 저장소 값은 브라우저에서만 읽는다. */
+function BackToList() {
+  const href = useSyncExternalStore(noSubscribe, lastListHref, () => "/sessions");
+  return (
+    <Link href={href} className="link">
+      {href.startsWith("/me/sessions") ? "← 내가 만든 회차" : "← 회차 목록"}
+    </Link>
   );
 }
 

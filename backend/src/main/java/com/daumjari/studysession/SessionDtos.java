@@ -48,6 +48,11 @@ public final class SessionDtos {
 	public record CapacityChangeResponse(SessionResponse session, int promotedCount) {
 	}
 
+	/** 검색 결과 한 쪽. page 는 1부터, 범위를 넘은 쪽은 items 가 비고 totalElements 는 그대로. */
+	public record SessionPage(java.util.List<SessionResponse> items, int page, int size, long totalElements,
+			int totalPages) {
+	}
+
 	public record RosterEntry(Long reservationId, Long accountId, String loginId, String displayName,
 			Instant reservedAt) {
 	}

@@ -59,7 +59,7 @@ test("일반 회원이 회차를 만들고, 다른 회원이 예약·대기하�
     await dialog.accept();
   });
   await page.getByRole("button", { name: "회차 삭제" }).click();
-  await expect(page).toHaveURL(/\/sessions$/);
+  await expect(page).toHaveURL(/\/me\/sessions$/);
 
   // 다른 회원이 삭제된 회차를 열면 안내와 목록 링크
   const other = await browser.newContext();

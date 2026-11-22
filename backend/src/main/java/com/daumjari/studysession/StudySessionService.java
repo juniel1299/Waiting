@@ -28,6 +28,7 @@ import com.daumjari.studysession.SessionDtos.CreateSessionRequest;
 import com.daumjari.studysession.SessionDtos.EditSessionRequest;
 import com.daumjari.studysession.SessionDtos.MyReservation;
 import com.daumjari.studysession.SessionDtos.RosterEntry;
+import com.daumjari.studysession.SessionDtos.SessionPage;
 import com.daumjari.studysession.SessionDtos.SessionResponse;
 import com.daumjari.studysession.SessionDtos.SessionStatus;
 
@@ -49,9 +50,12 @@ public class StudySessionService {
 
 	private final Clock clock;
 
+	private final StudySessionSearchQuery searchQuery;
+
 	public StudySessionService(StudySessionRepository sessions, ReservationRepository reservations,
 			WaitlistPromoter promoter, AccountRepository accounts, DemoTrials demoTrials, UsageCounter usage,
-			Clock clock) {
+			Clock clock, StudySessionSearchQuery searchQuery) {
+		this.searchQuery = searchQuery;
 		this.usage = usage;
 		this.sessions = sessions;
 		this.reservations = reservations;
@@ -92,6 +96,18 @@ public class StudySessionService {
 	/** 내가 만든 회차 (시작 순). */
 	public List<SessionResponse> mine(SessionUser viewer) {
 		return toResponses(sessions.findByCreatorAccountIdOrderByStartsAtAscIdAsc(viewer.id()), viewer);
+	}
+
+	/** 전체 회차·내가 만든 회차 검색. 순서는 검색 SQL 이 정하고, 응답 변환은 목록과 같다. */
+	public SessionPage search(SessionSearch search, SessionUser viewer) {
+		StudySessionSearchQuery.Result found = searchQuery.search(search, viewer.id(), trialOf(viewer.id()),
+				Instant.now(clock));
+		Map<Long, StudySession> byId = sessions.findAllById(found.ids())
+			.stream()
+			.collect(Collectors.toMap(StudySession::getId, s -> s));
+		List<StudySession> ordered = found.ids().stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+		int totalPages = (int) ((found.total() + search.size() - 1) / search.size());
+		return new SessionPage(toResponses(ordered, viewer), search.page(), search.size(), found.total(), totalPages);
 	}
 
 	private List<SessionResponse> toResponses(List<StudySession> all, SessionUser viewer) {

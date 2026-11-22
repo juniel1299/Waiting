@@ -18,8 +18,11 @@ test("참가자가 예약하고 새로고침해도 유지되며 취소하면 잔
 
   await loginInBrowser(page, "alice");
   await expect(page).toHaveURL(/\/sessions$/);
+  await page.getByLabel("검색어").fill(title);
+  await page.getByLabel("검색어").press("Enter");
   const card = page.getByRole("listitem").filter({ hasText: title });
-  await expect(card).toContainText("잔여 3석");
+  await expect(card).toContainText("0 / 정원 3");
+  await expect(card).toContainText("예약 가능");
   await card.getByRole("link", { name: title }).click();
 
   await expect(page).toHaveURL(new RegExp(`/sessions/${sessionId}$`));
