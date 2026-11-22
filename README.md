@@ -434,6 +434,35 @@ cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/publ
 
 리허설 뒤 DB: 회차 0·신청 0·남은 활성 회원 0, 탈퇴(익명화) 계정 2, 조치 기록 3. 리허설 컨테이너는 볼륨째 지웠다.
 
+## 공통 디자인·모션·전체 흐름 (4단계, 2026-11-22)
+
+마이그레이션 없음 (화면만).
+
+| 요소 | 규칙 |
+|---|---|
+| 버튼 | 기본: 채움·포인터 커서. hover: 진한 색(보조 버튼은 배경). 키보드 포커스: 2px 링(`:focus-visible`). 눌림: 1px 내려가고 0.98배. 진행 중(`.loading`): 진행 커서·흐리게, `aria-busy`. 비활성: 50% 투명·금지 커서, hover 없음 |
+| 카드 | 제목 링크의 덮개가 카드 전체를 상세 이동 영역으로 만든다. hover: 배경·테두리·그림자·2px 위로. 카드 안 `수정`·`관리`·`명단·삭제` 링크는 덮개 위에 있어 상세로 가지 않는다. 키보드로 제목에 오면 카드 전체에 포커스 링 |
+| 메뉴 | 주 메뉴(`aria-label="주 메뉴"`)·운영자 탭은 현재 위치를 `aria-current="page"` 로 표시(굵게·밑줄). hover 배경, 키보드 포커스 링 |
+| 입력·선택 | 포커스되면 테두리가 강조색, 3px 링 |
+| 순번 변경 | 상세·내 신청에서 다른 사람의 취소로 대기 순번이 앞당겨지거나 확정되면 해당 칸을 1.6초 노란 배경으로 강조(`data-changed`)하고 `role=status` 로 "대기 순번이 2번에서 1번으로 앞당겨졌어요." / "대기 순번이 되어 예약이 확정됐어요." 를 알린다. 처음 본 상태·본인 신청·취소는 알리지 않는다 ([`reservationChange.ts`](frontend/src/lib/reservationChange.ts), 단위 테스트 3) |
+| 모션 | 전환 180ms. `prefers-reduced-motion: reduce` 이면 전환·애니메이션을 0.01ms 로, 이동·확대는 없앤다. 강조는 움직임 없는 배경으로만 |
+| 터치 | 탭한 뒤 hover 모양이 남지 않게(`hover: none`), 누르는 동안만 눌림 피드백. 탭 강조색은 끈다 |
+
+데모 버튼(로딩·중복 클릭 방지·서버 기동 안내·시간 초과 복구)과 상세 복귀 최신 확인은 그대로다 (기존 e2e 그대로 통과).
+
+### 테스트 (2026-11-22, 로컬)
+
+- 새 e2e: [`design.spec.ts`](frontend/e2e/design.spec.ts) 7 (버튼 기본·hover·포커스·비활성과 150~200ms 전환, 입력·선택 포커스, 메뉴 현재 위치, 카드 클릭 영역과 관리 링크 분리, 기본 모션의 카드 이동, 동작 줄이기에서 이동 없음·전환 즉시, 키보드만으로 로그인→검색→카드→예약→취소), [`full-flow.spec.ts`](frontend/e2e/full-flow.spec.ts) 2 (가입 → 회차 만들기 → 검색 → 대기 2번 → 앞사람 취소로 1번(강조·안내) → 확정(강조·안내, 1.6초 뒤 강조 해제) → 운영자 계정 관리에서 이 회원 확인, 데스크톱·375px 모바일).
+- 전체: 백엔드 439 통과(실패 0), e2e 79 통과, 프런트 단위 12, `tsc`·`eslint` 오류 0.
+
+스크린샷 (로컬): `docs/screenshots/stage4-card-hover-desktop.png`(카드 hover·메뉴 현재 위치), `stage4-focus-hover-desktop.png`(검색 버튼 hover·검색어 포커스 링), `stage4-menu-focus-desktop.png`(운영자 탭 키보드 포커스), `stage4-list-mobile.png`, `stage4-position-change-{desktop,mobile}.png`(대기 순번 변경 강조와 안내).
+
+| 카드 hover (데스크톱) | 순번 변경 강조 (모바일) |
+|---|---|
+| ![](docs/screenshots/stage4-card-hover-desktop.png) | ![](docs/screenshots/stage4-position-change-mobile.png) |
+
+후속 작업: 예약 변경 이력 화면 (요청대로 이번 범위에서 제외).
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.

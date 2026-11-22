@@ -593,3 +593,214 @@ h2[tabindex="-1"]:focus-visible {
   color: var(--danger);
   border-color: var(--danger);
 }
+
+/* ── 4단계 공통 상호작용: 버튼·카드·메뉴·입력 상태, 모션(150~200ms), 순번 변경 강조, 동작 줄이기 ── */
+:root {
+  --motion: 180ms;
+  --accent-strong: #1d4ed8;
+  --surface-hover: #f3f4f6;
+  --ring: 0 0 0 3px rgb(37 99 235 / 0.35);
+  --highlight: rgb(250 204 21 / 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-strong: #93c5fd;
+    --surface-hover: #1f2937;
+    --ring: 0 0 0 3px rgb(96 165 250 / 0.45);
+    --highlight: rgb(250 204 21 / 0.35);
+  }
+}
+
+button,
+.button-link,
+.nav a,
+.tabs a,
+.pagination a,
+input,
+select,
+textarea,
+.card {
+  transition:
+    background-color var(--motion) ease,
+    border-color var(--motion) ease,
+    box-shadow var(--motion) ease,
+    color var(--motion) ease,
+    transform var(--motion) ease,
+    opacity var(--motion) ease;
+}
+
+/* 버튼: 기본(채움·포인터) / hover(진하게) / focus-visible(링, 위 규칙) / active(눌림) / loading(진행 커서) / disabled(흐리게·금지 커서) */
+button:not(:disabled):hover,
+.button-link:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+button.secondary:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--muted);
+}
+
+button.danger:not(:disabled):hover {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+button:not(:disabled):active,
+.button-link:active,
+.pagination a:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+button.loading:not(:disabled):hover {
+  background: var(--accent);
+}
+
+.button-link:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 입력·선택: 포커스되면 테두리와 링 */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+/* 메뉴: 현재 위치(굵게·밑줄) / hover(배경) / 키보드 포커스(링) */
+.nav a,
+.tabs a {
+  border-radius: 4px;
+}
+
+.nav a {
+  padding: 2px 4px;
+}
+
+.nav a:hover,
+.tabs a:hover,
+.pagination a:hover {
+  background: var(--surface-hover);
+}
+
+.nav a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.tabs a:focus-visible,
+.pagination a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 카드: 상세로 가는 제목 링크가 카드 전체를 덮고(클릭 영역), 카드 안 관리 링크·버튼은 그 위에 있어 상세 이동과 겹치지 않는다 */
+.card {
+  position: relative;
+}
+
+.card > .title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+}
+
+.card > .title:focus-visible {
+  outline: none;
+}
+
+.card:has(> .title:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.card:has(> .title):hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+/* 터치: 탭한 뒤 hover 모양이 남지 않게 하고, 누르는 동안만 눌림 피드백 */
+@media (hover: none) {
+  .card:has(> .title):hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  button:not(:disabled):hover,
+  .button-link:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  button.secondary:not(:disabled):hover {
+    background: transparent;
+    border-color: var(--line);
+  }
+
+  button.danger:not(:disabled):hover {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+}
+
+.card:has(> .title):active {
+  transform: scale(0.99);
+  background: var(--surface-hover);
+}
+
+/* 순번 변경·확정 강조: 잠깐 노란 배경이 사라진다 (텍스트 안내는 role=status 로 함께) */
+[data-changed="true"] {
+  border-radius: 4px;
+  animation: changed-flash 1.6s ease-out;
+}
+
+@keyframes changed-flash {
+  from {
+    background-color: var(--highlight);
+    box-shadow: 0 0 0 4px var(--highlight);
+  }
+  to {
+    background-color: transparent;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+/* 동작 줄이기: 이동·확대와 애니메이션을 끄고, 강조는 움직임 없는 배경으로만 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .card:hover,
+  .card:active,
+  button:active,
+  .button-link:active,
+  .pagination a:active {
+    transform: none !important;
+  }
+
+  [data-changed="true"] {
+    animation: none;
+    background-color: var(--highlight);
+  }
+}
