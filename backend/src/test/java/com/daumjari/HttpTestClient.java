@@ -87,6 +87,23 @@ final class HttpTestClient {
 		return post("/api/me/withdraw", "{\"password\":\"%s\"}".formatted(password));
 	}
 
+	HttpResponse<String> deleteSession(Long sessionId) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/sessions/" + sessionId))
+			.header("X-XSRF-TOKEN", xsrfToken())
+			.DELETE()
+			.build();
+		return http.send(request, BodyHandlers.ofString());
+	}
+
+	HttpResponse<String> changeOwnCapacity(Long sessionId, int capacity) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/sessions/" + sessionId + "/capacity"))
+			.header("Content-Type", "application/json")
+			.header("X-XSRF-TOKEN", xsrfToken())
+			.method("PATCH", BodyPublishers.ofString("{\"capacity\":" + capacity + "}"))
+			.build();
+		return http.send(request, BodyHandlers.ofString());
+	}
+
 	HttpResponse<String> cancel(Long reservationId) throws Exception {
 		return post("/api/reservations/" + reservationId + "/cancel", "");
 	}

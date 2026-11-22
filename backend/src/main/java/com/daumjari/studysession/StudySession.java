@@ -33,6 +33,10 @@ public class StudySession {
 	private Instant createdAt;
 
 	/** 데모 체험 회차면 그 체험 ID. 일반 회차는 null. */
+	/** 생성자 계정. 데모 체험 회차는 null. 생성자가 없는 일반 회차(백필 전 데이터)는 운영자가 관리한다. */
+	@Column(name = "creator_account_id")
+	private Long creatorAccountId;
+
 	@Column(name = "demo_trial_id")
 	private Long demoTrialId;
 
@@ -106,6 +110,21 @@ public class StudySession {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	public Long getCreatorAccountId() {
+		return creatorAccountId;
+	}
+
+	public void assignCreator(Long accountId) {
+		creatorAccountId = accountId;
+	}
+
+	/** 제목·시작·장소 수정 (정원은 changeCapacity). */
+	public void edit(String title, Instant startsAt, String location) {
+		this.title = title;
+		this.startsAt = startsAt;
+		this.location = location;
 	}
 
 }

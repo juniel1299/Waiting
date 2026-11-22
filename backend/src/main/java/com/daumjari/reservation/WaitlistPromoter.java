@@ -3,6 +3,8 @@ package com.daumjari.reservation;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
+import com.daumjari.usage.Metric;
+import com.daumjari.usage.UsageCounter;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,15 +17,21 @@ public class WaitlistPromoter {
 
 	private final ReservationRepository reservations;
 
-	public WaitlistPromoter(ReservationRepository reservations) {
+	private final UsageCounter usage;
+
+	public WaitlistPromoter(ReservationRepository reservations, UsageCounter usage) {
 		this.reservations = reservations;
+		this.usage = usage;
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Optional<Reservation> promoteNext(Long sessionId) {
 		Optional<Reservation> next = reservations.findFirstByStudySessionIdAndStatusOrderByIdAsc(sessionId,
 				ReservationStatus.WAITING);
-		next.ifPresent(Reservation::promote);
+		next.ifPresent(r -> {
+			r.promote();
+			usage.increment(Metric.RESERVATION_PROMOTED, r.getStudySession().isDemo());
+		});
 		return next;
 	}
 

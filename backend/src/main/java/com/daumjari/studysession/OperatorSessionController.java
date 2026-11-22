@@ -4,7 +4,9 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import com.daumjari.auth.SessionUser;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,21 +34,22 @@ public class OperatorSessionController {
 	}
 
 	@PostMapping
-	public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
-		SessionResponse created = service.create(request);
+	public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request,
+			@AuthenticationPrincipal SessionUser user) {
+		SessionResponse created = service.create(request, user);
 		return ResponseEntity.created(URI.create("/api/sessions/" + created.id())).body(created);
 	}
 
 	/** 시작 전 정원 변경. 늘어난 자리만큼 대기자를 순서대로 확정한다. */
 	@PatchMapping("/{sessionId}/capacity")
 	public CapacityChangeResponse changeCapacity(@PathVariable Long sessionId,
-			@Valid @RequestBody ChangeCapacityRequest request) {
-		return service.changeCapacity(sessionId, request.capacity());
+			@Valid @RequestBody ChangeCapacityRequest request, @AuthenticationPrincipal SessionUser user) {
+		return service.changeCapacity(sessionId, request.capacity(), user);
 	}
 
 	@GetMapping("/{sessionId}/roster")
-	public List<RosterEntry> roster(@PathVariable Long sessionId) {
-		return service.roster(sessionId);
+	public List<RosterEntry> roster(@PathVariable Long sessionId, @AuthenticationPrincipal SessionUser user) {
+		return service.roster(sessionId, user);
 	}
 
 }

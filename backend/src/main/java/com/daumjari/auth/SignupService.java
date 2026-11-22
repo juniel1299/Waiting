@@ -12,6 +12,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.daumjari.usage.Metric;
+import com.daumjari.usage.UsageCounter;
 
 import com.daumjari.account.Account;
 import com.daumjari.account.AccountRepository;
@@ -45,8 +48,15 @@ public class SignupService {
 
 	private final int maxPerIp;
 
+	private final UsageCounter usage;
+
+	private final TransactionTemplate transaction;
+
 	public SignupService(AccountRepository accounts, PasswordEncoder passwordEncoder, LoginThrottle throttle,
-			Clock clock, @Value("${daumjari.signup.max-per-ip:5}") int maxPerIp) {
+			Clock clock, @Value("${daumjari.signup.max-per-ip:5}") int maxPerIp, UsageCounter usage,
+			TransactionTemplate transaction) {
+		this.usage = usage;
+		this.transaction = transaction;
 		this.accounts = accounts;
 		this.passwordEncoder = passwordEncoder;
 		this.throttle = throttle;
@@ -64,9 +74,15 @@ public class SignupService {
 		if (accounts.existsByLoginIdIgnoreCase(loginId)) {
 			throw new ApiException(ErrorCode.LOGIN_ID_TAKEN);
 		}
+		String hash = passwordEncoder.encode(password);
 		try {
-			return accounts.saveAndFlush(Account.create(loginId, passwordEncoder.encode(password), loginId,
-					Role.PARTICIPANT, Instant.now(clock)));
+			// 시도 집계(throttle)는 따로 커밋되고, 가입과 누적 사용량은 한 트랜잭션이라 함께 커밋·롤백된다
+			return transaction.execute(status -> {
+				Account saved = accounts.saveAndFlush(Account.create(loginId, hash, loginId, Role.PARTICIPANT,
+						Instant.now(clock)));
+				usage.increment(Metric.SIGNUP, false);
+				return saved;
+			});
 		}
 		catch (DataIntegrityViolationException e) {
 			// 사전 조회 뒤 같은 아이디가 먼저 들어갔다 (동시 가입)
