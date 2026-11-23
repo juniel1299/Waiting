@@ -15,4 +15,9 @@
 12:08:13 정리: A 탈퇴 204
 12:08:13 정리: B 탈퇴 204
 12:08:13 정리: 운영자 로그아웃 204
+12:08:13 Neon SQL 편집기에서 남은 행 확인 (기대값 모두 0):
+select (select count(*) from board_post where id in (4, 5)) as posts,
+       (select count(*) from comment where id in (1, 2, 3, 4, 5) or post_id in (4, 5)) as comments,
+       (select count(*) from comment_like where comment_id in (1, 2, 3, 4, 5)) as likes,
+       (select count(*) from mention where comment_id in (1, 2, 3, 4, 5) or post_id in (4, 5)) as mentions;
 # Neon 조회 (사용자, 2026-11-23 12:10~12:14 UTC): 남은 글 0 · 댓글 0 · 추천 0 · 멘션 0 (물리 삭제 확인 완료)
