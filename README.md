@@ -582,6 +582,17 @@ limit 3;
 
 스크린샷 (로컬): `docs/screenshots/community1-board-list-*`, `community1-post-detail-*`, `community1-notice-public-*`(비회원), `community1-post-form-desktop.png`.
 
+### 1단계 공개 검증
+
+- **비밀번호 없는 점검 (2026-11-23 11:33 UTC, PR #39 배포본): 12/12 성공.** [`loadtest/public-community1-open-check.mjs`](loadtest/public-community1-open-check.mjs). 비회원 공지 목록 200(`canWrite=false`), 비회원 회원 게시판 API 401·화면은 로그인으로 이동, 비회원 공지 작성 401, `page=0` 400, 데모 계정 게시판 조회 200·작성 403·공지 작성 403, 비회원 공지·데모 게시판 화면 375px 가로 넘침 0·글쓰기 버튼 없음. 공지가 0건이라 비회원 공지 상세는 아래 로그인 점검에서 확인한다. 쓴 데이터는 데모 체험 2개(30분 뒤 자동 삭제). [기록](loadtest/results/2026-11-23-public-community1-open.txt)
+- **로그인 필요한 점검 (사용자 실행 대기):** [`loadtest/public-community1-check.mjs`](loadtest/public-community1-check.mjs) — 운영자 아이디·비밀번호를 실행 중 입력. 일반 회원 2명 가입 → 본문에 `<script>` 가 든 글이 원문 그대로 저장·응답되는지 → 다른 회원의 수정·삭제 403 → 작성자 수정 200(수정됨) → 제목 검색 → 운영자가 회원 글 삭제 → 운영자 공지 작성·수정, 비회원 공지 열람, 회원의 공지 작성·수정 403 → 공지 삭제. **정리:** 남은 글 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(`select count(*) from board_post where id in (...)`, 기대값 0) 출력. 남는 것: 익명화된 계정 행 2. 가입 2회. 로컬 운영 이미지 리허설 통과(출력에 비밀번호 0건, 리허설 DB 남은 글 0) [기록](loadtest/results/2026-11-23-rehearsal-community1.txt).
+
+  ```bash
+  cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community1-check.mjs
+  ```
+
+- 운영자 입력·공통 HTTP 처리는 [`loadtest/lib/`](loadtest/lib/) 로 옮겨 3단계 점검 스크립트와 함께 쓴다(옮긴 뒤 3단계 점검도 리허설 통과).
+
 | 회원 게시판 (모바일) | 비회원 공지 (데스크톱) |
 |---|---|
 | ![](docs/screenshots/community1-board-list-mobile.png) | ![](docs/screenshots/community1-notice-public-desktop.png) |
