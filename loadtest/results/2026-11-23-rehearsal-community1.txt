@@ -1,0 +1,24 @@
+# 로컬 운영 이미지 리허설 (deploy/docker-compose.prod.yml, prod 프로필·JDBC 세션·프록시 토큰, 일회용 운영자, 운영자 비밀번호는 파이프 입력, 2026-11-23 11:36 UTC)
+## node loadtest/public-community1-check.mjs (종료 코드 0, 출력에 비밀번호 0건)
+11:36:29 운영자 로그인 200
+11:36:29 A qa_ca11231136 가입 201 / 로그인 200
+11:36:29 B qa_cb11231136 가입 201 / 로그인 200
+11:36:29 A 글 201 /board/1 | 본문 원문 그대로: true | 작성자 "회원#2" canEdit=true
+11:36:29 B 가 A 글 수정 403 NOT_POST_AUTHOR, 삭제 403 NOT_POST_AUTHOR
+11:36:29 A 수정 200 수정됨=true
+11:36:29 제목 검색 200 1건 [[QA] 커뮤니티1 점검 11231136 수정]
+11:36:29 B 글 201 → 운영자 삭제 204 → 상세 404 POST_NOT_FOUND
+11:36:29 운영자 공지 201·수정 200 | 비회원 공지 열람 200 작성자 "운영자" | A 공지 작성 403 BOARD_WRITE_FORBIDDEN·수정 403 NOT_POST_AUTHOR
+11:36:29 운영자 공지 삭제 204
+11:36:29 커뮤니티 1단계 공개 점검 통과
+11:36:29 정리: 글 1 삭제 204
+11:36:29 정리: A 탈퇴 204
+11:36:29 정리: B 탈퇴 204
+11:36:29 정리: 운영자 로그아웃 204
+11:36:29 만든 글 id: 1, 2, 3. Neon SQL 편집기에서 남은 글 확인(기대값 0):
+select count(*) from board_post where id in (1, 2, 3);
+## 리허설 DB: 만든 글 남은 행 / 전체 글 / 남은 활성 회원
+board_post 남은 행|0
+board_post 전체|0
+active members|0
+## 공통 모듈로 옮긴 뒤 node loadtest/public-stage3-check.mjs 도 다시 통과 (종료 코드 0)
