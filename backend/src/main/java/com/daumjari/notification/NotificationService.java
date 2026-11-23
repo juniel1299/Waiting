@@ -18,6 +18,7 @@ import com.daumjari.board.BoardDtos.Author;
 import com.daumjari.board.BoardDtos.Board;
 import com.daumjari.board.BoardService;
 import com.daumjari.board.Mentions;
+import com.daumjari.club.ClubService;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
 import com.daumjari.studysession.StudySessionService;
@@ -33,7 +34,7 @@ public class NotificationService {
 	static final int LIMIT = 50;
 
 	public record NotificationView(Long id, String type, boolean read, Instant createdAt, Author actor,
-			String sessionTitle, String postTitle, boolean onComment) {
+			String sessionTitle, String postTitle, boolean onComment, String clubName) {
 	}
 
 	public record NotificationPage(List<NotificationView> items, long unreadCount) {
@@ -53,8 +54,11 @@ public class NotificationService {
 
 	private final StudySessionService sessions;
 
+	private final ClubService clubs;
+
 	public NotificationService(NamedParameterJdbcTemplate jdbc, Clock clock, BoardService posts,
-			StudySessionService sessions) {
+			StudySessionService sessions, ClubService clubs) {
+		this.clubs = clubs;
 		this.jdbc = jdbc;
 		this.clock = clock;
 		this.posts = posts;
@@ -65,10 +69,12 @@ public class NotificationService {
 	public NotificationPage list(SessionUser me) {
 		List<NotificationView> items = jdbc.query("""
 				select n.id, n.type, n.read_at, n.created_at, n.comment_id, s.title as session_title, p.title as post_title,
+				       cl.name as club_name,
 				       case when act.id is null then null else %s end as actor_label
 				from notification n
 				left join study_session s on s.id = n.session_id
 				left join board_post p on p.id = n.post_id
+				left join club cl on cl.id = n.club_id
 				left join account act on act.id = n.actor_account_id
 				where n.recipient_account_id = :me
 				order by n.created_at desc, n.id desc
@@ -101,7 +107,10 @@ public class NotificationService {
 	public Opened open(Long id, SessionUser me) {
 		Map<String, Object> t = target(id, me);
 		String href;
-		if (t.get("session_id") != null) {
+		if (t.get("club_id") != null) {
+			href = clubs.hrefFor(((Number) t.get("club_id")).longValue(), me);
+		}
+		else if (t.get("session_id") != null) {
 			Long sessionId = ((Number) t.get("session_id")).longValue();
 			sessions.get(sessionId, me);
 			href = "/sessions/" + sessionId;
@@ -118,7 +127,7 @@ public class NotificationService {
 
 	private Map<String, Object> target(Long id, SessionUser me) {
 		return jdbc.queryForList("""
-				select session_id, post_id, comment_id from notification where id = :id and recipient_account_id = :me
+				select session_id, post_id, comment_id, club_id from notification where id = :id and recipient_account_id = :me
 				""", new MapSqlParameterSource("id", id).addValue("me", me.id()))
 			.stream()
 			.findFirst()
@@ -137,7 +146,7 @@ public class NotificationService {
 		boolean onComment = !rs.wasNull();
 		return new NotificationView(rs.getLong("id"), rs.getString("type"), rs.getTimestamp("read_at") != null,
 				rs.getTimestamp("created_at").toInstant(), actor == null ? null : new Author(actor),
-				rs.getString("session_title"), rs.getString("post_title"), onComment);
+				rs.getString("session_title"), rs.getString("post_title"), onComment, rs.getString("club_name"));
 	}
 
 }

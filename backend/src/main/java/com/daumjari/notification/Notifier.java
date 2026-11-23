@@ -20,8 +20,8 @@ public class Notifier {
 
 	private static final String INSERT = """
 			insert into notification (recipient_account_id, type, actor_account_id, session_id, post_id, comment_id,
-			                          event_key, created_at)
-			values (:recipient, :type, :actor, :session, :post, :comment, :key, :now)
+			                          club_id, event_key, created_at)
+			values (:recipient, :type, :actor, :session, :post, :comment, :club, :key, :now)
 			on conflict (event_key) do nothing
 			""";
 
@@ -57,6 +57,13 @@ public class Notifier {
 		}
 	}
 
+	/** 모임 신청 승인·반려 결과를 신청자에게. 결정 뒤 version 이 사건 열쇠라 반려 뒤 재신청의 다음 결정도 따로 알린다. */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void clubDecided(Long clubId, Long creatorId, boolean approved, long version) {
+		String type = approved ? "CLUB_APPROVED" : "CLUB_REJECTED";
+		jdbc.update(INSERT, params(creatorId, type, null, type + ":" + clubId + ":" + version).addValue("club", clubId));
+	}
+
 	/** 탈퇴: 계정 행은 익명화되어 남으므로 받은 알림은 여기서 지운다. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void forgetRecipient(Long accountId) {
@@ -69,6 +76,7 @@ public class Notifier {
 			.addValue("session", null)
 			.addValue("post", null)
 			.addValue("comment", null)
+			.addValue("club", null)
 			.addValue("key", key)
 			.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC));
 	}

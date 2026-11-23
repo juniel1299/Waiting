@@ -67,9 +67,9 @@ public final class BoardDtos {
 	}
 
 	/** 검색 조건. page 는 1부터, size 기본 20(최대 50). 틀리면 400. */
-	record Search(String keyword, Field field, int page, int size) {
+	public record Search(String keyword, Field field, int page, int size) {
 
-		static Search parse(String q, String field, String page, String size) {
+		public static Search parse(String q, String field, String page, String size) {
 			String keyword = q == null ? "" : q.strip();
 			if (keyword.length() > 100) {
 				throw new ApiException(ErrorCode.VALIDATION_FAILED);
@@ -84,7 +84,7 @@ public final class BoardDtos {
 			return new Search(keyword, f, number(page, 1, 10_000), number(size, 20, 50));
 		}
 
-		long offset() {
+		public long offset() {
 			return (long) (page - 1) * size;
 		}
 
