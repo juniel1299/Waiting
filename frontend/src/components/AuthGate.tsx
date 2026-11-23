@@ -6,6 +6,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { api, ApiError, errorMessage, type Me } from "@/lib/api";
 
+import { NotificationBell } from "./NotificationBell";
+
 interface AuthGateProps {
   children: (me: Me) => ReactNode;
 }
@@ -136,6 +138,7 @@ function Header({ me }: { me: Me }) {
         {me.role === "OPERATOR" && <NavLink href="/operator">운영자</NavLink>}
       </nav>
       <span className="who">{me.displayName} 님</span>
+      <NotificationBell />
       {!me.demo && (
         <Link href="/me/profile" className="link">
           내 정보

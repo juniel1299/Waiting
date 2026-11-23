@@ -47,6 +47,15 @@ export function Comments({ postId, me }: { postId: number; me: Me | null }) {
     load();
   }, [load]);
 
+  // 알림에서 '#comment-{id}' 로 들어오면 목록을 받은 뒤 그 댓글로 옮겨 가고 초점을 둔다
+  const loaded = items !== null;
+  useEffect(() => {
+    if (!loaded || !window.location.hash.startsWith("#comment-")) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ block: "center" });
+    target?.focus();
+  }, [loaded]);
+
   const done = (message: string) => {
     setStatus(message);
     return load();
@@ -123,7 +132,11 @@ function CommentView({ comment: c, canWrite, postId, onDone }: CommentViewProps)
   }
 
   return (
-    <li className={isReply ? "comment reply" : "comment"} data-testid={isReply ? "reply" : "comment"}>
+    <li
+      id={`comment-${c.id}`}
+      tabIndex={-1}
+      className={isReply ? "comment reply" : "comment"}
+      data-testid={isReply ? "reply" : "comment"}>
       <p className="comment-meta">
         {isReply && <span aria-hidden="true">↳ </span>}
         <strong>{c.author.label}</strong> · {formatSeoul(c.createdAt)}
