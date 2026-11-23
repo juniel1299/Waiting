@@ -37,21 +37,24 @@ public class BoardService {
 
 	private static final String COLUMNS = """
 			p.id, p.board, p.title, p.body, p.author_account_id, p.created_at, p.updated_at,
-			a.role as author_role, a.deleted_at as author_deleted
-			""";
+			(select count(*) from comment c where c.post_id = p.id) as comment_count,
+			""" + Mentions.labelSql("a") + " as author_label";
 
 	private final NamedParameterJdbcTemplate jdbc;
 
 	private final Clock clock;
 
-	public BoardService(NamedParameterJdbcTemplate jdbc, Clock clock) {
+	private final Mentions mentions;
+
+	public BoardService(NamedParameterJdbcTemplate jdbc, Clock clock, Mentions mentions) {
 		this.jdbc = jdbc;
 		this.clock = clock;
+		this.mentions = mentions;
 	}
 
 	/** 글 한 줄 (권한 판단용 작성자 id 포함, 응답에는 내보내지 않는다). */
-	private record Row(Long id, Board board, String title, String body, Long authorId, String authorRole,
-			boolean authorDeleted, Instant createdAt, Instant updatedAt) {
+	record Row(Long id, Board board, String title, String body, Long authorId, String authorLabel,
+			long commentCount, Instant createdAt, Instant updatedAt) {
 	}
 
 	@Transactional(readOnly = true)
@@ -76,7 +79,7 @@ public class BoardService {
 					+ where + " order by p.created_at desc, p.id desc limit :limit offset :offset", params,
 					BoardService::row)
 			.stream()
-			.map(r -> toResponse(r, viewer, false))
+			.map(r -> toResponse(r, viewer, false, List.of()))
 			.toList();
 		return new PostPage(items, search.page(), search.size(), total, (int) ((total + search.size() - 1) / search.size()),
 				canWrite(board, viewer));
@@ -84,9 +87,15 @@ public class BoardService {
 
 	@Transactional(readOnly = true)
 	public PostResponse get(Long id, SessionUser viewer) {
+		Row row = readable(id, viewer);
+		return toResponse(row, viewer, true, mentions.load("post_id", List.of(id)).getOrDefault(id, List.of()));
+	}
+
+	/** 글이 있고 이 사용자가 읽을 수 있으면 그 글 (댓글 조회·작성이 같은 규칙을 쓴다). */
+	Row readable(Long id, SessionUser viewer) {
 		Row row = find(id, false).orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
 		requireReadable(row.board(), viewer);
-		return toResponse(row, viewer, true);
+		return row;
 	}
 
 	@Transactional
@@ -104,7 +113,9 @@ public class BoardService {
 			.addValue("title", valid.title())
 			.addValue("body", valid.body())
 			.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC)), key, new String[] { "id" });
-		return get(key.getKey().longValue(), author);
+		long id = key.getKey().longValue();
+		mentions.sync("post_id", id, valid.body(), Instant.now(clock));
+		return get(id, author);
 	}
 
 	@Transactional
@@ -118,6 +129,7 @@ public class BoardService {
 				new MapSqlParameterSource("id", id).addValue("title", valid.title())
 					.addValue("body", valid.body())
 					.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC)));
+		mentions.sync("post_id", id, valid.body(), Instant.now(clock));
 		return get(id, user);
 	}
 
@@ -144,7 +156,7 @@ public class BoardService {
 		}
 	}
 
-	private static boolean isOperator(SessionUser user) {
+	static boolean isOperator(SessionUser user) {
 		return user != null && user.role() == Role.OPERATOR;
 	}
 
@@ -170,24 +182,18 @@ public class BoardService {
 		return isOperator(user) || (row.board() == Board.COMMUNITY && row.authorId().equals(user.id()));
 	}
 
-	private static PostResponse toResponse(Row row, SessionUser viewer, boolean withBody) {
-		return new PostResponse(row.id(), row.board(), row.title(), withBody ? row.body() : null, author(row),
-				row.createdAt(), row.updatedAt(), row.updatedAt() != null, 0, canEdit(row, viewer),
-				canDelete(row, viewer));
-	}
-
-	private static Author author(Row row) {
-		if (row.authorDeleted()) {
-			return new Author("탈퇴한 회원");
-		}
-		return new Author(Role.OPERATOR.name().equals(row.authorRole()) ? "운영자" : "회원#" + row.authorId());
+	private static PostResponse toResponse(Row row, SessionUser viewer, boolean withBody,
+			List<Mentions.MentionView> mentioned) {
+		return new PostResponse(row.id(), row.board(), row.title(), withBody ? row.body() : null,
+				new Author(row.authorLabel()), mentioned, row.createdAt(), row.updatedAt(), row.updatedAt() != null,
+				row.commentCount(), canEdit(row, viewer), canDelete(row, viewer));
 	}
 
 	private static Row row(ResultSet rs, int n) throws SQLException {
 		Timestamp updated = rs.getTimestamp("updated_at");
 		return new Row(rs.getLong("id"), Board.valueOf(rs.getString("board")), rs.getString("title"),
-				rs.getString("body"), rs.getLong("author_account_id"), rs.getString("author_role"),
-				rs.getTimestamp("author_deleted") != null, rs.getTimestamp("created_at").toInstant(),
+				rs.getString("body"), rs.getLong("author_account_id"), rs.getString("author_label"),
+				rs.getLong("comment_count"), rs.getTimestamp("created_at").toInstant(),
 				updated == null ? null : updated.toInstant());
 	}
 

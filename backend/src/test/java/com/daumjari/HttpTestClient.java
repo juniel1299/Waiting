@@ -51,6 +51,17 @@ final class HttpTestClient {
 		return client;
 	}
 
+	/** 임의 요청 (커뮤니티 경합 테스트용). json 이 null 이면 본문 없음. */
+	HttpResponse<String> send(String method, String path, String json) throws Exception {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+			.header("X-XSRF-TOKEN", xsrfToken())
+			.method(method, json == null ? BodyPublishers.noBody() : BodyPublishers.ofString(json));
+		if (json != null) {
+			builder.header("Content-Type", "application/json");
+		}
+		return http.send(builder.build(), BodyHandlers.ofString());
+	}
+
 	HttpResponse<String> reserve(Long sessionId) throws Exception {
 		return post("/api/sessions/" + sessionId + "/reservations", "");
 	}

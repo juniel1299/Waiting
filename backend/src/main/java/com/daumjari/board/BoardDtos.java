@@ -39,13 +39,14 @@ public final class BoardDtos {
 		ALL, TITLE, BODY
 	}
 
-	/** 작성자 표시: 운영자는 '운영자', 탈퇴한 계정은 '탈퇴한 회원', 그 밖에는 '회원#{id}' (공개 닉네임은 2단계 결정 뒤). */
+	/** 작성자 표시: 운영자는 '운영자', 탈퇴한 계정은 '탈퇴한 회원', 그 밖에는 공개 닉네임(없으면 '회원{id}'). */
 	public record Author(String label) {
 	}
 
 	/** 목록에서는 body 가 null 이다 (응답 크기를 줄이고 미리보기는 제목으로). */
-	public record PostResponse(Long id, Board board, String title, String body, Author author, Instant createdAt,
-			Instant updatedAt, boolean edited, long commentCount, boolean canEdit, boolean canDelete) {
+	public record PostResponse(Long id, Board board, String title, String body, Author author,
+			List<Mentions.MentionView> mentions, Instant createdAt, Instant updatedAt, boolean edited, long commentCount,
+			boolean canEdit, boolean canDelete) {
 	}
 
 	public record PostPage(List<PostResponse> items, int page, int size, long totalElements, int totalPages,
