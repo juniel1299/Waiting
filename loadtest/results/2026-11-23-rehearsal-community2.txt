@@ -1,0 +1,25 @@
+# 로컬 운영 이미지 리허설 (deploy/docker-compose.prod.yml, prod 프로필·JDBC 세션·프록시 토큰, 일회용 운영자, 운영자 비밀번호는 파이프 입력, 2026-11-23 12:05 UTC)
+## node loadtest/public-community2-check.mjs (종료 코드 0, 출력에 비밀번호 0건)
+12:05:12 운영자 로그인 200
+12:05:13 A qa_ma211231205 가입 201 / 로그인 200
+12:05:13 B qa_mb211231205 가입 201 / 로그인 200
+12:05:13 A 글 /board/1 | B 댓글 201 | A 답글 201 | 답글의 답글 400 REPLY_DEPTH_EXCEEDED
+12:05:13 B 추천 동시 2번 200·200 → 개수 1 | 취소 200 → 0
+12:05:13 B 닉네임 200 "점검231205" | 후보 검색 200 1명, 필드 [id, nickname], 로그인 아이디 포함: false
+12:05:13 멘션 댓글 201 → 표시 [{"id":3,"nickname":"점검231205"}] | 비회원 회원 게시판 댓글 401 UNAUTHENTICATED
+12:05:13 A 가 B 댓글 수정 403 NOT_COMMENT_AUTHOR·삭제 403 NOT_COMMENT_AUTHOR
+12:05:13 운영자 댓글 삭제 204 | B 부모 댓글 삭제 204 → 답글 남음: false, 남은 댓글 1개
+12:05:13 공지 201 | B 공지 댓글 201 | 비회원 공지 댓글 열람 200 1개, 쓰기 가능: false
+12:05:13 A 글 삭제 204 → 댓글 목록 404 POST_NOT_FOUND
+12:05:13 커뮤니티 2단계 공개 점검 통과
+12:05:13 정리: 글 2 삭제 204
+12:05:13 정리: A 탈퇴 204
+12:05:13 정리: B 탈퇴 204
+12:05:13 정리: 운영자 로그아웃 204
+12:05:13 Neon SQL 편집기에서 남은 행 확인 (기대값 모두 0):
+select (select count(*) from board_post where id in (1, 2)) as posts,
+       (select count(*) from comment where id in (1, 2, 3, 4, 5) or post_id in (1, 2)) as comments,
+       (select count(*) from comment_like where comment_id in (1, 2, 3, 4, 5)) as likes,
+       (select count(*) from mention where comment_id in (1, 2, 3, 4, 5) or post_id in (1, 2)) as mentions;
+## 위 SQL 을 리허설 DB 에서 실행: posts|comments|likes|mentions
+0|0|0|0
