@@ -1,0 +1,7 @@
+시작 2026-11-23T12:01:07.770Z
+성공 | 비회원 댓글 조회 경로 열림(없는 글 404) | 404 POST_NOT_FOUND
+성공 | 비회원 쓰기·추천·후보·내 정보 401 | 댓글 401, 추천 401, 후보 401, 내 정보 401
+성공 | 데모 시작 | 201
+성공 | 데모 댓글·추천·닉네임 403 | 댓글 403 COMMENT_WRITE_FORBIDDEN, 추천 403 COMMENT_WRITE_FORBIDDEN, 닉네임 403 PROFILE_FORBIDDEN
+성공 | 멘션 후보 응답 필드는 id·nickname 뿐 | 200 5명, 필드 [id, nickname]
+결과: 성공 5 / 실패 0
