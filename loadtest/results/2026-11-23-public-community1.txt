@@ -16,3 +16,4 @@
 11:54:01 정리: 운영자 로그아웃 204
 11:54:01 만든 글 id: 1, 2, 3. Neon SQL 편집기에서 남은 글 확인(기대값 0):
 select count(*) from board_post where id in (1, 2, 3);
+select count(*) from board_post where id in (1, 2, 3);  -- 0 (사용자 Neon 조회, 2026-11-23 11:56 UTC)
