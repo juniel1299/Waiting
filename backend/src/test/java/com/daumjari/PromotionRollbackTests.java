@@ -79,11 +79,19 @@ class PromotionRollbackTests {
 
 		assertThat(row(confirmedId)).containsEntry("status", "CONFIRMED").containsEntry("cancelled_at", null);
 		assertThat(row(waitingId)).containsEntry("status", "WAITING");
+		// 승격 알림은 승격과 같은 트랜잭션: 롤백되면 알림도 없다
+		assertThat(promotedNotifications(waitingId)).isZero();
 
 		reset(spyBehindProxy());
 		service.cancel(confirmedId, canceller.getId());
 		assertThat(row(confirmedId)).containsEntry("status", "CANCELLED");
 		assertThat(row(waitingId)).containsEntry("status", "CONFIRMED");
+		assertThat(promotedNotifications(waitingId)).isEqualTo(1L);
+	}
+
+	private long promotedNotifications(Long reservationId) {
+		return jdbc.queryForObject("select count(*) from notification where event_key = ?", Long.class,
+				"PROMOTED:" + reservationId);
 	}
 
 	@Test

@@ -25,6 +25,7 @@ import com.daumjari.board.BoardDtos.PostResponse;
 import com.daumjari.board.BoardDtos.Search;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
+import com.daumjari.notification.Notifier;
 
 /**
  * 회원 게시판·서비스 공지. 권한의 근거는 여기다 (화면은 응답의 canWrite·canEdit·canDelete 를 따른다).
@@ -46,10 +47,13 @@ public class BoardService {
 
 	private final Mentions mentions;
 
-	public BoardService(NamedParameterJdbcTemplate jdbc, Clock clock, Mentions mentions) {
+	private final Notifier notifier;
+
+	public BoardService(NamedParameterJdbcTemplate jdbc, Clock clock, Mentions mentions, Notifier notifier) {
 		this.jdbc = jdbc;
 		this.clock = clock;
 		this.mentions = mentions;
+		this.notifier = notifier;
 	}
 
 	/** 글 한 줄 (권한 판단용 작성자 id 포함, 응답에는 내보내지 않는다). */
@@ -91,6 +95,12 @@ public class BoardService {
 		return toResponse(row, viewer, true, mentions.load("post_id", List.of(id)).getOrDefault(id, List.of()));
 	}
 
+	/** 알림 열기: 글이 있고 지금 읽을 수 있으면 그 글의 게시판 (아니면 404·401). */
+	@Transactional(readOnly = true)
+	public Board boardOf(Long id, SessionUser viewer) {
+		return readable(id, viewer).board();
+	}
+
 	/** 글이 있고 이 사용자가 읽을 수 있으면 그 글 (댓글 조회·작성이 같은 규칙을 쓴다). */
 	Row readable(Long id, SessionUser viewer) {
 		Row row = find(id, false).orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
@@ -114,7 +124,7 @@ public class BoardService {
 			.addValue("body", valid.body())
 			.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC)), key, new String[] { "id" });
 		long id = key.getKey().longValue();
-		mentions.sync("post_id", id, valid.body(), Instant.now(clock));
+		notifier.mentioned(id, null, mentions.sync("post_id", id, valid.body(), Instant.now(clock)), author.id());
 		return get(id, author);
 	}
 
@@ -129,7 +139,7 @@ public class BoardService {
 				new MapSqlParameterSource("id", id).addValue("title", valid.title())
 					.addValue("body", valid.body())
 					.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC)));
-		mentions.sync("post_id", id, valid.body(), Instant.now(clock));
+		notifier.mentioned(id, null, mentions.sync("post_id", id, valid.body(), Instant.now(clock)), user.id());
 		return get(id, user);
 	}
 
