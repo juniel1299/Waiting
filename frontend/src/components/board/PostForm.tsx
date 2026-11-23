@@ -6,6 +6,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 
 import { api, ApiError, errorMessage, type Me } from "@/lib/api";
 import { BOARDS, canWriteBoard, type BoardKind, type Post } from "@/lib/board";
+import { MentionTextarea } from "@/components/board/MentionTextarea";
 
 /** 글쓰기·수정 전용 화면. 권한이 없으면 폼 대신 안내 (근거는 서버의 403). 본문은 텍스트와 줄바꿈만. */
 export function PostForm({ kind, me, postId }: { kind: BoardKind; me: Me; postId?: string }) {
@@ -77,13 +78,7 @@ export function PostForm({ kind, me, postId }: { kind: BoardKind; me: Me; postId
           <label htmlFor={`${id}-title`}>제목</label>
           <input id={`${id}-title`} value={title} maxLength={100} required onChange={(e) => setTitle(e.target.value)} />
         </div>
-        <div className="field">
-          <label htmlFor={`${id}-body`}>본문</label>
-          <textarea id={`${id}-body`} value={body} maxLength={5000} rows={12} required onChange={(e) => setBody(e.target.value)} />
-          <span className="meta">
-            텍스트와 줄바꿈만 그대로 보여요. {body.length}/5000
-          </span>
-        </div>
+        <MentionTextarea label="본문" value={body} onChange={setBody} maxLength={5000} rows={12} />
         <div className="actions">
           <button type="submit" disabled={busy}>
             {editing ? "저장" : "등록"}

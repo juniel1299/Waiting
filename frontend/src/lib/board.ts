@@ -10,6 +10,7 @@ export interface Post {
   /** 목록에서는 null */
   body: string | null;
   author: { label: string };
+  mentions: { id: number; nickname: string }[];
   createdAt: string;
   updatedAt: string | null;
   edited: boolean;

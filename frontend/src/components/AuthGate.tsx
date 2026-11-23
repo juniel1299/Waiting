@@ -136,6 +136,11 @@ function Header({ me }: { me: Me }) {
         {me.role === "OPERATOR" && <NavLink href="/operator">운영자</NavLink>}
       </nav>
       <span className="who">{me.displayName} 님</span>
+      {!me.demo && (
+        <Link href="/me/profile" className="link">
+          내 정보
+        </Link>
+      )}
       {me.role === "PARTICIPANT" && !me.demo && (
         <Link href="/account/withdraw" className="link">
           회원 탈퇴
