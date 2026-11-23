@@ -597,6 +597,29 @@ limit 3;
 |---|---|
 | ![](docs/screenshots/community1-board-list-mobile.png) | ![](docs/screenshots/community1-notice-public-desktop.png) |
 
+## 커뮤니티 2단계: 댓글·한 단계 답글·추천·멘션·공개 닉네임 (V12, 2026-11-23)
+
+| 동작 | 비회원 | 데모 | 일반 회원 | 서비스 운영자 |
+|---|---|---|---|---|
+| 댓글·답글 조회 | 공지 글만 (회원 게시판 글 401) | 조회 | 조회 | 조회 |
+| 댓글·답글 작성, 추천 | ✗ 401 | ✗ 403 `COMMENT_WRITE_FORBIDDEN` | ○ | ○ |
+| 수정 | ✗ | ✗ | 본인만 (403 `NOT_COMMENT_AUTHOR`) | 본인만 |
+| 삭제 | ✗ | ✗ | 본인 | 모두 |
+
+- **API:** `GET /api/posts/{id}/comments`(댓글과 그 아래 답글, 작성순), `POST /api/posts/{id}/comments {body, parentId?}`, `PATCH`·`DELETE /api/comments/{id}`, `PUT`·`DELETE /api/comments/{id}/like`(추천·취소, 멱등), `GET /api/mentions/candidates?q`(로그인 필요), `GET`·`PATCH /api/me/profile {nickname}`. 응답에 `likeCount`·`liked`·`replyCount`·`canEdit`·`canDelete`·`mentions`.
+- **한 단계 답글:** `parentId` 가 답글이면 400 `REPLY_DEPTH_EXCEEDED`, 다른 글의 댓글이면 400. DB 트리거도 같은 규칙으로 막는다(마지막 방어선).
+- **추천:** 기본 키 `(comment_id, account_id)` 로 계정당 한 번. 화면은 누르면 바뀌지만 API 는 추천(`PUT`)과 취소(`DELETE`)가 따로라 겹친 요청이 서로를 지우지 않는다.
+- **삭제 정책 (요청 기본안):** 글 삭제 → 댓글·답글·추천·멘션, 부모 댓글 삭제 → 답글과 그 추천·멘션을 FK `ON DELETE CASCADE` 로 같은 트랜잭션에서 물리 삭제(승격·복구 없음). 확인창이 함께 지워지는 답글·댓글 수를 안내한다.
+- **경합:** 댓글 작성은 글 행을, 답글 작성·추천은 부모 댓글 행을 공유 잠금하고, 글·댓글 삭제는 그 행을 배타 잠금한다. 삭제 전에 끝난 쓰기는 함께 지워지고, 늦은 쓰기는 404. [`CommentConcurrencyTests`](backend/src/test/java/com/daumjari/CommentConcurrencyTests.java): 같은 계정 이중 추천 → 행 1개, 글 삭제 vs 댓글 작성 → 남은 댓글 0, 부모 삭제 vs 답글·추천 → 고아 답글·추천·멘션 0 (각 20회, 실제 PostgreSQL).
+- **공개 닉네임 (결정 필요 1번 추천안 A):** `account.nickname`(2~20자, 중복 허용, `@ [ ] #` 와 `운영자`·`탈퇴한 회원`·`회원+숫자` 금지). 비어 있으면 `회원{id}` 로 보인다(기존 회원 백필 없이 같은 표시). 작성자 표시는 운영자 `운영자`, 탈퇴 `탈퇴한 회원`(탈퇴하면 닉네임도 지움), 그 밖에는 닉네임. 로그인 아이디는 어떤 커뮤니티 응답에도 없다. 머리글 `내 정보` 에서 바꾼다.
+- **멘션:** 본문의 `@[이름#계정id]` 토큰을 계정 id 로 연결(`mention` 표, 원본 CASCADE). 이름 부분은 쓸 때의 표시일 뿐이고 화면은 현재 닉네임으로 보인다. 탈퇴·데모·정지·없는 계정은 연결하지 않는다(글자 그대로 남음). 고칠 때는 새로 생긴 멘션만 추가하고 사라진 멘션은 연결만 지운다(3단계 알림은 새로 추가된 사람에게만). 후보 검색은 닉네임 부분 일치, 최대 10명, 응답은 `{id, nickname}` 뿐.
+- **화면:** 글 상세 아래 댓글 목록·작성칸. 답글은 들여쓰기와 왼쪽 선, 답글에는 답글 버튼 없음. 추천 버튼은 `aria-pressed` 와 `추천 N`/`추천함 N`. `@` 입력 시 후보 목록(combobox·listbox, ↓↑·Enter·Esc). 비회원(공지)·데모는 읽기만 안내. 본문은 텍스트 노드로만 그린다(HTML 해석 없음).
+- **V12 운영 적용 주의:** `account.nickname` 칸 추가(전부 null), 새 표 `comment`·`comment_like`·`mention`, 트리거 함수 `check_comment_depth`. 기존 행 변화 없음. Flyway 자동 적용.
+
+테스트 (2026-11-23, 로컬 같은 환경, 커밋 `248d6105`): 백엔드 전체 516개 통과(새 [`CommentApiTests`](backend/src/test/java/com/daumjari/CommentApiTests.java) 9, `CommentConcurrencyTests` 60), e2e 89개 통과(새 [`comments.spec.ts`](frontend/e2e/comments.spec.ts) 4: 댓글·답글·추천·수정·삭제 확인, 키보드 멘션·HTML 글자 그대로, 비회원·데모 읽기만, 닉네임 변경), 프런트 단위 18(새 `mention.test.mjs` 3), `tsc`·`eslint` 오류 0.
+
+스크린샷: `docs/screenshots/community2-comments-{desktop,mobile}.png` (답글 들여쓰기, 추천 상태, 멘션 강조, `@` 후보 목록).
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
