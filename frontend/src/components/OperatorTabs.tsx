@@ -7,6 +7,7 @@ const TABS = [
   ["/operator", "사용량"],
   ["/operator/sessions", "전체 회차"],
   ["/operator/accounts", "계정 관리"],
+  ["/operator/clubs", "모임 승인"],
 ] as const;
 
 /** 운영자 화면 탭. 현재 위치는 aria-current 로 알린다. */
