@@ -26,6 +26,10 @@ public enum ErrorCode {
 	SELF_MODERATION_NOT_ALLOWED(HttpStatus.CONFLICT, "본인 계정은 정지하거나 탈퇴시킬 수 없습니다."),
 	LAST_OPERATOR(HttpStatus.CONFLICT, "마지막 운영자 계정은 정지하거나 탈퇴시킬 수 없습니다."),
 	ACCOUNT_STATE_CONFLICT(HttpStatus.CONFLICT, "이미 처리되었거나 지금 계정 상태에서는 할 수 없는 조치입니다."),
+	BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "없는 게시판입니다."),
+	POST_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 글입니다."),
+	BOARD_WRITE_FORBIDDEN(HttpStatus.FORBIDDEN, "이 게시판에 글을 쓸 권한이 없습니다."),
+	NOT_POST_AUTHOR(HttpStatus.FORBIDDEN, "이 글을 고치거나 지울 권한이 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 
