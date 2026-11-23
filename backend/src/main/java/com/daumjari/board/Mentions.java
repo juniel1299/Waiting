@@ -28,7 +28,7 @@ public class Mentions {
 	static final int MAX_PER_TEXT = 20;
 
 	/** 공개 라벨: 탈퇴 → '탈퇴한 회원', 운영자 → '운영자', 그 밖에는 닉네임 또는 '회원{id}'. */
-	static String labelSql(String alias) {
+	public static String labelSql(String alias) {
 		return ("case when %1$s.deleted_at is not null then '탈퇴한 회원' when %1$s.role = 'OPERATOR' then '운영자' "
 				+ "else coalesce(%1$s.nickname, '회원' || %1$s.id) end").formatted(alias);
 	}

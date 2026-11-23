@@ -1,0 +1,23 @@
+# 공개 커뮤니티 2단계 점검 (사용자 실행, 2026-11-23 12:07~12:08 UTC, PR #41·#42 배포본). 출력은 사용자가 보낸 그대로, 비밀번호 없음.
+12:07:57 운영자 로그인 200
+12:08:02 A qa_ma211231207 가입 201 / 로그인 200
+12:08:04 B qa_mb211231207 가입 201 / 로그인 200
+12:08:06 A 글 /board/4 | B 댓글 201 | A 답글 201 | 답글의 답글 400 REPLY_DEPTH_EXCEEDED
+12:08:07 B 추천 동시 2번 200·200 → 개수 1 | 취소 200 → 0
+12:08:08 B 닉네임 200 "점검231207" | 후보 검색 200 1명, 필드 [id, nickname], 로그인 아이디 포함: false
+12:08:08 멘션 댓글 201 → 표시 [{"id":213,"nickname":"점검231207"}] | 비회원 회원 게시판 댓글 401 UNAUTHENTICATED
+12:08:09 A 가 B 댓글 수정 403 NOT_COMMENT_AUTHOR·삭제 403 NOT_COMMENT_AUTHOR
+12:08:10 운영자 댓글 삭제 204 | B 부모 댓글 삭제 204 → 답글 남음: false, 남은 댓글 1개
+12:08:11 공지 201 | B 공지 댓글 201 | 비회원 공지 댓글 열람 200 1개, 쓰기 가능: false
+12:08:11 A 글 삭제 204 → 댓글 목록 404 POST_NOT_FOUND
+12:08:11 커뮤니티 2단계 공개 점검 통과
+12:08:11 정리: 글 5 삭제 204
+12:08:13 정리: A 탈퇴 204
+12:08:13 정리: B 탈퇴 204
+12:08:13 정리: 운영자 로그아웃 204
+12:08:13 Neon SQL 편집기에서 남은 행 확인 (기대값 모두 0):
+select (select count(*) from board_post where id in (4, 5)) as posts,
+       (select count(*) from comment where id in (1, 2, 3, 4, 5) or post_id in (4, 5)) as comments,
+       (select count(*) from comment_like where comment_id in (1, 2, 3, 4, 5)) as likes,
+       (select count(*) from mention where comment_id in (1, 2, 3, 4, 5) or post_id in (4, 5)) as mentions;
+# Neon 조회 (사용자, 2026-11-23 12:10~12:14 UTC): 남은 글 0 · 댓글 0 · 추천 0 · 멘션 0 (물리 삭제 확인 완료)

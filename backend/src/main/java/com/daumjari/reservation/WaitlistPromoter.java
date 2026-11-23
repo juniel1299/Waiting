@@ -3,6 +3,7 @@ package com.daumjari.reservation;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
+import com.daumjari.notification.Notifier;
 import com.daumjari.usage.Metric;
 import com.daumjari.usage.UsageCounter;
 import org.springframework.transaction.annotation.Propagation;
@@ -19,9 +20,12 @@ public class WaitlistPromoter {
 
 	private final UsageCounter usage;
 
-	public WaitlistPromoter(ReservationRepository reservations, UsageCounter usage) {
+	private final Notifier notifier;
+
+	public WaitlistPromoter(ReservationRepository reservations, UsageCounter usage, Notifier notifier) {
 		this.reservations = reservations;
 		this.usage = usage;
+		this.notifier = notifier;
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -31,6 +35,8 @@ public class WaitlistPromoter {
 		next.ifPresent(r -> {
 			r.promote();
 			usage.increment(Metric.RESERVATION_PROMOTED, r.getStudySession().isDemo());
+			// 승격 알림도 같은 트랜잭션: 취소·정원 변경이 롤백되면 알림도 남지 않는다
+			notifier.promoted(r.getId(), r.getAccount().getId(), sessionId);
 		});
 		return next;
 	}

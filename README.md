@@ -623,10 +623,39 @@ limit 3;
 ### 2단계 공개 검증
 
 - **비밀번호 없는 점검 (2026-11-23 12:01 UTC, PR #41 배포본): 5/5 성공.** [`loadtest/public-community2-open-check.mjs`](loadtest/public-community2-open-check.mjs). 비회원 댓글 조회 경로 열림(없는 글 404), 비회원 댓글·추천·멘션 후보·내 정보 401, 데모 댓글·추천 403 `COMMENT_WRITE_FORBIDDEN`·닉네임 403, 멘션 후보 응답 필드 `id`·`nickname` 뿐(로그인 아이디 없음). 공개 글이 없어 실제 댓글 열람은 아래 로그인 점검에서 본다. 데모 체험 1개(30분 뒤 자동 삭제). [기록](loadtest/results/2026-11-23-public-community2-open.txt)
-- **로그인 필요한 점검 (사용자 실행 대기):** [`loadtest/public-community2-check.mjs`](loadtest/public-community2-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 댓글·답글·답글의 답글 400, 같은 계정 추천 동시 2번 → 1개·취소 → 0, 닉네임으로 멘션 후보 찾기(필드 확인)·멘션 저장·표시, 남의 댓글 수정·삭제 403, 운영자 댓글 삭제, 부모 삭제 시 답글 함께 삭제, 비회원 공지 댓글 열람, 글 삭제 시 댓글 목록 404. **정리:** 남은 글 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 글·댓글·추천·멘션, 기대값 모두 0). 로컬 운영 이미지 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community2.txt).
+- **로그인 필요한 점검 (사용자 실행 2026-11-23 12:07~12:08 UTC, PR #41·#42 배포본): 통과.** [`loadtest/public-community2-check.mjs`](loadtest/public-community2-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 댓글·답글·답글의 답글 400, 같은 계정 추천 동시 2번 → 1개·취소 → 0, 닉네임으로 멘션 후보 찾기(필드 확인)·멘션 저장·표시, 남의 댓글 수정·삭제 403, 운영자 댓글 삭제, 부모 삭제 시 답글 함께 삭제, 비회원 공지 댓글 열람, 글 삭제 시 댓글 목록 404. **정리:** 남은 글 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 글·댓글·추천·멘션, 기대값 모두 0). 로컬 운영 이미지 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community2.txt). 실제 실행: 답글의 답글 400 `REPLY_DEPTH_EXCEEDED`, 동시 추천 200·200 → 1개·취소 → 0, 멘션 후보 필드 `id`·`nickname`(로그인 아이디 없음), 남의 댓글 403 `NOT_COMMENT_AUTHOR`, 부모 삭제 뒤 답글 남음 false, 비회원 공지 댓글 200·쓰기 불가, 글 삭제 뒤 댓글 목록 404, 정리(글 삭제·두 회원 탈퇴·로그아웃) 모두 204. Neon 조회(12:10~12:14 UTC) 남은 글·댓글·추천·멘션 모두 0행(물리 삭제 확인 완료). [기록](loadtest/results/2026-11-23-public-community2.txt)
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community2-check.mjs
+  ```
+
+## 커뮤니티 3단계: 사이트 알림함 (V13, 2026-11-23)
+
+| 동작 | 비회원 | 데모 | 일반 회원·운영자 |
+|---|---|---|---|
+| 알림 목록·읽지 않은 수·읽음·모두 읽음·열기 | ✗ 401 | 본인 것 | 본인 것 (남의 알림은 404 `NOTIFICATION_NOT_FOUND`) |
+
+- **알림 종류:** `PROMOTED`(대기자가 취소·정원 증가로 확정됨, 대상 회차), `MENTION`(글·댓글·답글에서 멘션됨, 대상 글·댓글). 문구는 저장하지 않고 읽을 때 대상의 현재 제목·멘션한 사람의 공개 라벨로 만든다(로그인 아이디 없음).
+- **API:** `GET /api/me/notifications`(최신 50건과 `unreadCount`), `GET /api/me/notifications/unread-count`, `POST /api/me/notifications/{id}/read`, `POST /api/me/notifications/read-all`, `POST /api/me/notifications/{id}/open` → `{href}`(`/sessions/{id}` 또는 `/board|notices/{글}#comment-{댓글}`).
+- **같은 트랜잭션·중복 없음:** 승격 알림은 `WaitlistPromoter` 안에서, 멘션 알림은 글·댓글 저장과 같은 트랜잭션에서 쓴다(`Notifier` 는 `Propagation.MANDATORY`). 취소·정원 변경이 롤백되면 알림도 없다([`PromotionRollbackTests`](backend/src/test/java/com/daumjari/PromotionRollbackTests.java), 실제 PostgreSQL). `event_key` 유니크(`PROMOTED:{신청}`, `MENTION:post:{글}:{계정}`, `MENTION:comment:{댓글}:{계정}`)와 `on conflict do nothing` 으로 반복·재시도에도 한 번만 남는다.
+- **멘션 규칙:** 자기 멘션은 알리지 않는다. 고칠 때는 2단계 멘션 동기화가 돌려준 '새로 추가된' 계정에게만 알린다(이미 있던 사람에게 다시 알리지 않음, 지웠다 다시 넣어도 같은 열쇠라 한 번).
+- **이동 전 권한 확인:** `열기` 는 그 순간 대상 조회 권한을 다시 본다(회차는 회차 상세 규칙, 글은 게시판 조회 규칙). 대상이 없거나 볼 수 없으면 그 오류를 그대로 돌려주고 읽음으로 바꾸지 않는다. 남의 알림 id 는 없는 것처럼 404.
+- **정리:** 대상(회차·글·댓글)이나 받는 계정이 지워지면 FK `ON DELETE CASCADE` 로 같은 문장에서 함께 지워진다. 회원 탈퇴는 계정 행이 남으므로(익명화) 탈퇴 트랜잭션 안에서 받은 알림을 지운다(중간 실패 시 함께 롤백).
+- **화면:** 머리글 `알림` 버튼에 읽지 않은 수(버튼 이름도 "알림, 읽지 않은 알림 N개" 로 글자 제공). 보이는 탭에서만 30초마다(`NEXT_PUBLIC_NOTIFICATION_POLL_MS`), 탭 복귀·재연결 때 즉시 `useVisiblePolling` 으로 다시 읽고, 앞 요청이 끝나기 전에는 새 요청을 보내지 않는다. `/me/notifications` 는 읽음 상태를 색(왼쪽 선·배지)과 글자(`읽지 않음`/`읽음`)로 함께 보이고, 열기·읽음 표시·모두 읽음 결과를 `role=status` 로 알린다. 댓글 알림을 열면 그 댓글로 옮겨 가 초점을 둔다. 불러오기 실패는 다시 시도 버튼, 알림 없음은 빈 안내.
+- **V13 운영 적용 주의:** 새 표 `notification` 과 인덱스 2개만 추가(기존 행 변화 없음). Flyway 자동 적용.
+- **한계(shortcut):** 목록은 쪽 나눔 없이 최신 50건. 읽은 알림 보관 기간 정리는 없음(대상 삭제 시에만 지워짐). 필요해지면 후속.
+
+테스트 (2026-11-23, 로컬, 커밋 `6ef3eb2d`): 백엔드 전체 524개 통과(새 [`NotificationApiTests`](backend/src/test/java/com/daumjari/NotificationApiTests.java) 8: 글 멘션·자기 제외, 수정 시 새 멘션만, 댓글·답글 멘션과 대상 삭제 시 정리, 읽음·모두 읽음·열기 주소, 남의 알림 404·비회원 401, 취소 승격 1건·열기, 정원 증가 승격·회차 삭제 정리, 탈퇴 시 정리 / `PromotionRollbackTests` 에 롤백 시 알림 0·성공 시 1 추가), e2e 92개 통과(새 [`notifications.spec.ts`](frontend/e2e/notifications.spec.ts) 3: 탭 복귀 즉시 갱신·열기 → 댓글 초점·읽음, 승격 알림 → 회차·모두 읽음, 글 삭제 시 알림 사라짐), 프런트 단위 21(새 `notification.test.mjs` 3), `tsc`·`eslint` 오류 0.
+
+스크린샷: `docs/screenshots/community3-inbox-{desktop,mobile}.png` (머리글 읽지 않은 수, 읽지 않음·읽음 배지, 열기·읽음 표시).
+
+### 3단계 공개 검증
+
+- **비밀번호 없는 점검:** [`loadtest/public-community3-open-check.mjs`](loadtest/public-community3-open-check.mjs). 비회원 알림 API 401, 데모 알림함 200·읽지 않은 수 일치, 없는·남의 알림 읽기·열기 404. 데모 체험 1개(30분 뒤 자동 삭제). 배포 뒤 실행.
+- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community3-check.mjs`](loadtest/public-community3-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 글 멘션(자기 제외)·수정 시 중복 없음·댓글 멘션 열기 주소·남의 알림 404·취소 두 번에도 승격 알림 1건·열기 주소·모두 읽음·글 삭제 시 알림 사라짐. **정리:** 회차 삭제, 남은 글 삭제, 두 회원 탈퇴(받은 알림 삭제), 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 알림·글·회차, 기대값 모두 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community3.txt).
+
+  ```bash
+  cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community3-check.mjs
   ```
 
 ## 회차 API

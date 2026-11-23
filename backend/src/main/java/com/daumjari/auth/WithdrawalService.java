@@ -12,6 +12,7 @@ import com.daumjari.account.AccountRepository;
 import com.daumjari.account.Role;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
+import com.daumjari.notification.Notifier;
 import com.daumjari.reservation.ReservationService;
 
 /**
@@ -34,8 +35,11 @@ public class WithdrawalService {
 
 	private final Clock clock;
 
+	private final Notifier notifier;
+
 	public WithdrawalService(AccountRepository accounts, ReservationService reservations,
-			PasswordEncoder passwordEncoder, LoginThrottle throttle, TransactionTemplate transaction, Clock clock) {
+			PasswordEncoder passwordEncoder, LoginThrottle throttle, TransactionTemplate transaction, Clock clock, Notifier notifier) {
+		this.notifier = notifier;
 		this.accounts = accounts;
 		this.reservations = reservations;
 		this.passwordEncoder = passwordEncoder;
@@ -59,6 +63,7 @@ public class WithdrawalService {
 			}
 			Instant now = Instant.now(clock);
 			reservations.releaseAllOf(account.getId(), now);
+			notifier.forgetRecipient(account.getId());
 			// 본인 회차 삭제(deleteRowById)가 영속성 컨텍스트를 비워 account 가 분리되므로, 다시 읽어 익명화해야 저장된다
 			accounts.findById(account.getId()).orElseThrow().withdraw(now);
 		});

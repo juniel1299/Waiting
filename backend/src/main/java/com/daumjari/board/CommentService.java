@@ -20,6 +20,7 @@ import com.daumjari.board.BoardDtos.Author;
 import com.daumjari.board.Mentions.MentionView;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
+import com.daumjari.notification.Notifier;
 
 /**
  * 댓글·한 단계 답글·추천 (회원 게시판·공지 공통).
@@ -62,11 +63,15 @@ public class CommentService {
 
 	private final Clock clock;
 
-	public CommentService(NamedParameterJdbcTemplate jdbc, BoardService posts, Mentions mentions, Clock clock) {
+	private final Notifier notifier;
+
+	public CommentService(NamedParameterJdbcTemplate jdbc, BoardService posts, Mentions mentions, Clock clock,
+			Notifier notifier) {
 		this.jdbc = jdbc;
 		this.posts = posts;
 		this.mentions = mentions;
 		this.clock = clock;
+		this.notifier = notifier;
 	}
 
 	@Transactional(readOnly = true)
@@ -137,7 +142,7 @@ public class CommentService {
 			.addValue("body", body)
 			.addValue("now", now.atOffset(ZoneOffset.UTC)), key, new String[] { "id" });
 		long id = key.getKey().longValue();
-		mentions.sync("comment_id", id, body, now);
+		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now), user.id());
 		return one(id, user);
 	}
 
@@ -151,7 +156,9 @@ public class CommentService {
 		Instant now = Instant.now(clock);
 		jdbc.update("update comment set body = :body, updated_at = :now where id = :id",
 				new MapSqlParameterSource("id", id).addValue("body", body).addValue("now", now.atOffset(ZoneOffset.UTC)));
-		mentions.sync("comment_id", id, body, now);
+		Long postId = jdbc.queryForObject("select post_id from comment where id = :id", new MapSqlParameterSource("id", id),
+				Long.class);
+		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now), user.id());
 		return one(id, user);
 	}
 
