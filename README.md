@@ -559,6 +559,33 @@ limit 3;
 
 기대 결과 (맨 위 행): `version = 10`, `description = account moderation`, `success = true`. 그 아래는 `9 / session search index / true`, `8 / session creator delete usage / true`. description 은 파일 이름 `V10__account_moderation.sql` 에서 Flyway 가 만든 값이고, 로컬 운영 이미지 리허설 DB 에서 같은 값을 확인했다.
 
+## 커뮤니티 1단계: 회원 게시판·서비스 공지 (V11, 2026-11-23)
+
+전체 계획(데이터 모델·권한표·API·화면·정책·결정 필요 항목): [`docs/plans/community-plan.md`](docs/plans/community-plan.md).
+
+| 동작 | 비회원 | 데모 | 일반 회원 | 서비스 운영자 |
+|---|---|---|---|---|
+| 회원 게시판 목록·글 | 401 (화면은 로그인으로) | 조회만 (쓰기 403 `BOARD_WRITE_FORBIDDEN`) | 조회·작성 | 조회·작성 |
+| 회원 게시판 글 수정 | ✗ | ✗ | 본인 글만 (남의 글 403 `NOT_POST_AUTHOR`) | 본인 글만 |
+| 회원 게시판 글 삭제 | ✗ | ✗ | 본인 글 | 모든 글 |
+| 서비스 공지 목록·글 | 조회 | 조회 | 조회 | 조회 |
+| 서비스 공지 작성·수정·삭제 | ✗ | ✗ | ✗ 403 | ○ (운영자 공동 관리: 다른 운영자의 공지도 고치고 지움) |
+
+- **API:** `GET /api/boards/{community,notice}/posts?q&field=ALL|TITLE|BODY&page&size`(최신순, 쪽 크기 기본 20·최대 50, 응답에 `canWrite`), `GET /api/posts/{id}`, `POST /api/boards/{board}/posts`, `PATCH /api/posts/{id}`, `DELETE /api/posts/{id}`. 공지 목록·글 상세 `GET` 만 비회원에게 열고(`SecurityConfig`), 회원 게시판 글은 서비스가 로그인 여부를 다시 확인한다. 응답의 `canEdit`·`canDelete` 로 화면이 버튼을 보인다.
+- **표시:** 제목·본문·작성자·작성 시각·수정 여부(`edited`, `updatedAt`)·댓글 수(2단계 전 0). 작성자는 공개 라벨만: `운영자`, `탈퇴한 회원`(탈퇴로 익명화된 계정, 글은 남음), 그 밖에는 `회원#{id}` (로그인 아이디를 감추려는 임시 표시, 공개 닉네임은 계획 문서 결정 필요 1번).
+- **본문:** 제목 1~100자, 본문 1~5000자. 서버는 원문 텍스트를 그대로 저장·응답하고, 화면은 React 텍스트 노드 + `white-space: pre-wrap` 으로만 그린다(`dangerouslySetInnerHTML` 없음). `<script>`·`<img onerror>` 를 넣은 글이 글자 그대로 보이고 실행되지 않는 것을 e2e 로 확인.
+- **삭제:** 물리 삭제. 글 행을 `FOR UPDATE` 로 잠근 뒤 권한을 보고 지운다 (2단계 댓글·추천·멘션·알림은 FK `ON DELETE CASCADE` 로 같은 문장에서 함께 지워질 예정).
+- **화면:** `/board`, `/board/new`, `/board/{id}`, `/board/{id}/edit`, `/notices` 같은 구성. 주 메뉴에 `게시판`·`공지사항`. 검색 조건(검색어·범위·쪽)은 주소에 남고 `← 게시판 목록` 은 마지막 목록으로 돌아간다. 목록 한 줄 전체가 상세 이동 영역(카드와 같은 덮개 방식). 로딩·빈 목록·권한 없음·삭제된 글(목록 링크)·오류(다시 시도) 화면. 비회원 공지 화면은 공개 머리글(공지사항·로그인).
+- **V11 운영 적용 주의:** 새 표 `board_post`(빈 표)와 인덱스 1개. 기존 표 변경 없음. Render 배포 때 Flyway 자동 적용.
+
+테스트 (2026-11-23, 로컬 Apple M4 Pro macOS 27.2, JDK 17, Testcontainers PostgreSQL 16, Playwright 1.64.1 Chromium, 커밋 `010e6f12`): 백엔드 전체 447개 통과(새 [`BoardPostApiTests`](backend/src/test/java/com/daumjari/BoardPostApiTests.java) 8: 작성·수정·삭제, 타인 403·운영자 삭제, 비회원 공지 열람·게시판 401, 공지 운영자 전용, 데모 조회만, 검증·원문 저장, 검색·쪽, 탈퇴 작성자 표시), e2e 85개 통과(새 [`board.spec.ts`](frontend/e2e/board.spec.ts) 6: 회원 글 흐름·권한별 버튼·삭제된 글 안내, XSS, 검색·쪽 주소 유지, 비회원 공지·공지 쓰기 권한, 데모 조회만, 375px·키보드), 프런트 단위 15(새 `boardSearch.test.mjs` 3), `tsc`·`eslint` 오류 0.
+
+스크린샷 (로컬): `docs/screenshots/community1-board-list-*`, `community1-post-detail-*`, `community1-notice-public-*`(비회원), `community1-post-form-desktop.png`.
+
+| 회원 게시판 (모바일) | 비회원 공지 (데스크톱) |
+|---|---|
+| ![](docs/screenshots/community1-board-list-mobile.png) | ![](docs/screenshots/community1-notice-public-desktop.png) |
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
