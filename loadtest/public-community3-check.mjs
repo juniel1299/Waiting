@@ -8,7 +8,7 @@
 //      → A 글 삭제 → B 의 그 글 알림 사라짐
 // 정리(finally): 남은 글 삭제(운영자), 회차 삭제(A), A·B 탈퇴(받은 알림 삭제), 운영자 로그아웃. 끝에 Neon 확인 SQL(남은 행 0) 출력.
 import { askOperator } from "./lib/operator-prompt.mjs";
-import { brief, Client, expect, log } from "./lib/public-client.mjs";
+import { brief, Client, expect, log, sleep } from "./lib/public-client.mjs";
 
 const tag = new Date().toISOString().slice(5, 16).replace(/\D/g, "");
 const op = new Client(...(await askOperator()));
@@ -20,8 +20,31 @@ const sessions = [];
 const accountIds = [];
 let failed = false;
 
-const unread = async (who) => (await who.req("GET", "/api/me/notifications/unread-count")).body?.unreadCount;
-const items = async (who) => (await who.req("GET", "/api/me/notifications")).body?.items ?? [];
+// 응답이 예상 형식이 아니면 상태 코드와 응답 키 이름만 보이고 멈춘다 (값·토큰은 출력하지 않음)
+const shape = (r) => `${r.status}, 응답 키 [${r.body && typeof r.body === "object" ? Object.keys(r.body).join(", ") : typeof r.body}]`;
+const unread = async (who) => {
+  const r = await who.req("GET", "/api/me/notifications/unread-count");
+  expect(r.status === 200 && typeof r.body?.unreadCount === "number", `읽지 않은 수 응답이 예상과 다름: ${shape(r)}`);
+  return r.body.unreadCount;
+};
+const items = async (who) => {
+  const r = await who.req("GET", "/api/me/notifications");
+  expect(r.status === 200 && Array.isArray(r.body?.items), `알림 목록 응답이 예상과 다름: ${shape(r)}`);
+  return r.body.items;
+};
+// 병합 직후에는 백엔드(Render) 배포가 끝나지 않아 알림 API 가 404 다. 가입 한도를 쓰기 전에 운영자 세션으로 확인하고 최대 10분 기다린다.
+const DEPLOY_WAIT_MS = 10 * 60 * 1000;
+const DEPLOY_POLL_MS = 30 * 1000;
+async function waitForNotificationApi(who) {
+  const until = Date.now() + DEPLOY_WAIT_MS;
+  for (;;) {
+    const r = await who.req("GET", "/api/me/notifications/unread-count");
+    if (r.status === 200) return;
+    expect(r.status === 404 && Date.now() < until, `알림 API 가 준비되지 않음: ${shape(r)}. 배포(Render)가 끝난 뒤 다시 실행`);
+    log("배포 대기: 알림 API 가 아직 404 (새 백엔드 배포 전). 30초 뒤 다시 확인, 최대 10분");
+    await sleep(DEPLOY_POLL_MS);
+  }
+}
 
 try {
   const ol = await op.login();
@@ -29,6 +52,8 @@ try {
   if (ol.status === 401) throw new Error("운영자 로그인 실패 401: 아이디·비밀번호가 맞지 않음. 같은 아이디로 15분에 5번 넘게 틀리면 잠기니(429) 확인 뒤 다시 실행");
   expect(ol.status === 200 && ol.body?.role === "OPERATOR", `운영자 로그인 실패 ${brief(ol)}`);
   log("운영자 로그인 200");
+  await waitForNotificationApi(op);
+  log("알림 API 확인 200 (새 백엔드)");
   log("A", a.loginId, await a.signupAndLogin());
   log("B", b.loginId, await b.signupAndLogin());
   const aId = (await a.req("GET", "/api/auth/me")).body?.id;
