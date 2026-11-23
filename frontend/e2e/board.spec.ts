@@ -22,7 +22,8 @@ test("회원이 글을 쓰고 고치고 지운다. 다른 회원에게는 수정
   const body = page.getByTestId("post-body");
   await expect(body).toHaveText("첫 줄\n둘째 줄");
   expect(await body.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe("pre-wrap");
-  await expect(page.getByTestId("post-meta")).toContainText("회원#");
+  // 작성자는 공개 닉네임(기본 회원{id})으로만 보이고 로그인 아이디는 보이지 않는다
+  await expect(page.getByTestId("post-meta")).not.toContainText("alice");
   await expect(page.getByTestId("post-meta")).not.toContainText("수정됨");
 
   await page.getByRole("link", { name: "수정" }).click();
@@ -104,7 +105,7 @@ test("비회원은 공지를 읽을 수 있고 회원 게시판은 로그인으�
   await anon.getByRole("link", { name: title }).click();
   await expect(anon).toHaveURL(new RegExp(`/notices/${id}$`));
   await expect(anon.getByTestId("post-body")).toHaveText("모두 보세요");
-  await expect(anon.getByRole("link", { name: "로그인" })).toBeVisible();
+  await expect(anon.getByRole("banner").getByRole("link", { name: "로그인" })).toBeVisible();
   await expect(anon.getByRole("link", { name: "글쓰기" })).toHaveCount(0);
   await anon.goto("/board");
   await expect(anon).toHaveURL(/\/login$/);

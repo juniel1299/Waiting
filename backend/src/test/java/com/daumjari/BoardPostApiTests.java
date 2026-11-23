@@ -64,7 +64,7 @@ class BoardPostApiTests extends ApiTestSupport {
 	void memberWritesReadsEditsAndDeletesOwnCommunityPost() throws Exception {
 		long id = idOf(write(authorSession, "community", token + " 첫 글", "줄1\n줄2").andExpect(status().isCreated())
 			.andExpect(jsonPath("$.board").value("COMMUNITY"))
-			.andExpect(jsonPath("$.author.label").value("회원#" + author.getId()))
+			.andExpect(jsonPath("$.author.label").value("회원" + author.getId()))
 			.andExpect(jsonPath("$.edited").value(false))
 			.andExpect(jsonPath("$.commentCount").value(0))
 			.andExpect(jsonPath("$.canEdit").value(true))

@@ -41,6 +41,10 @@ public class Account {
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
+	/** 공개 닉네임 (V12). 비어 있으면 '회원{id}' 로 보인다. */
+	@Column(name = "nickname", length = 20)
+	private String nickname;
+
 	/** 이용 정지 시각. 정지가 아니면 null (V10). */
 	@Column(name = "suspended_at")
 	private Instant suspendedAt;
@@ -78,6 +82,7 @@ public class Account {
 		loginId = "deleted-" + id;
 		displayName = WITHDRAWN_DISPLAY_NAME;
 		passwordHash = "!withdrawn-no-password";
+		nickname = null;
 		deletedAt = now;
 	}
 

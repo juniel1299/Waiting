@@ -30,6 +30,11 @@ public enum ErrorCode {
 	POST_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 글입니다."),
 	BOARD_WRITE_FORBIDDEN(HttpStatus.FORBIDDEN, "이 게시판에 글을 쓸 권한이 없습니다."),
 	NOT_POST_AUTHOR(HttpStatus.FORBIDDEN, "이 글을 고치거나 지울 권한이 없습니다."),
+	COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 댓글입니다."),
+	COMMENT_WRITE_FORBIDDEN(HttpStatus.FORBIDDEN, "댓글을 쓰거나 추천할 권한이 없습니다."),
+	NOT_COMMENT_AUTHOR(HttpStatus.FORBIDDEN, "이 댓글을 고치거나 지울 권한이 없습니다."),
+	REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "답글에는 답글을 달 수 없습니다."),
+	PROFILE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 닉네임을 정할 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 

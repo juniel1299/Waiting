@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { api, ApiError, errorMessage, formatSeoul } from "@/lib/api";
+import { api, ApiError, errorMessage, formatSeoul, type Me } from "@/lib/api";
+import { Comments } from "@/components/board/Comments";
+import { MentionText } from "@/components/board/MentionText";
 import { BOARDS, lastBoardList, type BoardKind, type Post } from "@/lib/board";
 
 const noSubscribe = () => () => {};
@@ -13,7 +15,7 @@ const noSubscribe = () => () => {};
  * 글 상세. 본문은 React 텍스트 노드로만 그리고(white-space: pre-wrap 으로 줄바꿈 유지) HTML 로 해석하지 않는다.
  * 수정·삭제 버튼은 서버가 준 canEdit·canDelete 를 따른다. 삭제·없는 글은 안내와 목록 링크.
  */
-export function PostDetail({ kind, postId }: { kind: BoardKind; postId: string }) {
+export function PostDetail({ kind, postId, me }: { kind: BoardKind; postId: string; me: Me | null }) {
   const router = useRouter();
   const { path, listLabel } = BOARDS[kind];
   const listHref = useSyncExternalStore(noSubscribe, () => lastBoardList(kind), () => path);
@@ -49,7 +51,8 @@ export function PostDetail({ kind, postId }: { kind: BoardKind; postId: string }
   }, [postId, kind, router, attempt]);
 
   async function remove() {
-    if (!post || !window.confirm(`'${post.title}' 글을 삭제할까요? 삭제하면 복구할 수 없어요.`)) return;
+    const comments = post?.commentCount ? ` 댓글·답글 ${post.commentCount}개도 함께 삭제되고` : "";
+    if (!post || !window.confirm(`'${post.title}' 글을 삭제할까요?${comments} 삭제하면 복구할 수 없어요.`)) return;
     setBusy(true);
     try {
       await api(`/api/posts/${post.id}`, { method: "DELETE" });
@@ -89,7 +92,7 @@ export function PostDetail({ kind, postId }: { kind: BoardKind; postId: string }
         {post.edited && post.updatedAt && <> · 수정됨({formatSeoul(post.updatedAt)})</>}
       </p>
       <div className="post-body" data-testid="post-body">
-        {post.body}
+        <MentionText body={post.body ?? ""} mentions={post.mentions} />
       </div>
       {(post.canEdit || post.canDelete) && (
         <div className="actions">
@@ -106,6 +109,7 @@ export function PostDetail({ kind, postId }: { kind: BoardKind; postId: string }
         </div>
       )}
       {failure && <p role="alert">{failure.text}</p>}
+      <Comments postId={post.id} me={me} />
     </article>
   );
 }
