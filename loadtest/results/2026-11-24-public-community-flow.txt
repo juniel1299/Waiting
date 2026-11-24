@@ -1,0 +1,26 @@
+# 공개 커뮤니티 전체 흐름 로그인 점검 (사용자 실행, 2026-11-24 20:59:46~21:00:06 UTC, PR #47 병합 직후 main, 백엔드 배포 6b769d2a). 출력은 사용자가 보낸 그대로(입력 안내 줄 제외), 비밀번호 없음.
+## API 확인
+20:59:46 운영자 로그인 200
+20:59:49 A qa_fa611242059 가입 201 / 로그인 200
+20:59:53 B qa_fb611242059 가입 201 / 로그인 200
+20:59:57 A 글 201 | B 멘션 댓글 201 멘션 1명 | A 추천 200 → 1
+20:59:58 A 멘션 알림 1건 | 열기 200 /board/11#comment-7
+20:59:59 A 모임 신청 201 | 운영자 승인 200 | A 승인 알림 1건 | B 가입 200 회원 2명
+21:00:01 B 내부 글 201 | A 가 B 임명 200 → B 공지 201 | 회수 200 → B 공지 403 BOARD_WRITE_FORBIDDEN
+21:00:02 생성자 B 에게 이전 200 | A 모임 탈퇴 200 | A 내부 게시판 403 CLUB_MEMBERS_ONLY
+21:00:02 B 모임 삭제 204 → 내부 글 404 POST_NOT_FOUND | A 의 그 모임 알림 0건
+21:00:04 A 계정 탈퇴 204 → A 글 작성자 표시 "탈퇴한 회원"
+21:00:04 커뮤니티 전체 흐름 공개 점검 통과
+21:00:05 정리: 글 11 삭제 204
+21:00:06 정리: B 탈퇴 204
+21:00:06 정리: 운영자 로그아웃 204
+21:00:06 Neon SQL 편집기에서 남은 행 확인 (기대값 모두 0, 탈퇴한 계정 행은 정책상 익명화되어 남아 셈에 넣지 않음):
+select (select count(*) from board_post where id in (11, 12, 13) or club_id in (3)) as posts,
+       (select count(*) from comment where id in (7) or post_id in (11, 12, 13)) as comments,
+       (select count(*) from comment_like where comment_id in (7)) as likes,
+       (select count(*) from mention where post_id in (11, 12, 13) or comment_id in (7)) as mentions,
+       (select count(*) from notification where recipient_account_id in (243, 244) or actor_account_id in (243, 244) or club_id in (3)) as notifications,
+       (select count(*) from club where id in (3)) as clubs,
+       (select count(*) from club_member where club_id in (3) or account_id in (243, 244)) as members;
+## Neon SQL 확인 (사용자, 2026-11-24 21:00 UTC): posts 0 · comments 0 · likes 0 · mentions 0 · notifications 0 · clubs 0 · members 0 (물리 삭제 확인 완료)
+# 확인 대상: 이 점검이 만든 글 11·12·13, 댓글 7(과 추천·멘션), 모임 3(과 회원), 계정 243·244 가 받거나 일으킨 알림. 계정 행은 탈퇴 정책상 익명화되어 남는다.
