@@ -1,0 +1,7 @@
+# 공개 커뮤니티 전체 흐름 비밀번호 없는 점검 (2026-11-24 20:52 UTC, 배포 6b769d2a: PR #46, Render 20:48:39 success)
+시작 2026-11-24T20:52:15.260Z
+성공 | 화면 주소 9개 응답 200 (화면은 브라우저에서 로그인 확인) | /board 200, /notices 200, /me/notifications 200, /clubs/promo 200, /clubs 200, /me/clubs 200, /clubs/new 200, /clubs/1/board 200, /clubs/1/members 200
+성공 | 비회원: 공지 목록 200, 회원 게시판·알림·모임·모임 게시판 401 | 공지 200, 401, 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 데모: 게시판·알림·모임 목록 읽기 200, 글·댓글·모임 신청·닉네임 403 | 읽기 200·200·200, 쓰기 403 BOARD_WRITE_FORBIDDEN·403 COMMENT_WRITE_FORBIDDEN·403 CLUB_FORBIDDEN·403 PROFILE_FORBIDDEN
+결과: 성공 4 / 실패 0
