@@ -37,6 +37,11 @@ public enum ErrorCode {
 	PROFILE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 닉네임을 정할 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 알림입니다."),
+	CLUB_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 모임입니다."),
+	CLUB_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 모임을 신청하거나 가입할 수 없습니다."),
+	NOT_CLUB_CREATOR(HttpStatus.FORBIDDEN, "이 모임을 고치거나 지울 권한이 없습니다."),
+	CLUB_CHANGED(HttpStatus.CONFLICT, "모임 신청 내용이나 상태가 바뀌었습니다. 새로 고친 뒤 다시 확인해 주세요."),
+	CREATOR_CANNOT_LEAVE(HttpStatus.CONFLICT, "모임을 만든 사람은 탈퇴할 수 없습니다. 모임을 삭제해 주세요."),
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 
 	private final HttpStatus status;

@@ -1,6 +1,6 @@
 // 알림함 응답 계약은 README "커뮤니티 3단계 · 알림 API" 와 맞춘다.
 
-export type NotificationType = "PROMOTED" | "MENTION";
+export type NotificationType = "PROMOTED" | "MENTION" | "CLUB_APPROVED" | "CLUB_REJECTED";
 
 export interface NotificationItem {
   id: number;
@@ -13,6 +13,8 @@ export interface NotificationItem {
   postTitle: string | null;
   /** 댓글·답글에서의 멘션이면 참 */
   onComment: boolean;
+  /** 모임 신청 결과 알림의 모임 이름 */
+  clubName: string | null;
 }
 
 export interface NotificationPage {
@@ -28,6 +30,8 @@ export const NOTIFICATIONS_CHANGED = "notifications-changed";
 
 /** 알림 한 줄 문구. 제목·이름은 서버가 준 현재 값이고 화면에는 글자로만 넣는다. */
 export function notificationText(n: NotificationItem): string {
+  if (n.type === "CLUB_APPROVED") return `‘${n.clubName ?? "모임"}’ 모임 신청이 승인됐어요.`;
+  if (n.type === "CLUB_REJECTED") return `‘${n.clubName ?? "모임"}’ 모임 신청이 반려됐어요. 사유를 확인해 주세요.`;
   if (n.type === "PROMOTED") {
     return `대기하던 ‘${n.sessionTitle ?? "회차"}’ 회차가 확정됐어요.`;
   }

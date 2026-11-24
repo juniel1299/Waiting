@@ -658,6 +658,40 @@ limit 3;
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community3-check.mjs
   ```
 
+## 커뮤니티 4단계: 모임 신청·승인·가입 (V14, 2026-11-23)
+
+| 동작 | 비회원 | 데모 | 일반 회원 | 서비스 운영자 | 모임 생성자 |
+|---|---|---|---|---|---|
+| 승인 모임 목록·소개·홍보 | ✗ 401 | 조회만 | ○ | ○ | ○ |
+| 승인 전(대기·반려·취소) 신청 보기 | ✗ | ✗ 404 | ✗ 404 | ○ | ○ |
+| 신청·수정·신청 취소 | ✗ | ✗ 403 `CLUB_FORBIDDEN` | 신청 ○ | 신청 ○ | 수정·취소는 생성자만 (403 `NOT_CLUB_CREATOR`) |
+| 승인·반려 | ✗ | ✗ | ✗ 403 | ○ (사유 필수) | ✗ |
+| 가입·탈퇴 | ✗ | ✗ 403 | ○ | ○ | 탈퇴 ✗ 409 `CREATOR_CANNOT_LEAVE` |
+| 모임 삭제 | ✗ | ✗ | ✗ 403 | ○ | ○ |
+
+- **상태:** `PENDING`(승인 대기) → `APPROVED`(승인됨) · `REJECTED`(반려됨, 사유 표시) / `CANCELLED`(신청자 취소, 대기 중에만). 임시 저장(`DRAFT`)은 두지 않았다: 신청서가 네 칸뿐이라 제출이 곧 신청이다.
+- **수정 정책 (계획 문서 정책안 그대로):** 대기 중 수정은 그대로 대기, 반려·취소된 신청은 고치면 다시 `PENDING`(재신청, 반려 사유 지움), 승인된 모임은 **재승인 없이 즉시 반영**(서비스 운영자는 사후 삭제 가능).
+- **승인·반려 vs 신청자 수정 경합:** 모임 행의 `version`. 운영자 화면은 본 `version` 을 함께 보내고, 그 사이 신청자가 고치거나 취소했거나 이미 결정됐으면 409 `CLUB_CHANGED`(화면: "바뀌었어요, 다시 확인" 뒤 새로 읽음). 결정·수정·취소는 모두 모임 행 `FOR UPDATE` 로 줄을 선다.
+- **결과 알림:** 승인·반려는 결정과 같은 트랜잭션에서 3단계 알림함에 `CLUB_APPROVED`·`CLUB_REJECTED` 로 남는다. 사건 열쇠 `CLUB_{결과}:{모임}:{결정 뒤 version}` 이라 같은 결정은 한 번, 반려 뒤 재신청의 다음 결정은 따로 알린다. 열기는 그 순간 볼 수 있는지 다시 확인하고 승인 모임은 `/clubs/{id}`, 그 밖에는 `/me/clubs` 로 보낸다.
+- **가입:** 즉시 가입, `club_member` 기본 키 `(club_id, account_id)` 로 중복 없음(겹친 요청도 200·200, 행 1개). 가입·탈퇴는 모임 행 `FOR SHARE`, 삭제는 `FOR UPDATE` 라 삭제 전에 끝난 가입은 함께 지워지고 늦은 가입은 404. 승인될 때 생성자가 첫 모임 운영자(`MANAGER`)로 들어간다(임명·회수는 5단계).
+- **생성자 정책 (결정 4 추천안 B):** 생성자는 모임 탈퇴 불가(5단계에서 이전 기능 전까지는 삭제). 계정을 탈퇴하면 만든 모임은 상태와 관계없이 회원·알림과 함께 삭제되고, 가입한 모임에서는 빠진다. 기존 탈퇴 트랜잭션(계정 잠금 → 신청 정리 → 알림 정리 → 모임 정리 → 익명화) 안이라 중간 실패 시 전부 롤백. 탈퇴 화면에 안내 추가.
+- **API:** `POST /api/clubs {name, intro, place, mode}`, `PATCH /api/clubs/{id}`, `POST /api/clubs/{id}/cancel`, `DELETE /api/clubs/{id}`, `GET /api/clubs?q&page&size&sort=members`, `GET /api/clubs/{id}`, `GET /api/me/clubs`(`applications`·`joined`), `POST /api/clubs/{id}/join`·`/leave`, 운영자 `GET /api/operator/clubs?status`, `POST /api/operator/clubs/{id}/approve {version}`·`/reject {version, reason}`. 응답의 `rejectReason`·`version` 은 생성자·운영자에게만, 생성자는 공개 라벨만.
+- **화면:** 메뉴 `모임 홍보`(회원 많은 순 소개 탐색) · `모임 목록`(이름·소개 검색, 쪽, 주소 유지) · `내 모임`(내가 낸 신청의 진행 단계를 색 배지와 글자로, 반려 사유, 가입한 모임). 신청 `/clubs/new` 과 수정 `/clubs/{id}/edit` 은 따로, 소개 화면에서 가입·탈퇴·수정·신청 취소·삭제(확인창에 지워질 회원 수). 운영자 `운영자 → 모임 승인` 탭. 데모는 목록·소개만(안내 문구, 신청·가입 버튼 없음).
+- **V14 운영 적용 주의:** 새 표 `club`·`club_member`(빈 표)와 인덱스 3개, `notification` 에 `club_id` 칸(전부 null)과 종류·대상 체크 제약 교체. 기존 행 변화 없음. Flyway 자동 적용.
+
+테스트 (2026-11-23, 로컬, 커밋 `f02c7619`): 백엔드 전체 614개 통과(새 [`ClubApiTests`](backend/src/test/java/com/daumjari/ClubApiTests.java) 10, [`ClubConcurrencyTests`](backend/src/test/java/com/daumjari/ClubConcurrencyTests.java) 4×20: 승인 vs 수정 경합에서 본 적 없는 내용 승인 없음, 이중 승인 → 결정·알림·운영자 행 1개, 같은 계정 이중 가입 → 행 1개, 삭제 vs 가입 → 남은 회원 0, 실제 PostgreSQL), e2e 96개 통과(새 [`clubs.spec.ts`](frontend/e2e/clubs.spec.ts) 4), 프런트 단위 25, `tsc`·`eslint` 오류 0. 고친 것: 운영자 카드의 이름에 `.title` 을 쓰면 카드 덮개 링크가 승인·반려 버튼을 가려 `strong` 으로 바꿈.
+
+스크린샷: `docs/screenshots/community4-{promo,my-clubs,apply,operator}-{desktop,mobile}.png`.
+
+### 4단계 공개 검증
+
+- **비밀번호 없는 점검:** [`loadtest/public-community4-open-check.mjs`](loadtest/public-community4-open-check.mjs). 비회원 401, 데모 승인 모임 목록 200(사유·version 숨김)·신청·가입 403, 없는 모임 404, 운영자 목록 403. 배포 뒤 실행.
+- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community4-check.mjs`](loadtest/public-community4-check.mjs). 모임 API 배포를 먼저 확인(404 면 최대 10분 대기, 가입 한도 쓰기 전). 신청 → 남에게 404 → 반려 사유 → 재신청 → 낡은 version 승인 409 → 승인 → 알림 열기 → 검색·동시 가입 2번에 회원 2명 → 탈퇴 → 생성자 탈퇴 409 → 삭제 → 404. **정리:** 남은 모임 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·회원·알림 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community4.txt).
+
+  ```bash
+  cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community4-check.mjs
+  ```
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.

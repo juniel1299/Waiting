@@ -1068,3 +1068,63 @@ button.secondary.danger-text {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── 커뮤니티 4단계: 모임. 진행 단계는 색(배지 테두리)과 글자(승인 대기·승인됨·반려됨·신청 취소)를 함께 쓴다 ── */
+.club-intro,
+.club-intro-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.club-intro-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.badge.club-pending {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.badge.club-approved {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge.club-rejected {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.badge.club-cancelled {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.reject-reason {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+
+fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+}

@@ -102,7 +102,10 @@ function PublicHeader() {
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
   const pathname = usePathname();
   // 하위 화면(/operator/..., /board/12, /notices/new)에서도 그 메뉴가 현재 위치다
-  const current = pathname === href || (["/operator", "/board", "/notices"].includes(href) && pathname.startsWith(`${href}/`));
+  // 모임 목록은 모임 소개·신청·수정(/clubs/12)에서도 현재 위치지만, 모임 홍보(/clubs/promo)는 따로 메뉴다
+  const current =
+    pathname === href ||
+    (["/operator", "/board", "/notices", "/clubs"].includes(href) && pathname.startsWith(`${href}/`) && !pathname.startsWith("/clubs/promo"));
   return (
     <Link href={href} aria-current={current ? "page" : undefined}>
       {children}
@@ -132,6 +135,9 @@ function Header({ me }: { me: Me }) {
         <NavLink href="/sessions">회차 목록</NavLink>
         <NavLink href="/board">게시판</NavLink>
         <NavLink href="/notices">공지사항</NavLink>
+        <NavLink href="/clubs/promo">모임 홍보</NavLink>
+        <NavLink href="/clubs">모임 목록</NavLink>
+        {!me.demo && <NavLink href="/me/clubs">내 모임</NavLink>}
         {me.role === "PARTICIPANT" && <NavLink href="/me/reservations">내 신청</NavLink>}
         {!me.demo && <NavLink href="/me/sessions">내가 만든 회차</NavLink>}
         {!me.demo && <NavLink href="/sessions/new">회차 만들기</NavLink>}
