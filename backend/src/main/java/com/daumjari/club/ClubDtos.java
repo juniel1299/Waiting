@@ -23,7 +23,7 @@ public final class ClubDtos {
 	}
 
 	public record ClubResponse(Long id, String name, String intro, String place, Mode mode, Status status,
-			String rejectReason, Long version, Author creator, long memberCount, boolean joined, boolean mine,
+			String rejectReason, Long version, Author creator, long memberCount, boolean joined, String myRole, boolean mine,
 			Instant submittedAt, Instant decidedAt, boolean canEdit, boolean canDelete, boolean canCancel, boolean canJoin,
 			boolean canLeave) {
 	}
@@ -36,6 +36,17 @@ public final class ClubDtos {
 	}
 
 	public record Membership(boolean joined, long memberCount) {
+	}
+
+	/** 모임 회원 한 명. accountId 는 바뀌지 않는 식별자(임명·이전 대상 지정용), 이름은 공개 라벨만. */
+	public record MemberResponse(Long accountId, String label, String role, boolean creator, Instant joinedAt) {
+	}
+
+	public record RoleResponse(Long accountId, String role) {
+	}
+
+	/** 생성자 이전 대상. 요청 본문의 다른 값(역할 등)은 쓰지 않는다. */
+	public record Transfer(Long accountId) {
 	}
 
 	/** 이름 1~60자, 소개 1~2000자, 활동 장소 1~200자 (앞뒤 공백 제거), 방식 OFFLINE·ONLINE·MIXED. */

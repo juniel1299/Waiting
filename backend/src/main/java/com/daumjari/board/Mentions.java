@@ -55,12 +55,14 @@ public class Mentions {
 	 * 글·댓글의 멘션을 본문에 맞춘다: 사라진 멘션은 연결을 지우고, 이미 있던 멘션은 그대로 두고, 새로 생긴 멘션만 넣는다.
 	 * 반환값은 새로 연결된 계정 id (알림은 이들에게만 보낸다, 3단계).
 	 */
-	List<Long> sync(String column, long sourceId, String text, Instant now) {
+	List<Long> sync(String column, long sourceId, String text, Instant now, Long clubId) {
 		Set<Long> wanted = parse(text);
 		MapSqlParameterSource params = new MapSqlParameterSource("source", sourceId);
+		// 모임 글·댓글의 멘션은 그 모임 회원에게만 연결한다
 		List<Long> valid = wanted.isEmpty() ? List.of()
-				: jdbc.queryForList("select id from account where id in (:ids) and deleted_at is null and demo_trial_id is null",
-						new MapSqlParameterSource("ids", wanted), Long.class);
+				: jdbc.queryForList("select id from account where id in (:ids) and deleted_at is null and demo_trial_id is null"
+						+ (clubId == null ? "" : " and exists (select 1 from club_member m where m.club_id = :club and m.account_id = id)"),
+						new MapSqlParameterSource("ids", wanted).addValue("club", clubId), Long.class);
 		List<Long> existing = jdbc.queryForList("select account_id from mention where " + column + " = :source", params,
 				Long.class);
 		List<Long> removed = existing.stream().filter(id -> !valid.contains(id)).toList();
@@ -96,7 +98,7 @@ public class Mentions {
 	}
 
 	/** 멘션 후보: 닉네임(없으면 '회원{id}') 부분 일치, 탈퇴·데모 제외, 최대 10명. 응답은 id·닉네임만. */
-	List<MentionView> candidates(String q) {
+	List<MentionView> candidates(String q, Long clubId) {
 		String keyword = q == null ? "" : q.strip();
 		if (keyword.isEmpty() || keyword.length() > 20) {
 			return List.of();
@@ -104,8 +106,9 @@ public class Mentions {
 		String pattern = "%" + keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
 		return jdbc.query("select a.id, " + labelSql("a") + " as label from account a "
 				+ "where a.deleted_at is null and a.demo_trial_id is null and a.suspended_at is null "
+				+ (clubId == null ? "" : "and exists (select 1 from club_member m where m.club_id = :club and m.account_id = a.id) ")
 				+ "and coalesce(a.nickname, '회원' || a.id) ilike :pattern escape '\\' order by a.id limit 10",
-				new MapSqlParameterSource("pattern", pattern), (rs, n) -> new MentionView(rs.getLong("id"), rs.getString("label")));
+				new MapSqlParameterSource("pattern", pattern).addValue("club", clubId), (rs, n) -> new MentionView(rs.getLong("id"), rs.getString("label")));
 	}
 
 }

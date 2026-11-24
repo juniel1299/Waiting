@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -78,6 +79,29 @@ public class ClubController {
 	@PostMapping("/api/clubs/{id}/leave")
 	public Membership leave(@PathVariable Long id, @AuthenticationPrincipal SessionUser user) {
 		return clubs.leave(id, user);
+	}
+
+	@GetMapping("/api/clubs/{id}/members")
+	public java.util.List<ClubDtos.MemberResponse> members(@PathVariable Long id, @AuthenticationPrincipal SessionUser user) {
+		return clubs.members(id, user);
+	}
+
+	@PutMapping("/api/clubs/{id}/managers/{accountId}")
+	public ClubDtos.RoleResponse appoint(@PathVariable Long id, @PathVariable Long accountId,
+			@AuthenticationPrincipal SessionUser user) {
+		return clubs.setManager(id, accountId, true, user);
+	}
+
+	@DeleteMapping("/api/clubs/{id}/managers/{accountId}")
+	public ClubDtos.RoleResponse revoke(@PathVariable Long id, @PathVariable Long accountId,
+			@AuthenticationPrincipal SessionUser user) {
+		return clubs.setManager(id, accountId, false, user);
+	}
+
+	@PostMapping("/api/clubs/{id}/transfer")
+	public ClubResponse transfer(@PathVariable Long id, @RequestBody ClubDtos.Transfer request,
+			@AuthenticationPrincipal SessionUser user) {
+		return clubs.transfer(id, request, user);
 	}
 
 	@GetMapping("/api/operator/clubs")

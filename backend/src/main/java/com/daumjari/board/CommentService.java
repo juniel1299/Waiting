@@ -77,6 +77,7 @@ public class CommentService {
 	@Transactional(readOnly = true)
 	public List<CommentResponse> list(Long postId, SessionUser viewer) {
 		posts.readable(postId, viewer);
+		boolean clubManager = posts.accessOf(postId, viewer).manager();
 		List<Row> rows = jdbc.query("""
 				select c.id, c.post_id, c.parent_id, c.body, c.author_account_id, c.created_at, c.updated_at,
 				  %s as author_label,
@@ -100,12 +101,12 @@ public class CommentService {
 		for (Row r : rows) {
 			if (r.parentId() != null) {
 				replies.computeIfAbsent(r.parentId(), k -> new ArrayList<>())
-					.add(toResponse(r, viewer, mentioned, List.of()));
+					.add(toResponse(r, viewer, clubManager, mentioned, List.of()));
 			}
 		}
 		return rows.stream()
 			.filter(r -> r.parentId() == null)
-			.map(r -> toResponse(r, viewer, mentioned, replies.getOrDefault(r.id(), List.of())))
+			.map(r -> toResponse(r, viewer, clubManager, mentioned, replies.getOrDefault(r.id(), List.of())))
 			.toList();
 	}
 
@@ -113,7 +114,8 @@ public class CommentService {
 	public CommentResponse create(Long postId, CommentRequest request, SessionUser user) {
 		requireWriter(user);
 		String body = request.validBody();
-		posts.readable(postId, user);
+		// 모임 글이면 모임 → 회원 행을 먼저 공유 잠금하고 지금 회원인지 본다 (서비스 운영자도 모임 안에는 쓰지 못함)
+		posts.lockForWrite(postId, user, ErrorCode.COMMENT_WRITE_FORBIDDEN);
 		lockForShare("select id from board_post where id = :id for share", postId, ErrorCode.POST_NOT_FOUND);
 		if (request.parentId() != null) {
 			Map<String, Object> parent = jdbc.query(
@@ -142,12 +144,14 @@ public class CommentService {
 			.addValue("body", body)
 			.addValue("now", now.atOffset(ZoneOffset.UTC)), key, new String[] { "id" });
 		long id = key.getKey().longValue();
-		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now), user.id());
+		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now, posts.clubOf(postId)), user.id());
 		return one(id, user);
 	}
 
 	@Transactional
 	public CommentResponse edit(Long id, CommentRequest request, SessionUser user) {
+		Long postId = postOf(id);
+		posts.lockClubOf(postId, user);
 		Long author = lockOwner(id);
 		if (user.isDemo() || !author.equals(user.id())) {
 			throw new ApiException(ErrorCode.NOT_COMMENT_AUTHOR);
@@ -156,16 +160,15 @@ public class CommentService {
 		Instant now = Instant.now(clock);
 		jdbc.update("update comment set body = :body, updated_at = :now where id = :id",
 				new MapSqlParameterSource("id", id).addValue("body", body).addValue("now", now.atOffset(ZoneOffset.UTC)));
-		Long postId = jdbc.queryForObject("select post_id from comment where id = :id", new MapSqlParameterSource("id", id),
-				Long.class);
-		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now), user.id());
+		notifier.mentioned(postId, id, mentions.sync("comment_id", id, body, now, posts.clubOf(postId)), user.id());
 		return one(id, user);
 	}
 
 	@Transactional
 	public void delete(Long id, SessionUser user) {
+		boolean clubManager = posts.lockClubOf(postOf(id), user).manager();
 		Long author = lockOwner(id);
-		if (user.isDemo() || !(author.equals(user.id()) || BoardService.isOperator(user))) {
+		if (user.isDemo() || !(author.equals(user.id()) || BoardService.isOperator(user) || clubManager)) {
 			throw new ApiException(ErrorCode.NOT_COMMENT_AUTHOR);
 		}
 		jdbc.update("delete from comment where id = :id", new MapSqlParameterSource("id", id));
@@ -174,6 +177,7 @@ public class CommentService {
 	@Transactional
 	public LikeResponse like(Long id, boolean on, SessionUser user) {
 		requireWriter(user);
+		posts.lockForWrite(postOf(id), user, ErrorCode.COMMENT_WRITE_FORBIDDEN);
 		lockForShare("select id from comment where id = :id for share", id, ErrorCode.COMMENT_NOT_FOUND);
 		MapSqlParameterSource params = new MapSqlParameterSource("id", id).addValue("account", user.id())
 			.addValue("now", Instant.now(clock).atOffset(ZoneOffset.UTC));
@@ -200,6 +204,13 @@ public class CommentService {
 		}
 	}
 
+	private Long postOf(Long id) {
+		return jdbc.queryForList("select post_id from comment where id = :id", new MapSqlParameterSource("id", id), Long.class)
+			.stream()
+			.findFirst()
+			.orElseThrow(() -> new ApiException(ErrorCode.COMMENT_NOT_FOUND));
+	}
+
 	private Long lockOwner(Long id) {
 		return jdbc.queryForList("select author_account_id from comment where id = :id for update",
 				new MapSqlParameterSource("id", id), Long.class)
@@ -218,13 +229,14 @@ public class CommentService {
 			.orElseThrow(() -> new ApiException(ErrorCode.COMMENT_NOT_FOUND));
 	}
 
-	private static CommentResponse toResponse(Row r, SessionUser viewer, Map<Long, List<MentionView>> mentioned,
-			List<CommentResponse> replies) {
+	private static CommentResponse toResponse(Row r, SessionUser viewer, boolean clubManager,
+			Map<Long, List<MentionView>> mentioned, List<CommentResponse> replies) {
 		boolean member = viewer != null && !viewer.isDemo();
 		boolean own = member && r.authorId().equals(viewer.id());
 		return new CommentResponse(r.id(), r.postId(), r.parentId(), r.body(), new Author(r.authorLabel()),
 				mentioned.getOrDefault(r.id(), List.of()), r.createdAt(), r.updatedAt(), r.updatedAt() != null,
-				r.likeCount(), r.liked(), replies.size(), own, own || (member && BoardService.isOperator(viewer)),
+				r.likeCount(), r.liked(), replies.size(), own,
+				own || (member && (BoardService.isOperator(viewer) || clubManager)),
 				replies);
 	}
 

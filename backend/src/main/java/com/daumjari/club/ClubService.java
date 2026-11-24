@@ -26,7 +26,10 @@ import com.daumjari.club.ClubDtos.ClubPage;
 import com.daumjari.club.ClubDtos.ClubRequest;
 import com.daumjari.club.ClubDtos.ClubResponse;
 import com.daumjari.club.ClubDtos.Decision;
+import com.daumjari.club.ClubDtos.MemberResponse;
 import com.daumjari.club.ClubDtos.Membership;
+import com.daumjari.club.ClubDtos.RoleResponse;
+import com.daumjari.club.ClubDtos.Transfer;
 import com.daumjari.club.ClubDtos.Mode;
 import com.daumjari.club.ClubDtos.MyClubs;
 import com.daumjari.club.ClubDtos.Status;
@@ -48,14 +51,19 @@ public class ClubService {
 			c.id, c.name, c.intro, c.place, c.mode, c.status, c.reject_reason, c.version, c.creator_account_id,
 			c.submitted_at, c.decided_at,
 			(select count(*) from club_member m where m.club_id = c.id) as member_count,
-			exists (select 1 from club_member m where m.club_id = c.id and m.account_id = :viewer) as joined,
+			(select m.role from club_member m where m.club_id = c.id and m.account_id = :viewer) as my_role,
 			""" + Mentions.labelSql("a") + " as creator_label";
 
 	private static final String FROM = " from club c join account a on a.id = c.creator_account_id ";
 
 	record Row(Long id, String name, String intro, String place, Mode mode, Status status, String rejectReason,
-			long version, Long creatorId, String creatorLabel, long memberCount, boolean joined, Instant submittedAt,
+			long version, Long creatorId, String creatorLabel, long memberCount, String myRole, Instant submittedAt,
 			Instant decidedAt) {
+
+		boolean joined() {
+			return myRole != null;
+		}
+
 	}
 
 	private final NamedParameterJdbcTemplate jdbc;
@@ -64,10 +72,13 @@ public class ClubService {
 
 	private final Notifier notifier;
 
-	public ClubService(NamedParameterJdbcTemplate jdbc, Clock clock, Notifier notifier) {
+	private final ClubRoles roles;
+
+	public ClubService(NamedParameterJdbcTemplate jdbc, Clock clock, Notifier notifier, ClubRoles roles) {
 		this.jdbc = jdbc;
 		this.clock = clock;
 		this.notifier = notifier;
+		this.roles = roles;
 	}
 
 	/** 승인된 모임 목록. sort=members 는 회원 많은 순(홍보 화면), 기본은 최근 승인 순. */
@@ -224,6 +235,64 @@ public class ClubService {
 		return membership(id, user);
 	}
 
+	/** 모임 회원 목록 (모임 회원과 서비스 운영자만, 운영자 먼저·가입 순). */
+	@Transactional(readOnly = true)
+	public List<MemberResponse> members(Long id, SessionUser viewer) {
+		if (roles.role(id, viewer.id(), false) == null && !isOperator(viewer)) {
+			throw new ApiException(ErrorCode.CLUB_MEMBERS_ONLY);
+		}
+		return jdbc.query("select m.account_id, m.role, m.joined_at, m.account_id = c.creator_account_id as creator, "
+				+ Mentions.labelSql("a") + " as label from club_member m join club c on c.id = m.club_id "
+				+ "join account a on a.id = m.account_id where m.club_id = :id order by m.role = 'MANAGER' desc, m.joined_at, m.account_id",
+				new MapSqlParameterSource("id", id), (rs, n) -> new MemberResponse(rs.getLong("account_id"), rs.getString("label"),
+						rs.getString("role"), rs.getBoolean("creator"), rs.getTimestamp("joined_at").toInstant()));
+	}
+
+	/**
+	 * 모임 운영자 임명(manager=true)·회수. 생성자만 할 수 있고(세션 계정으로만 판단, 본문 값은 쓰지 않는다), 대상은 지금 회원이어야 한다.
+	 * 모임 행을 FOR UPDATE 로 잠가, 역할을 확인하며 공유 잠금으로 쓰기·삭제 중인 요청이 끝난 뒤 바뀐다.
+	 */
+	@Transactional
+	public RoleResponse setManager(Long id, Long accountId, boolean manager, SessionUser user) {
+		Row row = lockCreatorOnly(id, user);
+		if (!manager && accountId.equals(row.creatorId())) {
+			throw new ApiException(ErrorCode.CREATOR_ROLE_FIXED);
+		}
+		int changed = jdbc.update("update club_member set role = :role where club_id = :id and account_id = :account",
+				new MapSqlParameterSource("id", id).addValue("account", accountId).addValue("role", manager ? "MANAGER" : "MEMBER"));
+		if (changed == 0) {
+			throw new ApiException(ErrorCode.CLUB_MEMBER_NOT_FOUND);
+		}
+		return new RoleResponse(accountId, manager ? "MANAGER" : "MEMBER");
+	}
+
+	/** 생성자 이전: 지금 회원에게 생성자를 넘기고 그를 모임 운영자로 만든다. 이전 생성자는 모임 운영자로 남고 이제 탈퇴할 수 있다. */
+	@Transactional
+	public ClubResponse transfer(Long id, Transfer request, SessionUser user) {
+		Row row = lockCreatorOnly(id, user);
+		Long target = request.accountId();
+		if (target == null || target.equals(row.creatorId())) {
+			throw new ApiException(ErrorCode.VALIDATION_FAILED);
+		}
+		MapSqlParameterSource params = new MapSqlParameterSource("id", id).addValue("account", target);
+		if (jdbc.update("update club_member set role = 'MANAGER' where club_id = :id and account_id = :account", params) == 0) {
+			throw new ApiException(ErrorCode.CLUB_MEMBER_NOT_FOUND);
+		}
+		jdbc.update("update club set creator_account_id = :account, updated_at = :now where id = :id",
+				params.addValue("now", at(Instant.now(clock))));
+		return get(id, user);
+	}
+
+	private Row lockCreatorOnly(Long id, SessionUser user) {
+		requireNotDemo(user);
+		Row row = lock(id, "for update of c", user).filter(r -> r.status() == Status.APPROVED)
+			.orElseThrow(() -> new ApiException(ErrorCode.CLUB_NOT_FOUND));
+		if (!row.creatorId().equals(user.id())) {
+			throw new ApiException(ErrorCode.NOT_CLUB_CREATOR);
+		}
+		return row;
+	}
+
 	/** 회원 탈퇴: 만든 모임은 모두 삭제(결정 4 추천안 B), 가입한 모임에서는 빠진다. 호출한 탈퇴 트랜잭션 안에서만. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void forgetAccount(Long accountId) {
@@ -267,9 +336,14 @@ public class ClubService {
 	}
 
 	private Optional<Row> lock(Long id, String lockClause, SessionUser viewer) {
+		MapSqlParameterSource params = new MapSqlParameterSource("id", id).addValue("viewer", viewer.id());
+		// 잠금은 모임 행만 단독으로 건다: 조인한 쿼리에 FOR UPDATE 를 걸면 앞선 트랜잭션이 생성자를 바꾼 뒤
+		// 다시 확인할 때 옛 생성자 계정과의 조인이 어긋나 행이 사라진 것처럼 보인다 (생성자 이전 경합에서 404 로 발견).
+		if (!lockClause.isEmpty() && jdbc.queryForList("select id from club where id = :id for update", params, Long.class).isEmpty()) {
+			return Optional.empty();
+		}
 		return jdbc
-			.query("select " + COLUMNS + FROM + "where c.id = :id " + lockClause,
-					new MapSqlParameterSource("id", id).addValue("viewer", viewer.id()), ClubService::row)
+			.query("select " + COLUMNS + FROM + "where c.id = :id", params, ClubService::row)
 			.stream()
 			.findFirst();
 	}
@@ -306,7 +380,7 @@ public class ClubService {
 		boolean member = !viewer.isDemo();
 		return new ClubResponse(row.id(), row.name(), row.intro(), row.place(), row.mode(), row.status(),
 				privileged ? row.rejectReason() : null, privileged ? row.version() : null, new Author(row.creatorLabel()),
-				row.memberCount(), row.joined(), mine, row.submittedAt(), row.decidedAt(), mine && member,
+				row.memberCount(), row.joined(), row.myRole(), mine, row.submittedAt(), row.decidedAt(), mine && member,
 				member && privileged, mine && member && row.status() == Status.PENDING,
 				member && approved && !row.joined(), member && approved && row.joined() && !mine);
 	}
@@ -316,7 +390,7 @@ public class ClubService {
 		return new Row(rs.getLong("id"), rs.getString("name"), rs.getString("intro"), rs.getString("place"),
 				Mode.valueOf(rs.getString("mode")), Status.valueOf(rs.getString("status")), rs.getString("reject_reason"),
 				rs.getLong("version"), rs.getLong("creator_account_id"), rs.getString("creator_label"),
-				rs.getLong("member_count"), rs.getBoolean("joined"), rs.getTimestamp("submitted_at").toInstant(),
+				rs.getLong("member_count"), rs.getString("my_role"), rs.getTimestamp("submitted_at").toInstant(),
 				decided == null ? null : decided.toInstant());
 	}
 

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.daumjari.auth.SessionUser;
 import com.daumjari.board.Mentions.MentionView;
+import com.daumjari.club.ClubRoles;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
 
@@ -39,9 +40,12 @@ public class ProfileController {
 
 	private final Mentions mentions;
 
-	public ProfileController(NamedParameterJdbcTemplate jdbc, Mentions mentions) {
+	private final ClubRoles clubRoles;
+
+	public ProfileController(NamedParameterJdbcTemplate jdbc, Mentions mentions, ClubRoles clubRoles) {
 		this.jdbc = jdbc;
 		this.mentions = mentions;
+		this.clubRoles = clubRoles;
 	}
 
 	@GetMapping("/api/me/profile")
@@ -71,8 +75,13 @@ public class ProfileController {
 	/** 로그인한 회원만 (비회원 401). 응답은 계정 id·공개 라벨뿐. */
 	@GetMapping("/api/mentions/candidates")
 	@Transactional(readOnly = true)
-	public List<MentionView> candidates(@RequestParam(required = false) String q) {
-		return mentions.candidates(q);
+	public List<MentionView> candidates(@RequestParam(required = false) String q,
+			@RequestParam(required = false) Long clubId, @AuthenticationPrincipal SessionUser user) {
+		// 모임 안 멘션 후보는 그 모임 회원만, 묻는 사람도 지금 회원이어야 한다
+		if (clubId != null && clubRoles.role(clubId, user.id(), false) == null) {
+			throw new ApiException(ErrorCode.CLUB_MEMBERS_ONLY);
+		}
+		return mentions.candidates(q, clubId);
 	}
 
 }
