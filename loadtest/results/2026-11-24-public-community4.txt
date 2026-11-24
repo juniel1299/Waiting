@@ -18,3 +18,4 @@ select (select count(*) from club where id in (1)) as clubs,
        (select count(*) from club_member where club_id in (1)) as members,
        (select count(*) from notification where club_id in (1)) as notifications;
 # Neon 조회 (사용자, 2026-11-24 20:00 UTC): clubs 0 · members 0 · notifications 0 (물리 삭제 확인 완료)
+# Neon 0행 확인 대상: 이 점검이 만든 모임 1, 그 모임의 회원 행, 그 모임의 결과 알림 (API 정리 응답과 별개로 DB 에서 직접 셈)
