@@ -20,3 +20,4 @@ select (select count(*) from notification where recipient_account_id in (230, 23
        (select count(*) from board_post where id in (8)) as posts,
        (select count(*) from study_session where id in (72)) as sessions;
 # Neon 조회 (사용자, 2026-11-24 20:00 UTC): notifications 0 · posts 0 · sessions 0 (물리 삭제 확인 완료)
+# Neon 0행 확인 대상: 이 점검이 만든 A(230)·B(231) 계정이 받거나 일으킨 알림, 글 8, 회차 72 (API 정리 응답과 별개로 DB 에서 직접 셈)
