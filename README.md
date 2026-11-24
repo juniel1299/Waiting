@@ -653,7 +653,7 @@ limit 3;
 
 - **비밀번호 없는 점검 (2026-11-24 19:53 UTC, 배포 `6caf8492`): 4/4 성공.** [`loadtest/public-community3-open-check.mjs`](loadtest/public-community3-open-check.mjs). 비회원 알림 API 401, 데모 알림함 200·읽지 않은 수 일치, 없는·남의 알림 읽기·열기 404. 데모 체험 1개(30분 뒤 자동 삭제). [기록](loadtest/results/2026-11-24-public-community3-open.txt)
 - **배포 기록:** PR #43 병합 직후 Render 배포(`48f1dacc`)가 31초 만에 실패해 이전 백엔드가 남았고(2026-11-23 12:26 UTC), 그때 사용자가 돌린 로그인 점검은 알림 API 404 로 멈췄다(정리는 모두 204). 로컬에서 같은 커밋 운영 이미지는 정상 기동·V13 적용. PR #44 병합 배포(`6caf8492`, 2026-11-24 19:48~19:52 UTC)에서 V13·V14 가 함께 적용됐다. 점검 스크립트는 이제 가입 전에 새 API 배포를 확인한다.
-- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community3-check.mjs`](loadtest/public-community3-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 글 멘션(자기 제외)·수정 시 중복 없음·댓글 멘션 열기 주소·남의 알림 404·취소 두 번에도 승격 알림 1건·열기 주소·모두 읽음·글 삭제 시 알림 사라짐. **정리:** 회차 삭제, 남은 글 삭제, 두 회원 탈퇴(받은 알림 삭제), 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 알림·글·회차, 기대값 모두 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community3.txt).
+- **로그인 필요한 점검 (사용자 실행 2026-11-24 19:57 UTC): 통과.** 자기 멘션 제외(A 0·B 1), 수정 시 중복 없음, 댓글 멘션 열기 `/board/8#comment-6`, 남의 알림 404, 취소 두 번에도 승격 알림 1건·열기 `/sessions/72`, 모두 읽음 0, 글 삭제 뒤 알림 0건. Neon 남은 행은 확인 대기. [기록](loadtest/results/2026-11-24-public-community3.txt) [`loadtest/public-community3-check.mjs`](loadtest/public-community3-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 글 멘션(자기 제외)·수정 시 중복 없음·댓글 멘션 열기 주소·남의 알림 404·취소 두 번에도 승격 알림 1건·열기 주소·모두 읽음·글 삭제 시 알림 사라짐. **정리:** 회차 삭제, 남은 글 삭제, 두 회원 탈퇴(받은 알림 삭제), 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 알림·글·회차, 기대값 모두 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community3.txt).
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community3-check.mjs
@@ -687,7 +687,7 @@ limit 3;
 ### 4단계 공개 검증
 
 - **비밀번호 없는 점검 (2026-11-24 19:53 UTC, 배포 `6caf8492`): 5/5 성공.** [`loadtest/public-community4-open-check.mjs`](loadtest/public-community4-open-check.mjs). 비회원 401, 데모 승인 모임 목록 200(승인 모임 0개)·신청·가입 403 `CLUB_FORBIDDEN`, 없는 모임 404, 운영자 목록 403. [기록](loadtest/results/2026-11-24-public-community4-open.txt)
-- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community4-check.mjs`](loadtest/public-community4-check.mjs). 모임 API 배포를 먼저 확인(404 면 최대 10분 대기, 가입 한도 쓰기 전). 신청 → 남에게 404 → 반려 사유 → 재신청 → 낡은 version 승인 409 → 승인 → 알림 열기 → 검색·동시 가입 2번에 회원 2명 → 탈퇴 → 생성자 탈퇴 409 → 삭제 → 404. **정리:** 남은 모임 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·회원·알림 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community4.txt).
+- **로그인 필요한 점검 (사용자 실행 2026-11-24 19:59 UTC): 통과.** 신청 대기 404(남), 반려 사유·재신청, 낡은 version 승인 409, 승인 알림 열기 `/clubs/1`, 동시 가입 2번 → 회원 2명, 생성자 탈퇴 409, 삭제 뒤 404. Neon 남은 행은 확인 대기. [기록](loadtest/results/2026-11-24-public-community4.txt) [`loadtest/public-community4-check.mjs`](loadtest/public-community4-check.mjs). 모임 API 배포를 먼저 확인(404 면 최대 10분 대기, 가입 한도 쓰기 전). 신청 → 남에게 404 → 반려 사유 → 재신청 → 낡은 version 승인 409 → 승인 → 알림 열기 → 검색·동시 가입 2번에 회원 2명 → 탈퇴 → 생성자 탈퇴 409 → 삭제 → 404. **정리:** 남은 모임 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·회원·알림 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community4.txt).
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community4-check.mjs

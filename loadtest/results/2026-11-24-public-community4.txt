@@ -1,0 +1,14 @@
+# 공개 커뮤니티 4단계 로그인 점검 (사용자 실행, 2026-11-24 19:59 UTC, 배포 6caf8492). 출력 요약(사용자가 보낸 출력을 단계별로 옮김), 비밀번호 없음.
+운영자 로그인 200 | 모임 API 확인 200 (새 백엔드) | A·B 가입 201 / 로그인 200
+A 신청 201 상태 PENDING | B 가 대기 모임 조회 404 CLUB_NOT_FOUND
+운영자 반려 200 → A 가 사유 확인 | 고쳐 재신청 200 상태 PENDING
+낡은 version 승인 409 CLUB_CHANGED | 새 version 승인 200 | A 승인 알림 열기 200 /clubs/1
+B 검색 1개 | 가입 동시 2번 200·200 → 회원 2명
+B 탈퇴 → 회원 1명 | A(만든 사람) 탈퇴 409 CREATOR_CANNOT_LEAVE
+A 모임 삭제 204 → B 조회 404
+커뮤니티 4단계 공개 점검 통과
+정리: A·B 탈퇴 · 운영자 로그아웃
+Neon SQL: select (select count(*) from club where id in (1)) as clubs,
+       (select count(*) from club_member where club_id in (1)) as members,
+       (select count(*) from notification where club_id in (1)) as notifications;
+# Neon 조회: 확인 대기

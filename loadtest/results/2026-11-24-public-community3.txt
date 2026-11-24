@@ -1,0 +1,15 @@
+# 공개 커뮤니티 3단계 로그인 점검 (사용자 실행, 2026-11-24 19:57 UTC, 배포 6caf8492). 출력 요약(사용자가 보낸 출력을 단계별로 옮김), 비밀번호 없음.
+운영자 로그인 200 | 알림 API 확인 200 (새 백엔드) | A·B 가입 201 / 로그인 200
+A 글 201 /board/8 (A·B 멘션) → 읽지 않은 수 A 0 (자기 멘션 제외), B 1
+A 글 수정 200 (B 그대로) → B 읽지 않은 수 1 유지
+A 댓글 201 → B 최신 알림 MENTION onComment=true | 열기 200 /board/8#comment-6
+A 가 B 의 알림 읽기 404 NOTIFICATION_NOT_FOUND
+A 회차 72 | B 확정·A 대기 | B 취소 두 번 200·200 → A 승격 알림 1건 | 열기 200 /sessions/72
+B 모두 읽음 204 → 읽지 않은 수 0
+A 글 삭제 204 → B 의 그 글 알림 0건
+커뮤니티 3단계 공개 점검 통과
+정리: 회차 72 삭제 · A(230)·B(231) 탈퇴 · 운영자 로그아웃
+Neon SQL: select (select count(*) from notification where recipient_account_id in (230, 231) or actor_account_id in (230, 231)) as notifications,
+       (select count(*) from board_post where id in (8)) as posts,
+       (select count(*) from study_session where id in (72)) as sessions;
+# Neon 조회: 확인 대기
