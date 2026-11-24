@@ -760,7 +760,7 @@ limit 3;
 
 - **배포:** PR #46 병합 커밋 `6b769d2a`, Render 2026-11-24 20:48:39 UTC 성공.
 - **비밀번호 없는 점검 (2026-11-24 20:52 UTC): 4/4 성공.** [`loadtest/public-community-flow-open-check.mjs`](loadtest/public-community-flow-open-check.mjs). 커뮤니티 화면 주소 9곳 200, 비회원 공지 200·나머지 401, 데모 읽기 200·글·댓글·모임 신청·닉네임 403. [기록](loadtest/results/2026-11-24-public-community-flow-open.txt)
-- **전체 흐름 점검 (사용자 실행):** [`loadtest/public-community-flow-check.mjs`](loadtest/public-community-flow-check.mjs), 운영자 아이디·비밀번호 실행 중 숨김 입력, 일반 회원 2명 가입. 위 e2e 와 같은 흐름을 공개 API 로 확인하고, 끝나면 남은 모임·글 삭제·두 회원 탈퇴·운영자 로그아웃 뒤 Neon 확인 SQL(글·댓글·추천·멘션·알림·모임·회원, 기대값 모두 0)을 출력한다. 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0|0|0|0|0) [기록](loadtest/results/2026-11-24-rehearsal-community-flow.txt).
+- **전체 흐름 점검 (사용자 실행 2026-11-24 20:59:46~21:00:06 UTC, PR #47 병합 직후): 통과.** API 확인: 글·멘션 댓글·추천 1 → 멘션 알림 열기 `/board/11#comment-7` → 모임 신청·승인·승인 알림 → 가입 → 내부 글 → 임명·공지 201 → 회수·공지 403 → 이전·이전 생성자 모임 탈퇴·내부 403 → 모임 삭제(내부 글 404·모임 알림 0건) → 계정 탈퇴(작성자 '탈퇴한 회원'), 정리(글 삭제·회원 탈퇴·운영자 로그아웃) 모두 204. Neon SQL 확인(21:00 UTC): 글 11·12·13, 댓글 7, 추천, 멘션, 계정 243·244 관련 알림, 모임 3, 회원 모두 0행. [기록](loadtest/results/2026-11-24-public-community-flow.txt) [`loadtest/public-community-flow-check.mjs`](loadtest/public-community-flow-check.mjs), 운영자 아이디·비밀번호 실행 중 숨김 입력, 일반 회원 2명 가입. 위 e2e 와 같은 흐름을 공개 API 로 확인하고, 끝나면 남은 모임·글 삭제·두 회원 탈퇴·운영자 로그아웃 뒤 Neon 확인 SQL(글·댓글·추천·멘션·알림·모임·회원, 기대값 모두 0)을 출력한다. 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0|0|0|0|0) [기록](loadtest/results/2026-11-24-rehearsal-community-flow.txt).
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && git pull && node loadtest/public-community-flow-check.mjs
