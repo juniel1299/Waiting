@@ -110,6 +110,31 @@ class ClubBoardConcurrencyTests {
 		assertThat(newCreator).isIn(a.id(), b.id());
 		assertThat(jdbc.queryForObject("select role from club_member where club_id = ? and account_id = ?", String.class, club,
 				newCreator)).isEqualTo("MANAGER");
+		// 이전 생성자는 정책대로 모임 운영자로 남고 더는 생성자가 아니다 (이제 탈퇴할 수 있다)
+		assertThat(jdbc.queryForObject("select role from club_member where club_id = ? and account_id = ?", String.class, club,
+				creator.id())).isEqualTo("MANAGER");
+		assertThat(newCreator).isNotEqualTo(creator.id());
+		assertThat(creator.client().send("POST", "/api/clubs/" + club + "/leave", null).statusCode()).isEqualTo(200);
+	}
+
+	@RepeatedTest(REPEAT)
+	void deletingAClubWhileCommentingLeavesNoOrphans() throws Exception {
+		Member creator = member("dc-c", Role.PARTICIPANT);
+		long club = approvedClub(creator);
+		Member writer = joined(club, "dc-w");
+		long post = postIn(club, writer, "board");
+
+		List<HttpResponse<String>> r = HttpTestClient.race(() -> creator.client().send("DELETE", "/api/clubs/" + club, null),
+				() -> writer.client().send("POST", "/api/posts/" + post + "/comments",
+						"{\"body\":\"경합 댓글 @[c#" + creator.id() + "]\"}"));
+
+		assertThat(r.get(0).statusCode()).as(r.get(0).body()).isEqualTo(204);
+		assertThat(r.get(1).statusCode()).as(r.get(1).body()).isIn(201, 404);
+		assertThat(jdbc.queryForObject("select count(*) from comment where post_id = ?", Long.class, post)).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from mention m where m.comment_id is not null "
+				+ "and not exists (select 1 from comment c where c.id = m.comment_id)", Long.class)).isZero();
+		assertThat(jdbc.queryForObject("select count(*) from notification where post_id = ? or club_id = ?", Long.class, post,
+				club)).isZero();
 	}
 
 	private long approvedClub(Member creator) throws Exception {
