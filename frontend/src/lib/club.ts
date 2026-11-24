@@ -16,6 +16,8 @@ export interface Club {
   creator: { label: string };
   memberCount: number;
   joined: boolean;
+  /** 내 모임 안 역할 (회원이 아니면 null) */
+  myRole: "MANAGER" | "MEMBER" | null;
   mine: boolean;
   submittedAt: string;
   decidedAt: string | null;
@@ -33,6 +35,20 @@ export interface ClubPage {
   totalElements: number;
   totalPages: number;
   canApply: boolean;
+}
+
+export interface ClubMember {
+  accountId: number;
+  label: string;
+  role: "MANAGER" | "MEMBER";
+  creator: boolean;
+  joinedAt: string;
+}
+
+/** 회원 목록의 역할 글자 (색만으로 구분하지 않는다). */
+export function memberRoleLabel(m: Pick<ClubMember, "role" | "creator">): string {
+  if (m.creator) return "만든 사람 · 모임 운영자";
+  return m.role === "MANAGER" ? "모임 운영자" : "회원";
 }
 
 export const CLUB_MODES: readonly (readonly [ClubMode, string])[] = [

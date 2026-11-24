@@ -21,3 +21,10 @@ test("수정 안내는 승인 모임은 바로 반영, 반려·취소는 재신�
 test("활동 방식 라벨", () => {
   assert.equal(modeLabel("MIXED"), "온·오프라인");
 });
+
+test("회원 역할은 글자로 보인다", async () => {
+  const { memberRoleLabel } = await import("../src/lib/club.ts");
+  assert.equal(memberRoleLabel({ role: "MANAGER", creator: true }), "만든 사람 · 모임 운영자");
+  assert.equal(memberRoleLabel({ role: "MANAGER", creator: false }), "모임 운영자");
+  assert.equal(memberRoleLabel({ role: "MEMBER", creator: false }), "회원");
+});

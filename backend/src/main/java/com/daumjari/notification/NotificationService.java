@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.daumjari.auth.SessionUser;
 import com.daumjari.board.BoardDtos.Author;
-import com.daumjari.board.BoardDtos.Board;
 import com.daumjari.board.BoardService;
 import com.daumjari.board.Mentions;
 import com.daumjari.club.ClubService;
@@ -117,9 +116,7 @@ public class NotificationService {
 		}
 		else {
 			Long postId = ((Number) t.get("post_id")).longValue();
-			Board board = posts.boardOf(postId, me);
-			href = (board == Board.NOTICE ? "/notices/" : "/board/") + postId
-					+ (t.get("comment_id") == null ? "" : "#comment-" + t.get("comment_id"));
+			href = posts.pathOf(postId, me) + (t.get("comment_id") == null ? "" : "#comment-" + t.get("comment_id"));
 		}
 		markRead("id = :id and recipient_account_id = :me", id, me);
 		return new Opened(href);

@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
 import { api } from "@/lib/api";
 import { insertMention, mentionQueryAt } from "@/lib/mention";
+
+/** 모임 글·댓글이면 그 모임: 멘션 후보를 모임 회원으로 좁힌다 (서버도 모임 회원에게만 연결). */
+export const MentionClub = createContext<number | string | null>(null);
 
 interface Candidate {
   id: number;
@@ -29,12 +32,13 @@ export function MentionTextarea({ label, value, onChange, maxLength, rows = 4 }:
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [active, setActive] = useState(0);
   const pendingCursor = useRef<number | null>(null);
+  const clubId = useContext(MentionClub);
 
   useEffect(() => {
     if (!query) return;
     let live = true;
     const timer = setTimeout(() => {
-      api<Candidate[]>(`/api/mentions/candidates?q=${encodeURIComponent(query.query)}`)
+      api<Candidate[]>(`/api/mentions/candidates?q=${encodeURIComponent(query.query)}${clubId ? `&clubId=${clubId}` : ""}`)
         .then((res) => {
           if (!live) return;
           setCandidates(res.data);
@@ -46,7 +50,7 @@ export function MentionTextarea({ label, value, onChange, maxLength, rows = 4 }:
       live = false;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, clubId]);
 
   useEffect(() => {
     if (pendingCursor.current !== null && ref.current) {

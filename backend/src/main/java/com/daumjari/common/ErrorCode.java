@@ -42,6 +42,9 @@ public enum ErrorCode {
 	NOT_CLUB_CREATOR(HttpStatus.FORBIDDEN, "이 모임을 고치거나 지울 권한이 없습니다."),
 	CLUB_CHANGED(HttpStatus.CONFLICT, "모임 신청 내용이나 상태가 바뀌었습니다. 새로 고친 뒤 다시 확인해 주세요."),
 	CREATOR_CANNOT_LEAVE(HttpStatus.CONFLICT, "모임을 만든 사람은 탈퇴할 수 없습니다. 모임을 삭제해 주세요."),
+	CLUB_MEMBERS_ONLY(HttpStatus.FORBIDDEN, "모임 회원만 볼 수 있습니다."),
+	CLUB_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "이 모임의 회원이 아닙니다."),
+	CREATOR_ROLE_FIXED(HttpStatus.CONFLICT, "만든 사람의 모임 운영자 권한은 회수할 수 없습니다. 먼저 다른 회원에게 생성자를 넘겨 주세요."),
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 
 	private final HttpStatus status;

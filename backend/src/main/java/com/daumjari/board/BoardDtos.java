@@ -16,7 +16,7 @@ public final class BoardDtos {
 	/** 주소의 게시판 이름(community·notice)과 DB 값. 모임 게시판은 5단계에서 더한다. */
 	public enum Board {
 
-		COMMUNITY("community"), NOTICE("notice");
+		COMMUNITY("community"), NOTICE("notice"), CLUB_BOARD("board"), CLUB_NOTICE("notice");
 
 		private final String path;
 
@@ -25,8 +25,21 @@ public final class BoardDtos {
 		}
 
 		static Board fromPath(String path) {
+			return find(path, false);
+		}
+
+		/** 모임 게시판 주소(/api/clubs/{id}/boards/{board,notice}). */
+		static Board fromClubPath(String path) {
+			return find(path, true);
+		}
+
+		boolean isClub() {
+			return this == CLUB_BOARD || this == CLUB_NOTICE;
+		}
+
+		private static Board find(String path, boolean club) {
 			for (Board board : values()) {
-				if (board.path.equals(path)) {
+				if (board.isClub() == club && board.path.equals(path)) {
 					return board;
 				}
 			}
@@ -44,7 +57,7 @@ public final class BoardDtos {
 	}
 
 	/** 목록에서는 body 가 null 이다 (응답 크기를 줄이고 미리보기는 제목으로). */
-	public record PostResponse(Long id, Board board, String title, String body, Author author,
+	public record PostResponse(Long id, Board board, Long clubId, String title, String body, Author author,
 			List<Mentions.MentionView> mentions, Instant createdAt, Instant updatedAt, boolean edited, long commentCount,
 			boolean canEdit, boolean canDelete) {
 	}

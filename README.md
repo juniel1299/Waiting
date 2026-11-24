@@ -651,8 +651,9 @@ limit 3;
 
 ### 3단계 공개 검증
 
-- **비밀번호 없는 점검:** [`loadtest/public-community3-open-check.mjs`](loadtest/public-community3-open-check.mjs). 비회원 알림 API 401, 데모 알림함 200·읽지 않은 수 일치, 없는·남의 알림 읽기·열기 404. 데모 체험 1개(30분 뒤 자동 삭제). 배포 뒤 실행.
-- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community3-check.mjs`](loadtest/public-community3-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 글 멘션(자기 제외)·수정 시 중복 없음·댓글 멘션 열기 주소·남의 알림 404·취소 두 번에도 승격 알림 1건·열기 주소·모두 읽음·글 삭제 시 알림 사라짐. **정리:** 회차 삭제, 남은 글 삭제, 두 회원 탈퇴(받은 알림 삭제), 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 알림·글·회차, 기대값 모두 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community3.txt).
+- **비밀번호 없는 점검 (2026-11-24 19:53 UTC, 배포 `6caf8492`): 4/4 성공.** [`loadtest/public-community3-open-check.mjs`](loadtest/public-community3-open-check.mjs). 비회원 알림 API 401, 데모 알림함 200·읽지 않은 수 일치, 없는·남의 알림 읽기·열기 404. 데모 체험 1개(30분 뒤 자동 삭제). [기록](loadtest/results/2026-11-24-public-community3-open.txt)
+- **배포 기록:** PR #43 병합 직후 Render 배포(`48f1dacc`)가 31초 만에 실패해 이전 백엔드가 남았고(2026-11-23 12:26 UTC), 그때 사용자가 돌린 로그인 점검은 알림 API 404 로 멈췄다(정리는 모두 204). 로컬에서 같은 커밋 운영 이미지는 정상 기동·V13 적용. PR #44 병합 배포(`6caf8492`, 2026-11-24 19:48~19:52 UTC)에서 V13·V14 가 함께 적용됐다. 점검 스크립트는 이제 가입 전에 새 API 배포를 확인한다.
+- **로그인 필요한 점검 (사용자 실행 2026-11-24 19:57 UTC): 통과.** 자기 멘션 제외(A 0·B 1), 수정 시 중복 없음, 댓글 멘션 열기 `/board/8#comment-6`, 남의 알림 404, 취소 두 번에도 승격 알림 1건·열기 `/sessions/72`, 모두 읽음 0, 글 삭제 뒤 알림 0건. Neon 조회(20:00 UTC) 남은 행 모두 0(물리 삭제 확인 완료). [기록](loadtest/results/2026-11-24-public-community3.txt) [`loadtest/public-community3-check.mjs`](loadtest/public-community3-check.mjs), 운영자 아이디·비밀번호 실행 중 입력, 일반 회원 2명 가입. 글 멘션(자기 제외)·수정 시 중복 없음·댓글 멘션 열기 주소·남의 알림 404·취소 두 번에도 승격 알림 1건·열기 주소·모두 읽음·글 삭제 시 알림 사라짐. **정리:** 회차 삭제, 남은 글 삭제, 두 회원 탈퇴(받은 알림 삭제), 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 알림·글·회차, 기대값 모두 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community3.txt).
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community3-check.mjs
@@ -685,11 +686,50 @@ limit 3;
 
 ### 4단계 공개 검증
 
-- **비밀번호 없는 점검:** [`loadtest/public-community4-open-check.mjs`](loadtest/public-community4-open-check.mjs). 비회원 401, 데모 승인 모임 목록 200(사유·version 숨김)·신청·가입 403, 없는 모임 404, 운영자 목록 403. 배포 뒤 실행.
-- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community4-check.mjs`](loadtest/public-community4-check.mjs). 모임 API 배포를 먼저 확인(404 면 최대 10분 대기, 가입 한도 쓰기 전). 신청 → 남에게 404 → 반려 사유 → 재신청 → 낡은 version 승인 409 → 승인 → 알림 열기 → 검색·동시 가입 2번에 회원 2명 → 탈퇴 → 생성자 탈퇴 409 → 삭제 → 404. **정리:** 남은 모임 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·회원·알림 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community4.txt).
+- **비밀번호 없는 점검 (2026-11-24 19:53 UTC, 배포 `6caf8492`): 5/5 성공.** [`loadtest/public-community4-open-check.mjs`](loadtest/public-community4-open-check.mjs). 비회원 401, 데모 승인 모임 목록 200(승인 모임 0개)·신청·가입 403 `CLUB_FORBIDDEN`, 없는 모임 404, 운영자 목록 403. [기록](loadtest/results/2026-11-24-public-community4-open.txt)
+- **로그인 필요한 점검 (사용자 실행 2026-11-24 19:59 UTC): 통과.** 신청 대기 404(남), 반려 사유·재신청, 낡은 version 승인 409, 승인 알림 열기 `/clubs/1`, 동시 가입 2번 → 회원 2명, 생성자 탈퇴 409, 삭제 뒤 404. Neon 조회(20:00 UTC) 남은 행 모두 0(물리 삭제 확인 완료). [기록](loadtest/results/2026-11-24-public-community4.txt) [`loadtest/public-community4-check.mjs`](loadtest/public-community4-check.mjs). 모임 API 배포를 먼저 확인(404 면 최대 10분 대기, 가입 한도 쓰기 전). 신청 → 남에게 404 → 반려 사유 → 재신청 → 낡은 version 승인 409 → 승인 → 알림 열기 → 검색·동시 가입 2번에 회원 2명 → 탈퇴 → 생성자 탈퇴 409 → 삭제 → 404. **정리:** 남은 모임 삭제, 두 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·회원·알림 0). 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0) [기록](loadtest/results/2026-11-23-rehearsal-community4.txt).
 
   ```bash
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community4-check.mjs
+  ```
+
+## 커뮤니티 5단계: 모임 역할·내부 게시판·모임 공지 (V15, 2026-11-24)
+
+| 동작 | 비회원·데모 | 모임 밖 회원 | 모임 회원 | 모임 운영자 | 만든 사람 | 서비스 운영자 |
+|---|---|---|---|---|---|---|
+| 모임 게시판·공지·회원 목록 조회 | ✗ 401·403 | ✗ 403 `CLUB_MEMBERS_ONLY` | ○ | ○ | ○ | ○ |
+| 모임 게시판 글쓰기 | ✗ | ✗ | ○ | ○ | ○ | ✗ |
+| 모임 게시판 글 수정 / 삭제 | ✗ | ✗ | 본인 / 본인 | 본인 / 모두 | 본인 / 모두 | ✗ / 모두 |
+| 모임 공지 쓰기·수정·삭제 | ✗ | ✗ | ✗ 403 | ○ | ○ | 삭제만 |
+| 모임 안 댓글·답글·추천 | ✗ | ✗ | ○ | ○ | ○ | ✗ (삭제는 ○) |
+| 댓글 삭제 | ✗ | ✗ | 본인 | 모두 | 모두 | 모두 |
+| 모임 운영자 임명·회수, 생성자 넘기기 | ✗ | ✗ | ✗ 403 | ✗ 403 `NOT_CLUB_CREATOR` | ○ | ✗ |
+| 모임 삭제 | ✗ | ✗ | ✗ | ✗ | ○ | ○ |
+
+- **역할:** 만든 사람은 승인될 때 첫 모임 운영자(`MANAGER`)가 된다. 만든 사람만 회원을 모임 운영자로 임명·회수하고(만든 사람 자신의 운영자 권한은 회수 불가 409 `CREATOR_ROLE_FIXED`), 일반 모임 운영자는 임명하지 못한다. 대상은 지금 그 모임 회원이어야 한다(아니면 404 `CLUB_MEMBER_NOT_FOUND`).
+- **위조 방지:** 역할·생성자 판단은 요청 본문이 아니라 세션 계정과 DB 의 지금 역할로만 한다. 본문에 `role`·다른 `accountId` 를 넣어도 쓰지 않는다(테스트로 확인).
+- **매 요청 재확인:** 모임 글·댓글·추천·멘션 후보·회원 목록·알림 열기는 요청마다 지금 가입·역할을 다시 읽는다(`ClubRoles`). 모임을 탈퇴하면 그 즉시 글·댓글·그 글의 알림 열기가 403.
+- **잠금 순서(경합):** 모임 글·댓글 쓰기·수정·삭제와 추천은 모임 행·회원 행을 `FOR SHARE` 로 먼저 잠그고 글·댓글을 잠근다. 임명·회수·생성자 이전·모임 삭제는 모임 행 `FOR UPDATE`. 그래서 회수와 그 운영자의 삭제가 겹치면 회수 전 권한으로 끝나거나(204) 회수 뒤에 막힌다(403). 모임 삭제와 내부 글 작성이 겹치면 함께 지워지거나 늦은 쪽이 404. 모임 삭제와 같은 순서라 교착이 없다. 생성자 이전 두 건이 겹치면 하나만 성공한다.
+- **고친 것:** 모임 행을 계정과 조인한 쿼리에 `FOR UPDATE` 를 걸면, 앞선 트랜잭션이 생성자를 바꾼 뒤 다시 확인할 때 조인이 어긋나 행이 사라진 것처럼(404) 보였다(이전 경합 테스트에서 발견). 모임 행만 단독으로 잠근 뒤 읽게 바꿨다.
+- **재사용:** 모임 글은 `board_post` 에 `board` ∈ `CLUB_BOARD`·`CLUB_NOTICE` 와 `club_id` 로 들어가 상세·수정·삭제·댓글·답글·추천·멘션·알림 API(1~3단계)를 그대로 쓴다. 모임 안 멘션은 그 모임 회원에게만 연결·알림하고 후보 검색도 `clubId` 로 회원만(묻는 사람도 회원이어야 함). 알림 열기 주소는 `/clubs/{모임}/board/{글}`·`/clubs/{모임}/notices/{글}`.
+- **삭제:** 모임 삭제는 모임 글 → 댓글·답글·추천·멘션·알림까지 FK `ON DELETE CASCADE` 로 같은 문장에서 물리 삭제(고아 0, 테스트로 확인).
+- **생성자 정책 (제안 그대로):** 모임 탈퇴는 생성자를 다른 회원에게 넘긴 뒤에 할 수 있다(`POST /api/clubs/{id}/transfer {accountId}`, 받는 사람은 모임 운영자가 되고 넘긴 사람도 모임 운영자로 남는다). 계정 탈퇴는 4단계대로 만든 모임을 모두 삭제(결정 4 추천안 B)하고 다른 모임에서는 빠지며, 기존 탈퇴 트랜잭션 하나라 중간 실패 시 전부 롤백된다. 다른 선택지(A: 탈퇴 시 가장 먼저 임명된 운영자에게 자동 이전)는 계획 문서 "결정 필요 4" 에 남겨 두었다.
+- **API:** `GET`·`POST /api/clubs/{id}/boards/{board|notice}/posts`(목록·작성), `GET /api/clubs/{id}/members`, `PUT`·`DELETE /api/clubs/{id}/managers/{accountId}`, `POST /api/clubs/{id}/transfer`, `GET /api/mentions/candidates?q&clubId`. 모임 응답에 `myRole`.
+- **화면:** 모임 소개에 회원·서비스 운영자에게만 `모임 안 메뉴`(모임 공지·모임 게시판·회원 N명)와 내 역할. 모임 게시판·공지 목록·상세·글쓰기·수정은 1·2단계 화면을 그대로 쓰고(검색·쪽·댓글·추천·멘션), 회원이 아니면 "모임 회원만 볼 수 있습니다." 안내와 모임 소개 링크. 회원 목록은 역할을 글자 배지로(만든 사람·모임 운영자·회원), 만든 사람에게만 운영자 임명·회수·생성자 넘기기(확인창) 버튼, 결과는 `role=status` 로 알린다.
+- **고친 것(화면):** 권한 없음(403)이면 다시 시도·검색을 감추고 안내와 모임 소개 링크만 보인다(다시 해도 같은 결과라서).
+- **V15 운영 적용 주의:** `board_post` 에 `club_id` 칸(전부 null)·부분 인덱스 1개, 게시판 종류 체크 제약 교체와 `club_id` 짝 제약 추가. 기존 행 변화 없음(모두 `COMMUNITY`·`NOTICE` 에 `club_id` null 이라 새 제약을 만족). Flyway 자동 적용.
+
+테스트 (2026-11-24, 로컬, 커밋 `e986bdf8`): 백엔드 전체 681개 통과(새 [`ClubBoardApiTests`](backend/src/test/java/com/daumjari/ClubBoardApiTests.java) 7: 회원만 조회·운영자 조회·삭제만, 작성자 수정·모임 운영자 삭제·공지, 모임 안 댓글·추천·멘션 제한·댓글 삭제, 생성자만 임명·회수·위조 거부, 생성자 이전 뒤 탈퇴, 탈퇴 즉시 접근·알림 열기 403, 모임 삭제 시 글·댓글·알림 정리 / [`ClubBoardConcurrencyTests`](backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java) 3×20: 회수 vs 그 운영자의 삭제, 모임 삭제 vs 내부 글 작성, 생성자 이전 두 건, 실제 PostgreSQL), e2e 98개 통과(새 [`club-board.spec.ts`](frontend/e2e/club-board.spec.ts) 2), 프런트 단위 29, `tsc`·`eslint` 오류 0.
+
+스크린샷: `docs/screenshots/community5-{members,club-board,forbidden}-{desktop,mobile}.png`.
+
+### 5단계 공개 검증
+
+- **비밀번호 없는 점검:** [`loadtest/public-community5-open-check.mjs`](loadtest/public-community5-open-check.mjs). 비회원 401, 없는 모임 게시판 404·없는 게시판 이름 404, 데모 임명·이전 403. 배포 뒤 실행.
+- **로그인 필요한 점검 (사용자 실행):** [`loadtest/public-community5-check.mjs`](loadtest/public-community5-check.mjs), 일반 회원 3명 가입. 모임 게시판 API 배포를 먼저 확인. 회원 글(모임 밖 사람 멘션은 연결 안 됨) → 밖 회원 403 → 서비스 운영자 조회·삭제 가능·쓰기 403 → 회원 공지 403 → 스스로 임명 403 → 만든 사람이 임명 → 공지 201 → 회수 → 공지 403 → 생성자 탈퇴 409 → 이전 → 탈퇴 200 → 새 생성자가 모임 삭제 → 글 404. **정리:** 남은 모임 삭제, 세 회원 탈퇴, 운영자 로그아웃, 끝에 Neon 확인 SQL(남은 모임·글·회원·알림 0). 로컬 리허설 [기록](loadtest/results/2026-11-24-rehearsal-community5.txt).
+
+  ```bash
+  cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community5-check.mjs
   ```
 
 ## 회차 API

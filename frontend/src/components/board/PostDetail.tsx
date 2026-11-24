@@ -7,7 +7,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { api, ApiError, errorMessage, formatSeoul, type Me } from "@/lib/api";
 import { Comments } from "@/components/board/Comments";
 import { MentionText } from "@/components/board/MentionText";
-import { BOARDS, lastBoardList, type BoardKind, type Post } from "@/lib/board";
+import { boardInfo, kindOf, lastBoardList, type BoardKind, type Post } from "@/lib/board";
+import { MentionClub } from "@/components/board/MentionTextarea";
 
 const noSubscribe = () => () => {};
 
@@ -15,10 +16,10 @@ const noSubscribe = () => () => {};
  * 글 상세. 본문은 React 텍스트 노드로만 그리고(white-space: pre-wrap 으로 줄바꿈 유지) HTML 로 해석하지 않는다.
  * 수정·삭제 버튼은 서버가 준 canEdit·canDelete 를 따른다. 삭제·없는 글은 안내와 목록 링크.
  */
-export function PostDetail({ kind, postId, me }: { kind: BoardKind; postId: string; me: Me | null }) {
+export function PostDetail({ kind, postId, me, clubId }: { kind: BoardKind; postId: string; me: Me | null; clubId?: string }) {
   const router = useRouter();
-  const { path, listLabel } = BOARDS[kind];
-  const listHref = useSyncExternalStore(noSubscribe, () => lastBoardList(kind), () => path);
+  const { path, listLabel } = boardInfo(kind, clubId);
+  const listHref = useSyncExternalStore(noSubscribe, () => lastBoardList(kind, clubId), () => path);
   const [post, setPost] = useState<Post | null>(null);
   const [failure, setFailure] = useState<{ text: string; gone: boolean } | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -30,8 +31,8 @@ export function PostDetail({ kind, postId, me }: { kind: BoardKind; postId: stri
       .then((res) => {
         if (!active) return;
         // 다른 게시판의 글 번호로 들어오면 그 게시판 주소로 보낸다
-        if (res.data.board !== kind.toUpperCase()) {
-          router.replace(`${BOARDS[res.data.board === "NOTICE" ? "notice" : "community"].path}/${postId}`);
+        if (kindOf(res.data.board) !== kind || String(res.data.clubId ?? "") !== String(clubId ?? "")) {
+          router.replace(`${boardInfo(kindOf(res.data.board), res.data.clubId).path}/${postId}`);
           return;
         }
         setPost(res.data);
@@ -48,7 +49,7 @@ export function PostDetail({ kind, postId, me }: { kind: BoardKind; postId: stri
     return () => {
       active = false;
     };
-  }, [postId, kind, router, attempt]);
+  }, [postId, kind, clubId, router, attempt]);
 
   async function remove() {
     const comments = post?.commentCount ? ` 댓글·답글 ${post.commentCount}개도 함께 삭제되고` : "";
@@ -109,7 +110,9 @@ export function PostDetail({ kind, postId, me }: { kind: BoardKind; postId: stri
         </div>
       )}
       {failure && <p role="alert">{failure.text}</p>}
-      <Comments postId={post.id} me={me} />
+      <MentionClub.Provider value={post.clubId}>
+        <Comments postId={post.id} me={me} />
+      </MentionClub.Provider>
     </article>
   );
 }
