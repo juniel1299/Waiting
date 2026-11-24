@@ -1,0 +1,33 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100, 시드 운영자, 운영자 비밀번호는 파이프 입력, 2026-11-24 20:52 UTC)
+## node loadtest/public-community-flow-open-check.mjs (BASE_URL=http://localhost:3100)
+시작 2026-11-24T20:52:00.477Z
+성공 | 화면 주소 9개 응답 200 (화면은 브라우저에서 로그인 확인) | /board 200, /notices 200, /me/notifications 200, /clubs/promo 200, /clubs 200, /me/clubs 200, /clubs/new 200, /clubs/1/board 200, /clubs/1/members 200
+성공 | 비회원: 공지 목록 200, 회원 게시판·알림·모임·모임 게시판 401 | 공지 200, 401, 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 데모: 게시판·알림·모임 목록 읽기 200, 글·댓글·모임 신청·닉네임 403 | 읽기 200·200·200, 쓰기 403 BOARD_WRITE_FORBIDDEN·403 COMMENT_WRITE_FORBIDDEN·403 CLUB_FORBIDDEN·403 PROFILE_FORBIDDEN
+결과: 성공 4 / 실패 0
+## node loadtest/public-community-flow-check.mjs (종료 코드 0, 출력에 비밀번호 0건)
+20:52:00 운영자 로그인 200
+20:52:01 A qa_fa611242052 가입 201 / 로그인 200
+20:52:01 B qa_fb611242052 가입 201 / 로그인 200
+20:52:01 A 글 201 | B 멘션 댓글 201 멘션 1명 | A 추천 200 → 1
+20:52:01 A 멘션 알림 1건 | 열기 200 /board/440#comment-63
+20:52:01 A 모임 신청 201 | 운영자 승인 200 | A 승인 알림 1건 | B 가입 200 회원 2명
+20:52:01 B 내부 글 201 | A 가 B 임명 200 → B 공지 201 | 회수 200 → B 공지 403 BOARD_WRITE_FORBIDDEN
+20:52:01 생성자 B 에게 이전 200 | A 모임 탈퇴 200 | A 내부 게시판 403 CLUB_MEMBERS_ONLY
+20:52:01 B 모임 삭제 204 → 내부 글 404 POST_NOT_FOUND | A 의 그 모임 알림 0건
+20:52:01 A 계정 탈퇴 204 → A 글 작성자 표시 "탈퇴한 회원"
+20:52:01 커뮤니티 전체 흐름 공개 점검 통과
+20:52:01 정리: 글 440 삭제 204
+20:52:01 정리: B 탈퇴 204
+20:52:01 정리: 운영자 로그아웃 204
+20:52:01 Neon SQL 편집기에서 남은 행 확인 (기대값 모두 0, 탈퇴한 계정 행은 정책상 익명화되어 남아 셈에 넣지 않음):
+select (select count(*) from board_post where id in (440, 441, 442) or club_id in (56)) as posts,
+       (select count(*) from comment where id in (63) or post_id in (440, 441, 442)) as comments,
+       (select count(*) from comment_like where comment_id in (63)) as likes,
+       (select count(*) from mention where post_id in (440, 441, 442) or comment_id in (63)) as mentions,
+       (select count(*) from notification where recipient_account_id in (1622, 1623) or actor_account_id in (1622, 1623) or club_id in (56)) as notifications,
+       (select count(*) from club where id in (56)) as clubs,
+       (select count(*) from club_member where club_id in (56) or account_id in (1622, 1623)) as members;
+## 위 SQL 을 리허설 DB 에서 실행: posts|comments|likes|mentions|notifications|clubs|members
+0|0|0|0|0|0|0
