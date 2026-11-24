@@ -746,6 +746,26 @@ limit 3;
   cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && node loadtest/public-community5-check.mjs
   ```
 
+## 커뮤니티 6단계: 전체 흐름·화면 상태·공개 검증 (2026-11-24)
+
+- **전체 흐름 e2e** ([`community-flow.spec.ts`](frontend/e2e/community-flow.spec.ts), 실제 Spring Boot + PostgreSQL + Next 프로덕션 빌드): 화면 가입 → 회원 게시판 글 → 다른 회원의 멘션 댓글 → 추천(`aria-pressed`) → 머리글 알림 수(탭 복귀 즉시) → 알림 열기로 그 댓글에 초점 → 모임 신청 → 운영자 승인 → 승인 알림 → 다른 회원 가입 → 모임 안 메뉴·회원 목록 → 운영자 임명 → 그 회원의 모임 공지 → 회수 → 공지 403 → 생성자 넘기기(확인창) → 모임 탈퇴 → 모임 게시판 권한 없음 안내(다시 시도 없음) → 새 생성자의 모임 삭제(공지 404·승인 알림 사라짐) → 계정 탈퇴(글 작성자 '탈퇴한 회원') → 글 정리.
+- **화면 상태:** 불러오는 중(응답 지연), 빈 목록(`아직 글이 없어요.`), 권한 없음(회원 아님, 다시 시도 버튼 없음), 삭제됨(없는 글), 오류 뒤 다시 시도(첫 요청 500 → 버튼 → 정상)를 같은 파일에서 확인.
+- **375px·키보드·동작 줄이기:** 375px 에서 게시판·공지·알림함·모임 홍보·목록·소개·모임 게시판·회원 목록·내 모임·신청 화면 10곳 가로 넘침 0, Tab 만으로 머리글 알림 버튼까지 가서 초점 테두리가 보이고 Enter 로 알림함, 동작 줄이기에서 카드·알림 전환 0.02초 미만.
+- **앱 변경 없음:** 테스트를 먼저 썼고 모두 통과했다(테스트 쪽 고친 것은 Tab 횟수 한도뿐).
+- **기본 정책·남은 미검증:** 계획 문서 "최종 정리" 표에 한곳으로 모았다([`docs/plans/community-plan.md`](docs/plans/community-plan.md)).
+
+테스트 (2026-11-24, 로컬): e2e 전체 101개 통과(새 3), 백엔드 705개(변경 없음, PR #46 기준), 프런트 단위 29.
+
+### 6단계 공개 검증
+
+- **배포:** PR #46 병합 커밋 `6b769d2a`, Render 2026-11-24 20:48:39 UTC 성공.
+- **비밀번호 없는 점검 (2026-11-24 20:52 UTC): 4/4 성공.** [`loadtest/public-community-flow-open-check.mjs`](loadtest/public-community-flow-open-check.mjs). 커뮤니티 화면 주소 9곳 200, 비회원 공지 200·나머지 401, 데모 읽기 200·글·댓글·모임 신청·닉네임 403. [기록](loadtest/results/2026-11-24-public-community-flow-open.txt)
+- **전체 흐름 점검 (사용자 실행):** [`loadtest/public-community-flow-check.mjs`](loadtest/public-community-flow-check.mjs), 운영자 아이디·비밀번호 실행 중 숨김 입력, 일반 회원 2명 가입. 위 e2e 와 같은 흐름을 공개 API 로 확인하고, 끝나면 남은 모임·글 삭제·두 회원 탈퇴·운영자 로그아웃 뒤 Neon 확인 SQL(글·댓글·추천·멘션·알림·모임·회원, 기대값 모두 0)을 출력한다. 로컬 리허설 통과(출력에 비밀번호 0건, 리허설 DB 0|0|0|0|0|0|0) [기록](loadtest/results/2026-11-24-rehearsal-community-flow.txt).
+
+  ```bash
+  cd "/Users/wonjun/code/waiting/실시간 예약 대기열" && git pull && node loadtest/public-community-flow-check.mjs
+  ```
+
 ## 회차 API
 
 시각은 ISO-8601 UTC(`2026-11-22T10:00:00Z`)로 주고받는다. 화면에서 서울 시간으로 바꿔 표시한다.
