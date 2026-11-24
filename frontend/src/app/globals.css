@@ -1128,3 +1128,28 @@ fieldset.field {
   gap: 6px;
   margin-right: 16px;
 }
+
+/* ── 커뮤니티 5단계: 모임 회원 목록. 역할은 글자 배지(만든 사람·모임 운영자·회원) ── */
+.member-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.member-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}

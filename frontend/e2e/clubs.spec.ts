@@ -72,7 +72,7 @@ test("승인된 모임에 가입하고 탈퇴한다. 만든 사람은 탈퇴 버
   await page.goto(`/clubs/${created.id}`);
   await page.getByRole("button", { name: "가입하기" }).click();
   await expect(page.getByRole("status").filter({ hasText: "모임에 가입했어요." })).toBeVisible();
-  await expect(page.getByText("2명")).toBeVisible();
+  await expect(page.getByText("2명", { exact: true })).toBeVisible();
   await page.goto("/me/clubs");
   await expect(page.getByRole("link", { name })).toBeVisible();
   await page.goto(`/clubs/${created.id}`);

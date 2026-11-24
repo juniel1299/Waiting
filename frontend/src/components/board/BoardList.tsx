@@ -5,15 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { api, errorMessage, formatSeoul, type Me } from "@/lib/api";
-import { BOARDS, rememberBoardList, type BoardKind, type PostPage } from "@/lib/board";
+import { boardInfo, rememberBoardList, type BoardKind, type PostPage } from "@/lib/board";
 import { BOARD_FIELDS, boardApiQuery, boardHref, parseBoardSearch, type BoardSearch } from "@/lib/boardSearch";
 import { pageWindow } from "@/lib/sessionSearch";
 
 /** 게시판 목록: 제목·작성자·작성일·댓글 수, 제목·본문 검색과 쪽. 주소가 조건의 원본(상세에 갔다 와도 유지). */
-export function BoardList({ kind, me }: { kind: BoardKind; me: Me | null }) {
+export function BoardList({ kind, me, clubId }: { kind: BoardKind; me: Me | null; clubId?: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const { path, title } = BOARDS[kind];
+  const { path, title, api: listApi } = boardInfo(kind, clubId);
   const search = parseBoardSearch(params);
   const href = boardHref(path, search);
   const [result, setResult] = useState<{ href: string; page: PostPage } | null>(null);
@@ -22,12 +22,12 @@ export function BoardList({ kind, me }: { kind: BoardKind; me: Me | null }) {
   const seq = useRef(0);
 
   useEffect(() => {
-    rememberBoardList(kind, href);
+    rememberBoardList(kind, href, clubId);
     const mine = ++seq.current;
-    api<PostPage>(`/api/boards/${kind}/posts?${boardApiQuery(parseBoardSearch(new URL(href, "http://x").searchParams))}`)
+    api<PostPage>(`${listApi}?${boardApiQuery(parseBoardSearch(new URL(href, "http://x").searchParams))}`)
       .then((res) => mine === seq.current && setResult({ href, page: res.data }))
       .catch((e: unknown) => mine === seq.current && setFailure({ href, text: errorMessage(e) }));
-  }, [href, kind, attempt]);
+  }, [href, kind, clubId, listApi, attempt]);
 
   const page = result?.href === href ? result.page : null;
   const error = failure?.href === href ? failure.text : null;
@@ -44,6 +44,13 @@ export function BoardList({ kind, me }: { kind: BoardKind; me: Me | null }) {
         )}
       </div>
       {me?.demo && kind === "community" && <p className="meta">체험 중에는 글을 읽기만 할 수 있어요.</p>}
+      {clubId && (
+        <p>
+          <Link href={`/clubs/${clubId}`} className="link">
+            ← 모임 소개
+          </Link>
+        </p>
+      )}
       <SearchForm key={href} search={search} onSearch={go} onReset={() => router.push(path, { scroll: false })} />
       {error && (
         <p role="alert">

@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { api, ApiError, errorMessage, formatSeoul } from "@/lib/api";
+import { api, ApiError, errorMessage, formatSeoul, type Me } from "@/lib/api";
 import { modeLabel, stageHint, STATUS_LABELS, type Club } from "@/lib/club";
 
 /** 모임 소개. 가입·탈퇴·수정·신청 취소·삭제는 서버가 준 can* 를 따른다. 소개는 텍스트로만(줄바꿈 유지). */
-export function ClubDetail({ clubId }: { clubId: string }) {
+export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
   const router = useRouter();
   const [club, setClub] = useState<Club | null>(null);
   const [failure, setFailure] = useState<{ text: string; gone: boolean } | null>(null);
@@ -103,6 +103,14 @@ export function ClubDetail({ clubId }: { clubId: string }) {
         <dt>{club.status === "APPROVED" ? "승인" : "신청"}</dt>
         <dd>{formatSeoul(club.decidedAt && club.status === "APPROVED" ? club.decidedAt : club.submittedAt)}</dd>
       </dl>
+      {club.status === "APPROVED" && (club.joined || me.role === "OPERATOR") && (
+        <nav aria-label="모임 안 메뉴" className="tabs">
+          <Link href={`/clubs/${clubId}/notices`}>모임 공지</Link>
+          <Link href={`/clubs/${clubId}/board`}>모임 게시판</Link>
+          <Link href={`/clubs/${clubId}/members`}>회원 {club.memberCount}명</Link>
+        </nav>
+      )}
+      {club.myRole && <p className="meta">내 역할: {club.mine ? "만든 사람 · 모임 운영자" : club.myRole === "MANAGER" ? "모임 운영자" : "회원"}</p>}
       <h2>소개</h2>
       <p className="club-intro">{club.intro}</p>
       <div className="actions">
@@ -116,7 +124,9 @@ export function ClubDetail({ clubId }: { clubId: string }) {
             모임 탈퇴
           </button>
         )}
-        {club.mine && club.status === "APPROVED" && <span className="meta">만든 사람은 모임을 탈퇴할 수 없어요. 필요하면 모임을 삭제하세요.</span>}
+        {club.mine && club.status === "APPROVED" && (
+          <span className="meta">만든 사람은 모임을 탈퇴할 수 없어요. 회원 목록에서 다른 회원에게 생성자를 넘기면 탈퇴할 수 있어요.</span>
+        )}
         {club.canEdit && (
           <Link href={`/clubs/${clubId}/edit`} className="button-link secondary-link">
             {club.status === "REJECTED" || club.status === "CANCELLED" ? "고쳐서 다시 신청" : "수정"}
