@@ -3,6 +3,8 @@
 > 다른 사람의 취소로 내 대기가 확정되는 순간을 **새로고침 없이** 보여주고, 무료 서버가 잠들어 있어도 사용자가 길을 잃지 않게 만든 예약·대기 화면.
 > 공개 데모: https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연: [/tour](https://waiting-mauve.vercel.app/tour) (34초 영상 + 단계별 화면)
 
+> **커뮤니티 확장(2026-11-23~25):** 회원 게시판·공지, 댓글·한 단계 답글·추천·멘션, 알림함, 모임 신청·승인·가입, 모임 역할·내부 게시판을 같은 서비스에 더했다. 자세한 문제 해결은 아래 "커뮤니티 확장" 절.
+
 ## 지원서용 요약
 
 **프로젝트 소개.** 다음자리는 정원이 찬 스터디 회차에 대기를 걸어 두면, 취소로 빈자리가 생길 때 대기 순서대로 자동 확정되는 예약 서비스입니다. 프런트엔드에서는 다른 사용자의 취소로 바뀐 내 상태를 새로고침 없이 보여 주고, 무료 서버가 잠들어 있어도 사용자가 진행 상황을 알고 기다리거나 다시 시도할 수 있게 만들었습니다. 공개 데모 https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) · 시연 [/tour](https://waiting-mauve.vercel.app/tour) (34초 영상 + 단계별 화면, 백엔드 없이 열림)
@@ -13,9 +15,11 @@
 2. **잠든 서버 대응**: 프록시가 85초에 `503 + Retry-After` 로 답하고, 조회와 데모 시작만 최대 5분 자동 재시도한다. 공개 배포에서 약 55분 무요청 뒤 클릭부터 체험 화면까지 170.9초였고(1회), 그동안 버튼은 `체험 준비 중…`·포커스 유지, 중복 시작 요청 0. 근거: [`cold-start.spec.ts`](../../frontend/e2e/cold-start.spec.ts), [`demo-button.spec.ts`](../../frontend/e2e/demo-button.spec.ts), [측정](../../README.md#절전-후-첫-접속-2026-11-21-0420-utc)
 3. **접근성·모바일과 상태 버그 수정**: `aria-busy`·`aria-disabled` 로 포커스를 지키고, 칸별 오류는 `aria-describedby` 로만 연결했다. 떠난 화면에 남은 진행 상태 때문에 로그아웃 뒤 재로그인이 막히던 버그를 e2e 로 잡아 고쳤다. e2e 41개 통과(직전 실행), iPhone 13 **에뮬레이션** 통과(실제 iPhone Safari 는 확인 대기). 근거: [`auth.spec.ts`](../../frontend/e2e/auth.spec.ts), [`signup.spec.ts`](../../frontend/e2e/signup.spec.ts)
 
+4. **커뮤니티 화면 (확장)**: 서버가 준 권한 플래그로만 버튼을 보이고, 권한 없음(403)은 다시 시도 없이 안내·돌아갈 링크, 읽음 상태·진행 단계·역할은 색과 글자를 함께, 알림 버튼은 읽지 않은 수를 이름에 글자로 넣는다. 375px 10개 화면 가로 넘침 0, 키보드로 알림까지, 동작 줄이기 전환 0.02초 미만. 근거: [`community-flow.spec.ts`](../../frontend/e2e/community-flow.spec.ts), [`NotificationBell`](../../frontend/src/components/NotificationBell.tsx)
+
 **[직접 작성]** 아래는 저장소 기록만으로 확인할 수 없어 비워 둔 항목이다.
 
-- 개발 기간: [직접 작성: 예) 2026.11 ~ 2026.11, 주 n시간] (참고, 저장소 커밋 기준: **최초 개발 기간 2026.11.15~11.21**, **개편 기간 2026.11.22** 12:02~18:10 KST — 커밋 `64a0d601`(V8 생성자 권한) ~ `a7a26c29`(공개 점검 보강), PR #30~#35)
+- 개발 기간: [직접 작성: 예) 2026.11 ~ 2026.11, 주 n시간] (참고, 저장소 커밋 기준: **최초 개발 기간 2026.11.15~11.21**, **개편 기간 2026.11.22** 12:02~18:10 KST — 커밋 `64a0d601`(V8 생성자 권한) ~ `a7a26c29`(공개 점검 보강), PR #30~#35), **커뮤니티 확장 기간 2026.11.23 20:14 ~ 11.25 06:02 KST** — 첫 커밋 `e5dceee6`(커뮤니티·알림·모임 계획) ~ PR #48 병합 `78c98f46`, PR #39~#48
 - 개인 담당 범위·팀 구성: [직접 작성: 예) 1인 개발 / 기획·설계·구현·배포 전부]
 - AI 활용 방식: [직접 작성: 예) 어떤 도구로 무엇을 맡겼고, 무엇을 직접 판단·검증했는지]
 - 지원 직무·회사에 맞춰 강조할 점: [직접 작성]
@@ -103,6 +107,33 @@
 - 검색 칸은 넓은 화면에서 한 줄 두 칸·네 칸, 375px 에서는 칸이 줄바꿈되고 표는 표 안에서만 가로로 넘긴다. 가로 스크롤 없음은 e2e(로컬)와 공개 점검(375px)에서 확인했다.
 - `cacheComponents` 가 떠난 화면을 숨겨 DOM 에 남기는 탓에 같은 이름표가 두 번 잡히는 문제를 만나, 검색 칸 이름표를 `label htmlFor` 로 바꾸고 e2e 는 보이는 요소만 찾게 했다.
 
+### 8. 커뮤니티 확장 (2026-11-23~25): 권한별 화면·알림·상태
+
+#### 사례 1. 권한 설계: 다섯 종류 사용자와 "지금" 권한
+
+- **문제:** 커뮤니티가 붙으면서 권한 주체가 서비스 운영자·모임 생성자·모임 운영자·모임 회원·데모 사용자(그리고 비회원)로 늘었다. 화면이 버튼을 숨기는 것만으로는 직접 API 호출을 못 막고, 권한을 회수하거나 모임을 탈퇴한 사람이 이미 로그인한 세션으로 계속 쓰면 안 된다.
+- **방식:** 모든 판단을 서버에 두고 응답에 `canWrite`·`canEdit`·`canDelete`·`canJoin` 을 실어 화면이 따른다. 모임 역할은 세션에 저장하지 않고 요청마다 `club_member` 에서 다시 읽는다([`ClubRoles`](../../backend/src/main/java/com/daumjari/club/ClubRoles.java)). 쓰기·수정·삭제는 모임 행·회원 행을 `FOR SHARE` 로 잠근 뒤 판단해, 임명·회수·이전·삭제(모임 행 `FOR UPDATE`)와 줄을 선다([`BoardService.lockClubOf`](../../backend/src/main/java/com/daumjari/board/BoardService.java)). 역할·대상은 요청 본문이 아니라 세션 계정과 DB 의 현재 값으로만 정한다. 서비스 운영자는 모임 안에서 조회·삭제만, 데모는 읽기만.
+- **확인:** [`ClubBoardApiTests.onlyTheCreatorAppointsAndRevokesAndForgedRequestsAreRefused`](../../backend/src/test/java/com/daumjari/ClubBoardApiTests.java)(본문에 생성자 id 를 넣은 위조 거부), [`ClubPolicyReviewTests.revokedManagerIsRefusedNoticeWriteEditAndDeleteInTheSameSession`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java)·[`leavingBlocksBoardsNoticesMembersAndEveryDirectApiAtOnce`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java)(다시 로그인하지 않은 세션에서 바로 403), [`ClubBoardConcurrencyTests.revokingAManagerWhileItDeletesIsAllOrNothing`](../../backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java)(회수와 그 운영자의 삭제 경합 20회). 공개 환경: [5단계 로그인 점검](../../loadtest/results/2026-11-24-public-community5.txt)(회수 뒤 같은 세션 작성·수정·삭제 403, 밖 회원 403, 서비스 운영자 쓰기 403).
+
+#### 사례 2. 동시성과 삭제 정합성: 이전·삭제·작성이 겹칠 때
+
+- **문제:** 생성자 이전 두 건, 모임 삭제와 내부 글·댓글 작성, 글 삭제와 댓글·추천이 동시에 오면 생성자가 둘이 되거나 지워진 모임의 글·댓글·알림이 고아로 남을 수 있다. 삭제 도중 실패하면 일부만 지워질 수도 있다.
+- **방식:** 잠금 순서를 모임 → 글 → 댓글로 통일했다(모임 삭제의 CASCADE 순서와 같아 교착이 없다). 연관 데이터는 FK `ON DELETE CASCADE` 로 한 문장·한 트랜잭션에서 물리 삭제한다([V12](../../backend/src/main/resources/db/migration/V12__comments_likes_mentions.sql)·[V13](../../backend/src/main/resources/db/migration/V13__notification.sql)·[V14](../../backend/src/main/resources/db/migration/V14__club.sql)·[V15](../../backend/src/main/resources/db/migration/V15__club_board.sql)). 경합 테스트에서 찾은 버그: 계정과 조인한 쿼리에 `FOR UPDATE` 를 걸면 앞선 이전이 생성자를 바꾼 뒤 재확인에서 행이 사라진 것처럼 보여(404) 모임 행만 단독으로 잠근 뒤 읽게 고쳤다([`ClubService.lock`](../../backend/src/main/java/com/daumjari/club/ClubService.java)).
+- **확인:** [`ClubBoardConcurrencyTests`](../../backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java) `twoTransfersRacingLeaveExactlyOneCreator`(200·403 하나씩, 이전 생성자는 모임 운영자로 남음)·`deletingAClubWhileWritingInsideLeavesNoPosts`·`deletingAClubWhileCommentingLeavesNoOrphans`, [`CommentConcurrencyTests.deletingAParentWhileReplyingOrLikingLeavesNoOrphans`](../../backend/src/test/java/com/daumjari/CommentConcurrencyTests.java)(각 20회, 실제 PostgreSQL), [`ClubPolicyReviewTests.aFailureWhileDeletingTheClubRollsBackTheClubAndEverythingInIt`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java)(테스트에서 댓글 삭제를 실패시키는 트리거를 걸면 모임·회원·글·댓글·알림 행 수가 그대로). 공개 환경: 삭제 뒤 API 404 와 별도로 Neon SQL 로 행 0건 확인([전체 흐름](../../loadtest/results/2026-11-24-public-community-flow.txt)).
+
+#### 사례 3. 알림과 사용자 경험: 같은 트랜잭션, 한 번만, 지금 볼 수 있을 때만
+
+- **문제:** 예약 승격·멘션·모임 승인/반려 알림이 원인 변경과 어긋나면(승격은 롤백됐는데 알림만 남음, 재시도로 두 번) 신뢰를 잃는다. 알림을 누른 순간 대상이 지워졌거나 권한이 바뀌었을 수 있다.
+- **방식:** 알림은 원인 변경과 같은 트랜잭션에서만 쓴다([`Notifier`](../../backend/src/main/java/com/daumjari/notification/Notifier.java), `Propagation.MANDATORY`). 사건 열쇠 `event_key` 유니크 + `on conflict do nothing` 으로 반복·재시도에도 한 번. 자기 멘션은 제외하고 수정 때는 새로 추가된 사람만. 열기(`POST /api/me/notifications/{id}/open`)는 그 순간 대상 조회 권한을 다시 확인한 뒤 주소를 준다([`NotificationService.open`](../../backend/src/main/java/com/daumjari/notification/NotificationService.java)). 대상이 지워지면 알림도 CASCADE 로 사라진다. 화면은 읽지 않은 수를 버튼 이름에 글자로 넣고, 보이는 탭에서만 30초·탭 복귀 즉시 갱신하며 요청을 겹치지 않는다([`NotificationBell`](../../frontend/src/components/NotificationBell.tsx)).
+- **확인:** [`PromotionRollbackTests.failureAfterPromotingRollsBackTheCancellationToo`](../../backend/src/test/java/com/daumjari/PromotionRollbackTests.java)(롤백 시 알림 0·성공 시 1), [`NotificationApiTests`](../../backend/src/test/java/com/daumjari/NotificationApiTests.java) `editingKeepsExistingMentionsAndNotifiesOnlyNewlyAddedPeople`·`commentAndReplyMentionsNotifyAndDeletingTheTargetRemovesTheNotification`, [`ClubPolicyReviewTests.notificationLinksRecheckCurrentAccessAfterRevokeAndDeletion`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java), e2e [`notifications.spec.ts`](../../frontend/e2e/notifications.spec.ts)·[`community-flow.spec.ts`](../../frontend/e2e/community-flow.spec.ts). 공개 환경: [3단계 로그인 점검](../../loadtest/results/2026-11-24-public-community3.txt)(자기 멘션 제외, 취소 두 번에도 승격 알림 1건, 글 삭제 뒤 알림 0건).
+
+**프런트엔드에서 한 일 (위 사례의 화면 쪽):**
+
+- 1·2단계 게시판 화면(`BoardList`·`PostDetail`·`PostForm`·`Comments`)을 모임 게시판·공지에 그대로 재사용하고, 멘션 후보만 React 컨텍스트로 모임 회원으로 좁혔다([`MentionTextarea`](../../frontend/src/components/board/MentionTextarea.tsx)).
+- 권한 없음(403)·삭제됨(404)·오류(다시 시도)를 구분해 보인다. 403 은 다시 해도 같으므로 검색칸·다시 시도를 감추고 안내와 모임 소개 링크만 둔다([`BoardList`](../../frontend/src/components/board/BoardList.tsx)).
+- 알림을 열면 서버가 준 주소로 이동하고 `#comment-{id}` 면 목록을 받은 뒤 그 댓글로 옮겨 초점을 둔다.
+- 화면 상태·375px·키보드·동작 줄이기를 한 e2e 파일에서 확인한다([`community-flow.spec.ts`](../../frontend/e2e/community-flow.spec.ts)).
+
 ## 기술 선택의 이유
 
 | 선택 | 이유 | 대안과 비교 |
@@ -135,6 +166,22 @@
 | 공개 · 3단계 점검 (운영자) | 통과: 운영자가 다른 회원 회차 삭제(신청 행 0건), 대시보드 현재 회차·확정 -1·누적 유지, 정지(기존 세션 401·재로그인 403)·해제·강제탈퇴, 조치 기록 익명 표시, 운영자 화면 3개와 API 일치, 정리 완료 | 사용자 실행 2026-11-22 09:54 UTC, 백엔드 `a9d77d4c` 배포본 · [기록](../../loadtest/results/2026-11-22-public-stage3.txt) |
 | 공개 · DB 확인 | 3단계에서 지운 회차 61~63 의 `study_session`·`reservation` 행 0건(물리 삭제, DB 직접 확인. 1단계 회차 60 은 API 로만 확인), V10 이력 `10 / account moderation / true` (installed 08:28 UTC, Render 배포 시간과 일치) | 사용자 Neon SQL 조회 2026-11-22 09:56 UTC · [기록](../../loadtest/results/2026-11-22-neon-checks.txt) |
 | 미검증 · 후속 | 실제 iPhone Safari(Chromium 기기 에뮬레이션만), 공개 환경의 대기 순번 앞당김 강조(데모로 재현 불가, 로컬 e2e 만) · 예약 변경 이력 화면은 후속 과제 | 실기기 없음 · 일반 계정 셋 필요 |
+
+
+## 커뮤니티 확장 검증 결과 (2026-11-23~25, 로컬·공개 API·Neon SQL·미검증 구분)
+
+| 구분 | 결과 | 실행 커밋 · 환경 · 근거 |
+|---|---|---|
+| 로컬 · 백엔드 전체 | 705개 통과, 실패·건너뜀 0 (커뮤니티 확장 테스트 포함) | `78c98f46`(PR #48 병합) · 2026-11-25 10:48 UTC 실행 · Apple M4 Pro macOS 27.2, JDK 17.0.13(Zulu), Testcontainers PostgreSQL 16 |
+| 로컬 · e2e 전체 | 102개 통과 (커뮤니티 `community-flow.spec.ts` 3·`/tour` 모임 시연 1 포함) | `78c98f46` + 이 문서의 /tour 변경 · 2026-11-25 10:59 UTC · Playwright 1.64.1 Chromium(headless) + Spring Boot `bootRun`(local) + `next start`, docker PostgreSQL 16 |
+| 로컬 · 프런트 단위 | 29개 통과, `tsc`·`eslint` 오류 0 | 같은 날 · Node 23.7.0 `node --test` |
+| 로컬 · 경합 (실제 PostgreSQL, 각 20회) | 이중 추천 → 행 1, 이중 가입 → 행 1, 이중 승인 → 결정·알림·운영자 행 1, 승인 vs 수정 → 본 적 없는 내용 승인 0, 이전 두 건 → 생성자 1, 삭제 vs 글·댓글·답글·추천·가입 → 고아 0 | `CommentConcurrencyTests`·`ClubConcurrencyTests`·`ClubBoardConcurrencyTests` |
+| 공개 · API 확인 | 1~5단계 각 단계와 전체 흐름(가입 → 글·멘션 댓글·추천 → 알림 열기 → 모임 신청·승인 → 가입 → 임명·공지 → 회수·거절 → 이전·탈퇴 → 모임 삭제·알림 정리 → 계정 탈퇴) 모두 통과, 정리 API 204 | 사용자 실행, 운영자 비밀번호는 실행 중 숨김 입력 · [전체 흐름](../../loadtest/results/2026-11-24-public-community-flow.txt), [5단계](../../loadtest/results/2026-11-24-public-community5.txt), [4단계](../../loadtest/results/2026-11-24-public-community4.txt), [3단계](../../loadtest/results/2026-11-24-public-community3.txt) |
+| 공개 · Neon SQL 확인 (물리 삭제) | 각 점검이 만든 글·댓글·추천·멘션·알림·모임·회원 행 0 (API 의 404 와 별도로 DB 를 직접 셈) | 사용자 Neon SQL 편집기 조회, 대상 id 는 각 기록 파일에 명시 |
+| 공개 · 비밀번호 없는 점검 | 1~5단계·전체 흐름 모두 성공 (비회원 401, 데모 읽기 200·쓰기 403, 없는 대상 404) | 데모 체험 계정만 · [전체 흐름](../../loadtest/results/2026-11-24-public-community-flow-open.txt) |
+| 미검증 | 실제 iPhone Safari(Chromium 기기 에뮬레이션만) · 실제 스크린 리더(VoiceOver 등) · 공개 환경 경합(동시 가입·추천 2번만, 나머지는 로컬) · 공개 화면 단위 점검(공개는 API 흐름과 화면 주소 응답, 화면은 로컬 프로덕션 빌드 e2e) · 삭제 중 실패는 DB 트리거 한 가지로만 재현 | — |
+
+성능 수치(636 req/s·p95 288ms 등)는 예약·정원 변경의 로컬 혼합 요청 결과이며, 커뮤니티 기능의 성능은 따로 측정하지 않았다.
 
 ## 한계와 개선 방향
 
