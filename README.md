@@ -4,10 +4,12 @@
 
 정원이 찬 회차에 대기를 걸어 두면, 확정자가 취소해 빈자리가 생기는 순간 **대기 순서대로 자동 확정**되고 화면은 새로고침 없이 바뀐다.
 
+**커뮤니티 확장 (2026-11-23~25):** 회원 게시판·공지, 댓글·한 단계 답글·추천·멘션, 알림함, 모임 신청·승인·가입, 모임 역할(생성자·모임 운영자·회원)·내부 게시판·공지. 권한·경합·삭제 정합성·알림 사례는 [포트폴리오](docs/portfolio/backend.md#8-커뮤니티-확장-2026-11-2325-권한경합알림), 단계별 검증은 아래 [커뮤니티 1단계](#커뮤니티-1단계-회원-게시판서비스-공지-v11-2026-11-23)~[6단계](#커뮤니티-6단계-전체-흐름화면-상태공개-검증-2026-11-24), 기본 정책·남은 미검증은 [계획 문서 최종 정리](docs/plans/community-plan.md#최종-정리-6단계-2026-11-24).
+
 | | |
 |---|---|
 | 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
-| 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 34초 영상 + 단계별 화면. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
+| 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 예약·자동 승격 34초 영상 + 단계별 화면, 모임·커뮤니티 15초 영상(로컬 프로덕션 빌드·촬영용 가명 계정, [촬영·정리 기록](loadtest/results/2026-11-25-tour-recording.txt)) + 역할 관리(임명·회수·생성자 넘기기) 화면 자료. 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 (영상 [`demo-flow.mp4`](frontend/public/tour/demo-flow.mp4) H.264 · [`demo-flow.webm`](frontend/public/tour/demo-flow.webm) 원본) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
 | 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [마지막 자리·취소/승격](loadtest/results/2026-11-21-local.md) · [정원 증설](loadtest/results/2026-11-21-local-capacity.md) (로컬) |
 | 직무별 포트폴리오 | [프런트엔드](docs/portfolio/frontend.md) · [백엔드](docs/portfolio/backend.md) · [풀스택](docs/portfolio/fullstack.md) · [면접 답변 초안](docs/portfolio/interview.md) |
@@ -47,6 +49,8 @@
 | 공개 서비스 정상 흐름 (데모 3회 순차 + 동시 3건, 21요청) | 3회 모두 `대기 신청 → 샘플 취소 → 확정`, 상태 200·201 만, p50 221ms · p95 514ms · max 637ms (웜) | 공개 배포 2026-11-21 10:46 UTC · [결과](loadtest/results/2026-11-21-public-smoke.txt) |
 | 절전 후 첫 체험 시작 | 클릭 → 체험 화면 **170.9초 (2분 51초)**, 버튼은 1.6초에 노출, 안내 4.7초, 중복 요청 0 | 공개 배포 · [측정 조건과 한계](#절전-후-첫-접속-2026-11-21-0420-utc) |
 | 자동 테스트 | 백엔드 JUnit(Testcontainers PostgreSQL), 프런트 e2e(Playwright, 실제 백엔드), 프록시 단위(node:test) | 아래 [실행](#실행) |
+| 커뮤니티 경합·삭제 정합성 (로컬, 각 20회) | 이중 추천·가입·승인 → 행 1, 생성자 이전 두 건 → 생성자 1, 모임·글 삭제 vs 글·댓글·답글·추천·가입 → 고아 0, 삭제 중 실패 → 전체 롤백 | 로컬 실제 PostgreSQL · [`ClubBoardConcurrencyTests`](backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java), [`ClubPolicyReviewTests`](backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java) |
+| 커뮤니티 공개 검증 (API 확인 · Neon SQL 확인 구분) | 1~5단계·전체 흐름 로그인 점검 통과(정리 API 204), 각 점검이 만든 행은 Neon SQL 로 0건(물리 삭제) | 사용자 실행 2026-11-23~24 · [전체 흐름](loadtest/results/2026-11-24-public-community-flow.txt). 커뮤니티 성능은 측정하지 않음(위 req/s·p95 는 예약·정원 변경 결과) |
 
 ### 실행 환경
 

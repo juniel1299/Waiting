@@ -3,7 +3,7 @@
 각 답변은 **선택 이유 → 구현 방식 → 검증 근거 → 한계** 순서다. 코드 위치는 `파일:줄` 이다 (2026-11-21 `main` 기준, PR #21 병합 `cda24d44`).
 
 - **로컬 부하 환경:** Apple M4 Pro(12코어, 24GB), macOS 27.2, JDK 17.0.13, Spring Boot 4.1.2, Hikari 풀 10, PostgreSQL 16.16(docker). 부하 발생기·서버·DB 가 같은 기기다.
-- **테스트 수:** 백엔드 306개·e2e 41개는 최초 개발 기간의 직전 실행 결과다 (2026-11-21, 커밋 `548023aa` 기준). 개편(2026-11-22) 뒤 전체 실행은 백엔드 439개·e2e 79개·프런트 단위 12개 통과 (커밋 `504bbc2f`, 같은 로컬 환경). 9~11번은 개편 내용이다.
+- **테스트 수:** 백엔드 306개·e2e 41개는 최초 개발 기간의 직전 실행 결과다 (2026-11-21, 커밋 `548023aa` 기준). 개편(2026-11-22) 뒤 전체 실행은 백엔드 439개·e2e 79개·프런트 단위 12개 통과 (커밋 `504bbc2f`, 같은 로컬 환경). 9~11번은 개편 내용이다. 12~16번은 커뮤니티 확장(2026-11-23~25 KST, PR #39~#48) 내용이고, 그 기준 테스트 수는 백엔드 705개(커밋 `78c98f46`, 2026-11-25 실행)·e2e 102개·프런트 단위 29개 통과(같은 날, 같은 로컬 환경).
 
 공개 데모: https://waiting-mauve.vercel.app · 시연: [/tour](https://waiting-mauve.vercel.app/tour)
 
@@ -308,3 +308,90 @@
 **검증 근거**
 
 - [`UsageCountTests`](../../backend/src/test/java/com/daumjari/UsageCountTests.java)(롤백·중복 미증가), [`UsageDashboardApiTests`](../../backend/src/test/java/com/daumjari/UsageDashboardApiTests.java)(삭제로 현재는 줄고 누적은 유지). 로컬 운영 이미지 리허설에서 운영자가 회차를 지우자 현재 회차·확정 -1, 누적 회차 삭제 +1, 누적 예약 확정 그대로 ([기록](../../loadtest/results/2026-11-22-rehearsal-stage1-stage3.txt)). 공개 환경 확인은 사용자 실행 대기.
+
+## 12. 모임 권한을 왜 매 요청마다 DB 에서 다시 확인하나
+
+**선택 이유**
+
+- 모임 역할(회원·모임 운영자·생성자)은 로그인 뒤에도 바뀐다: 생성자가 운영자 권한을 회수하거나, 회원이 모임을 탈퇴하거나, 생성자가 바뀐다. 세션이나 토큰에 역할을 넣어 두면 다시 로그인할 때까지 옛 권한이 남는다.
+
+**구현 방식**
+
+- 역할은 세션에 두지 않고 요청마다 `club_member` 에서 읽는다([`ClubRoles`](../../backend/src/main/java/com/daumjari/club/ClubRoles.java)). 판단 근거는 세션 계정과 DB 의 지금 값뿐이고, 요청 본문의 `role`·다른 `accountId` 는 쓰지 않는다.
+- 쓰기·수정·삭제는 모임 행·회원 행을 `FOR SHARE` 로 잠근 뒤 판단한다. 임명·회수·이전·모임 삭제는 모임 행 `FOR UPDATE` 라, 권한 확인과 그 권한으로 하는 삭제 사이에 역할이 바뀌지 않는다.
+- 알림 열기도 같은 확인을 지난다: 탈퇴했으면 링크가 403.
+
+**검증 근거**
+
+- [`ClubPolicyReviewTests`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java) `revokedManagerIsRefusedNoticeWriteEditAndDeleteInTheSameSession`(같은 세션에서 공지 작성·수정·삭제 403), `leavingBlocksBoardsNoticesMembersAndEveryDirectApiAtOnce`(탈퇴 직후 모든 내부 API 403), [`ClubBoardConcurrencyTests.revokingAManagerWhileItDeletesIsAllOrNothing`](../../backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java)(20회: 회수 전 권한으로 204 이거나 회수 뒤 403, 그 밖은 없음). 공개 환경 [5단계 점검](../../loadtest/results/2026-11-24-public-community5.txt)에서도 회수 뒤 같은 세션 403.
+
+**한계**
+
+- 요청마다 역할 조회가 하나 더 든다(기본 키 조회라 가볍다). 성능은 측정하지 않았다.
+
+## 13. 답글을 왜 한 단계로 제한했고 어떻게 지키나
+
+**선택 이유**
+
+- 깊은 트리는 모바일에서 들여쓰기가 무너지고, 삭제·권한 처리(부모를 지우면 어디까지 지우나)가 복잡해진다. 요구사항도 "답글의 답글은 서버가 거부"였다.
+
+**구현 방식**
+
+- `comment.parent_id` 는 같은 글의 최상위 댓글만 가리킬 수 있다. 서비스가 부모를 `FOR SHARE` 로 잠그고 깊이·같은 글을 확인해 400 `REPLY_DEPTH_EXCEEDED` 를 주고, DB 트리거 `check_comment_depth` 가 같은 규칙을 마지막 방어선으로 막는다([V12](../../backend/src/main/resources/db/migration/V12__comments_likes_mentions.sql)).
+- 부모를 지우면 답글이 FK `ON DELETE CASCADE` 로 함께 지워지고, 확인창이 함께 지워질 답글 수를 알린다.
+
+**검증 근거**
+
+- [`CommentApiTests.membersCommentAndReplyOneLevelDeepAndTheTreeComesBackInOrder`](../../backend/src/test/java/com/daumjari/CommentApiTests.java), [`CommentConcurrencyTests.deletingAParentWhileReplyingOrLikingLeavesNoOrphans`](../../backend/src/test/java/com/daumjari/CommentConcurrencyTests.java)(20회 고아 0). 공개 [2단계 점검](../../loadtest/results/2026-11-23-public-community2.txt)에서 답글의 답글 400.
+
+## 14. 추천 중복은 어떻게 막나
+
+**구현 방식**
+
+- `comment_like` 의 기본 키가 `(comment_id, account_id)` 라 계정당 댓글별 한 행만 있을 수 있다. 추천은 `PUT`(`insert … on conflict do nothing`), 취소는 `DELETE` 로 따로 둬 둘 다 멱등이다. 화면 버튼은 토글이라 이미 추천한 댓글을 다시 누르면 `DELETE` 를 보내 취소된다.
+- 하나의 토글 API 로 만들면 겹친 두 요청이 서로를 뒤집을 수 있어(추천 → 취소) 동작을 둘로 나눴다.
+
+**검증 근거**
+
+- [`CommentConcurrencyTests.doubleLikeFromOneAccountLeavesOneRow`](../../backend/src/test/java/com/daumjari/CommentConcurrencyTests.java)(같은 계정 동시 추천 20회 모두 행 1), [`CommentApiTests.likesAreOnePerAccountIdempotentAndCancellable`](../../backend/src/test/java/com/daumjari/CommentApiTests.java). 공개 [2단계 점검](../../loadtest/results/2026-11-23-public-community2.txt)에서 동시 추천 2번 → 개수 1, 취소 → 0.
+
+**한계**
+
+- 게시글 추천은 요구사항에 없어 넣지 않았다(같은 구조로 추가 가능).
+
+## 15. 상태 변경과 알림 저장의 정합성은 어떻게 맞추나
+
+**선택 이유**
+
+- "승격은 롤백됐는데 알림은 남음", "재시도로 알림 두 번"은 사용자가 바로 알아챈다. 비동기 이벤트로 빼면 순서·중복을 따로 보장해야 한다.
+
+**구현 방식**
+
+- [`Notifier`](../../backend/src/main/java/com/daumjari/notification/Notifier.java) 는 `Propagation.MANDATORY` 라 원인 변경(승격·글/댓글 저장·모임 결정)의 트랜잭션 안에서만 쓴다. 롤백되면 알림도 없다.
+- `event_key` 유니크(`PROMOTED:{신청}`, `MENTION:post|comment:{id}:{계정}`, `CLUB_APPROVED|REJECTED:{모임}:{결정 뒤 version}`)와 `on conflict do nothing` 으로 같은 사건은 한 번만 남는다. 자기 멘션은 빼고, 수정 때는 멘션 동기화가 돌려준 새로 추가된 사람에게만 보낸다.
+- 알림 문구는 저장하지 않고 읽을 때 대상의 현재 제목·라벨로 만든다. 대상이 지워지면 FK CASCADE 로 알림도 지워진다.
+
+**검증 근거**
+
+- [`PromotionRollbackTests.failureAfterPromotingRollsBackTheCancellationToo`](../../backend/src/test/java/com/daumjari/PromotionRollbackTests.java)(실패 주입 시 알림 0, 성공 시 1), [`NotificationApiTests.cancellationPromotesTheWaiterWithOneNotificationThatOpensTheSession`](../../backend/src/test/java/com/daumjari/NotificationApiTests.java)(취소 두 번에도 1건), [`ClubConcurrencyTests.doubleApprovalLeavesOneDecisionOneNotificationOneManager`](../../backend/src/test/java/com/daumjari/ClubConcurrencyTests.java)(20회). 공개 [3단계 점검](../../loadtest/results/2026-11-24-public-community3.txt).
+
+## 16. 연관 데이터 삭제 정책은 어떻게 정했나
+
+**선택 이유**
+
+- 요구사항이 물리 삭제와 "고아 없음"이었다. 애플리케이션이 자식부터 하나씩 지우면 그 사이 끼어든 쓰기가 고아를 남길 수 있다.
+
+**구현 방식**
+
+- 글 → 댓글·답글 → 추천·멘션·알림, 모임 → 회원·모임 글·결과 알림을 FK `ON DELETE CASCADE` 로 묶어 부모 한 문장으로 같은 트랜잭션에서 지운다. 쓰기는 부모 행을 `FOR SHARE`, 삭제는 `FOR UPDATE` 로 잠가 줄을 세운다(늦은 쓰기는 404).
+- 계정 탈퇴는 계정 행을 익명화해 남기므로(글·댓글은 '탈퇴한 회원'으로 남김) 받은 알림·모임 가입은 탈퇴 트랜잭션 안에서 지우고, 만든 모임은 삭제한다(결정 4 추천안 B).
+- API 로 404 를 확인하는 것과 별도로, 공개 점검마다 Neon SQL 로 실제 행 0건을 셌다.
+
+**검증 근거**
+
+- [`ClubPolicyReviewTests.aFailureWhileDeletingTheClubRollsBackTheClubAndEverythingInIt`](../../backend/src/test/java/com/daumjari/ClubPolicyReviewTests.java)(삭제 중 실패 → 전부 그대로), [`ClubBoardConcurrencyTests`](../../backend/src/test/java/com/daumjari/ClubBoardConcurrencyTests.java) 삭제 vs 글·댓글 작성(각 20회 고아 0), 공개 [전체 흐름 점검](../../loadtest/results/2026-11-24-public-community-flow.txt)의 Neon SQL 0행.
+
+**한계**
+
+- 삭제 중 실패는 DB 트리거 한 가지로만 재현했다. 읽은 알림 보관 기간 정리는 없다(대상 삭제 때만 지워짐).
+

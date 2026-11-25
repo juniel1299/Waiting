@@ -24,7 +24,7 @@ test("시연 페이지는 백엔드 없이 열리고 영상·스크린샷이 로
   });
   await page.goto("/tour");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("시연");
-  const video = page.locator("video");
+  const video = page.locator("video").first(); // 예약·자동 승격 영상 (모임 영상은 아래 테스트)
   await expect(video).toHaveAttribute("poster", /\.(png|jpg|webp)$/);
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(1);
   const images = page.locator("main img");
@@ -61,3 +61,40 @@ test("모바일 세로 화면에서 첫 화면·시연 페이지에 가로 넘�
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), path).toBe(true);
   }
 });
+
+test("모임·커뮤니티 시연 영상과 역할 관리 화면 자료도 백엔드 없이 열리고, 키보드로 영상과 자료에 닿는다", async ({ page }) => {
+  let apiCalls = 0;
+  await page.route("**/api/**", (route) => {
+    apiCalls += 1;
+    return route.abort();
+  });
+  await page.goto("/tour");
+  const section = page.getByRole("region", { name: "모임·커뮤니티 (15초)" });
+  await expect(section).toContainText("로컬 프로덕션 빌드에서 촬영용 가명 계정");
+  const video = section.getByLabel("모임·커뮤니티 시연 영상");
+  await expect(video).toHaveAttribute("poster", /community-poster\.png$/);
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(1);
+  // 재생: 잠깐 틀어 시간이 흐르는지 본다 (소리 없음)
+  await video.evaluate((v: HTMLVideoElement) => v.play());
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.2);
+  await video.evaluate((v: HTMLVideoElement) => v.pause());
+  const images = section.locator("img");
+  await expect(images).toHaveCount(4);
+  for (const img of await images.all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+    await expect(img).toHaveAttribute("alt", /.+: .+/);
+  }
+  // 키보드: Tab 만으로 커뮤니티 영상(재생 컨트롤)에 닿는다
+  await page.goto("/tour");
+  let reached = false;
+  for (let i = 0; i < 30 && !reached; i++) {
+    await page.keyboard.press("Tab");
+    reached = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") === "모임·커뮤니티 시연 영상");
+  }
+  expect(reached).toBe(true);
+  await page.keyboard.press("Space");
+  await expect.poll(() => page.getByLabel("모임·커뮤니티 시연 영상").evaluate((v: HTMLVideoElement) => !v.paused)).toBe(true);
+  expect(apiCalls).toBe(0);
+});
+
