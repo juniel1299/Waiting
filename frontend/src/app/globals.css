@@ -1153,3 +1153,10 @@ fieldset.field {
   gap: 8px;
   margin-left: auto;
 }
+
+/* /tour 모임·커뮤니티 섹션: 예약 시연과 구분되는 여백 */
+.tour-section {
+  margin: 40px 0 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
