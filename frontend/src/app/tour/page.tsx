@@ -97,6 +97,7 @@ export default function TourPage() {
           height={844}
           aria-label="모임·커뮤니티 시연 영상"
         >
+          <source src="/tour/community/community-flow.mp4" type="video/mp4" />
           <source src="/tour/community/community-flow.webm" type="video/webm" />
           이 브라우저는 영상을 재생할 수 없어요. 아래 화면 자료를 봐 주세요.
         </video>

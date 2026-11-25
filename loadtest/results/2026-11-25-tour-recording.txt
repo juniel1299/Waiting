@@ -14,4 +14,4 @@ select (club id 57), (club_member: 모임 57 또는 세 계정), (board_post: �
 ## 프레임 확인
 - 영상을 2초 간격 8장으로 뽑아 확인: 비밀번호·쿠키·토큰·실제 개인정보 없음. 보이는 아이디는 촬영용 가명(tour_byeol····)뿐이다. 모임 홍보 목록에 로컬 e2e 가 남긴 시험 모임 이름이 함께 보인다.
 ## 남은 확인
-- mp4(H.264) 변환은 하지 않았다(이 기기에 ffmpeg 없음). 실제 iPhone Safari 에서의 webm 재생은 확인하지 않았다.
+- mp4(H.264) 변환: 맥에는 ffmpeg 가 없어 클라우드 세션에서 같은 webm 을 변환했다(`ffmpeg -c:v libx264 -profile:v main -pix_fmt yuv420p -crf 26 -movflags +faststart -an`, 390x844, 14.7초, 약 186KB). 페이지는 mp4 → webm 순서로 제공한다. 변환본 프레임(3초 간격 5장)에서도 비밀번호·쿠키·토큰·실명 없음, 아이디는 촬영용 가명(tour_byeol…)만 보임. 실제 iPhone Safari 재생은 확인하지 않았다.
