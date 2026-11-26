@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ApiActor, loginInBrowser } from "./support";
+import { ApiActor, loginInBrowser, menuLink } from "./support";
 
 // 4단계 전체 흐름: 가입 → 회차 만들기 → 검색 → 상세에서 대기 신청 → 앞사람 취소로 순번 변경(강조·안내) → 확정(강조·안내)
 // → 운영자 화면. 데스크톱·모바일 뷰포트에서 같은 흐름을 키보드·터치 없이 실제 버튼으로 진행한다.
@@ -22,7 +22,7 @@ async function flow(page: Page) {
   await loginInBrowser(page, loginId, PASSWORD);
 
   // 회차 만들기 (정원 1)
-  await page.getByRole("link", { name: "회차 만들기" }).first().click();
+  await menuLink(page, "회차", "회차 만들기");
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("시작 일시 (서울)").fill("2031-05-02T19:30");
   await page.getByLabel("장소").fill("전체 흐름룸");
@@ -38,7 +38,7 @@ async function flow(page: Page) {
   const carolWait = await (await carol.waitlist(sessionId)).json();
 
   // 검색으로 찾아 상세로
-  await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "회차 목록" }).click();
+  await menuLink(page, "회차", "회차 목록");
   await visible(page, "검색어").fill(title);
   await visible(page, "검색어").press("Enter");
   const card = page.locator(".cards .card:visible").filter({ hasText: title });

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ApiActor, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 // 커뮤니티 4단계 화면: 신청 → 승인 대기(글자 배지) → 반려 사유 → 고쳐서 재신청 → 운영자 승인 → 결과 알림·목록 검색,
 // 가입·탈퇴, 데모는 소개만, 운영자 화면의 낡은 버전 승인은 다시 확인 안내.
@@ -14,7 +14,7 @@ async function clubIdByName(actor: ApiActor, name: string) {
 test("모임을 신청하고 반려 사유를 보고 고쳐 재신청한 뒤 운영자 승인과 알림을 받는다", async ({ page, browser }) => {
   const name = uniqueTitle("독서 모임");
   await loginInBrowser(page, "bob");
-  await nav(page).getByRole("link", { name: "모임 목록" }).click();
+  await menuLink(page, "모임", "모임 목록");
   await page.getByRole("link", { name: "모임 만들기 신청" }).click();
   await expect(page.getByRole("heading", { name: "모임 만들기 신청" })).toBeVisible();
   await page.getByLabel("모임 이름", { exact: true }).filter({ visible: true }).fill(name);
@@ -31,7 +31,7 @@ test("모임을 신청하고 반려 사유를 보고 고쳐 재신청한 뒤 운
   const applied = await clubIdByName(bob, name);
   await operator.post(`/api/operator/clubs/${applied.id}/reject`, { version: applied.version, reason: "장소를 자세히 적어 주세요" });
 
-  await nav(page).getByRole("link", { name: "내 모임" }).click();
+  await menuLink(page, "모임", "내 모임");
   const card = page.getByTestId("club-application").filter({ hasText: name });
   await expect(card).toContainText("반려됨");
   await expect(card).toContainText("반려 사유: 장소를 자세히 적어 주세요");
@@ -101,7 +101,7 @@ test("데모 방문자는 승인된 모임 소개만 보고 가입·신청 버�
   await page.goto("/");
   await page.getByRole("button", { name: "데모 체험하기" }).click();
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
-  await nav(page).getByRole("link", { name: "모임 홍보" }).click();
+  await menuLink(page, "모임", "모임 홍보");
   await expect(page.getByRole("heading", { name: "모임 홍보" })).toBeVisible();
   await expect(nav(page).getByRole("link", { name: "모임 홍보" })).toHaveAttribute("aria-current", "page");
   await expect(nav(page).getByRole("link", { name: "모임 목록" })).not.toHaveAttribute("aria-current", "page");

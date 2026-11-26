@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-import { ApiActor, appAlert, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, appAlert, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 test("운영자가 회차를 만들고 '전체 회차' 탭에서 찾아 확정 명단을 확인한다", async ({ page }) => {
   const title = uniqueTitle("운영자 등록");
 
   await loginInBrowser(page, "operator");
   await expect(page.getByRole("heading", { name: "운영자 · 사용량" })).toBeVisible();
-  await page.getByRole("link", { name: "회차 만들기" }).click();
+  await menuLink(page, "회차", "회차 만들기");
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("시작 일시 (서울)").fill("2030-03-02T19:30");
   await page.getByLabel("장소").fill("판교 스터디룸");
@@ -16,7 +16,7 @@ test("운영자가 회차를 만들고 '전체 회차' 탭에서 찾아 확정 �
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
   const sessionId = Number(new URL(page.url()).pathname.split("/").pop());
 
-  await page.getByRole("link", { name: "운영자", exact: true }).click();
+  await menuLink(page, "관리", "대시보드");
   await page.getByRole("navigation", { name: "운영자 메뉴" }).getByRole("link", { name: "전체 회차" }).click();
   await expect(page).toHaveURL(/\/operator\/sessions$/);
   const search = page.getByLabel("검색어", { exact: true }).filter({ visible: true });

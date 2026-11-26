@@ -1,6 +1,6 @@
 import { expect, request, test, type Page } from "@playwright/test";
 
-import { ApiActor, appAlert, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, appAlert, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 // 커뮤니티 1단계 화면: 회원 게시판·서비스 공지의 목록·상세·작성·수정, 권한별 버튼, 검색 조건 주소 유지, 본문 텍스트 표시(XSS 없음),
 // 비회원 공지 열람, 데모 조회만, 삭제된 글 안내.
@@ -10,7 +10,7 @@ const visible = (page: Page, name: string) => page.getByLabel(name, { exact: tru
 test("회원이 글을 쓰고 고치고 지운다. 다른 회원에게는 수정·삭제 버튼이 없다", async ({ page, browser }) => {
   const title = uniqueTitle("게시판");
   await loginInBrowser(page, "alice");
-  await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "게시판" }).click();
+  await menuLink(page, "게시판", "회원게시판");
   await expect(page).toHaveURL(/\/board$/);
   await page.getByRole("link", { name: "글쓰기" }).click();
   await visible(page, "제목").fill(title);
@@ -134,7 +134,7 @@ test("데모 방문자는 회원 게시판을 읽기만 한다", async ({ page }
   await page.goto("/");
   await page.getByRole("button", { name: "데모 체험하기" }).click();
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
-  await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "게시판" }).click();
+  await menuLink(page, "게시판", "회원게시판");
   await expect(page.getByRole("heading", { name: "회원 게시판" })).toBeVisible();
   await expect(page.getByRole("link", { name: "글쓰기" })).toHaveCount(0);
   await expect(page.getByText("체험 중에는 글을 읽기만 할 수 있어요.")).toBeVisible();

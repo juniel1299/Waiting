@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ApiActor, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 // 재현: A 가 대기 중인 상세를 열었다가 '내 신청' 으로 이동 → B 가 취소해 A 가 승격 → A 가 같은 탭에서 상세로 돌아온다.
 // cacheComponents 는 떠난 상세 화면을 상태째 숨겨 두므로, 돌아온 순간 옛 '대기 1번' 이 보일 수 있었다 (공개 배포 실측 0.79초).
@@ -21,7 +21,7 @@ async function promotedWhileAway(page: Page) {
   await page.getByRole("button", { name: "대기 신청" }).click();
   await expect(page.getByTestId("my-reservation")).toHaveText("대기 1번");
 
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   await expect(page.getByRole("heading", { name: "내 신청" })).toBeVisible();
   expect((await bob.cancel(held.id)).status()).toBe(200);
   const item = page.getByRole("listitem").filter({ hasText: title });
@@ -139,7 +139,7 @@ test("'내 신청' 으로 돌아와도 응답 전에는 옛 상태 대신 확인
   await loginInBrowser(page, loginId, PASSWORD);
   await page.goto(`/sessions/${sid}`);
   await page.getByRole("button", { name: "대기 신청" }).click();
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   const item = page.getByRole("listitem").filter({ hasText: title });
   await expect(item.getByTestId("reservation-status")).toHaveText("대기 1번");
 
@@ -151,7 +151,7 @@ test("'내 신청' 으로 돌아와도 응답 전에는 옛 상태 대신 확인
     await new Promise((r) => setTimeout(r, 1500));
     await route.continue();
   });
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   await expect(page.getByRole("status").filter({ hasText: "최신 상태 확인 중…" })).toBeVisible();
   await expect(item.getByTestId("reservation-status")).toHaveText("확인 중…");
   await expect(item.getByTestId("reservation-status")).toHaveText("예약 확정");

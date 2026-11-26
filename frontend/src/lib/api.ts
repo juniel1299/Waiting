@@ -11,6 +11,8 @@ export interface Me {
   role: Role;
   /** 데모 체험 방문자 */
   demo: boolean;
+  /** 서비스 역할 (메뉴 노출용, 판단은 서버) */
+  roles?: ("OPERATOR" | "DEVELOPER")[];
 }
 
 export interface StudySession {
@@ -181,7 +183,12 @@ interface ApiInit {
   body?: unknown;
   /** 깨는 중이면 다시 보낼지. 조회는 기본으로 다시 보내고, 변경은 두 번 처리돼도 무해할 때만 켠다. */
   retryWhileWaking?: boolean;
+  /** 화면을 떠나거나 새 조회가 시작되면 앞선 요청을 취소한다 (AbortController). */
+  signal?: AbortSignal;
 }
+
+/** 로그인이 풀렸을 때(401·데모 만료 410) 화면 전역 상태를 비우도록 알린다. */
+export const AUTH_EXPIRED_EVENT = "daumjari:auth-expired";
 
 export async function api<T>(path: string, init: ApiInit = {}): Promise<ApiResult<T>> {
   const method = init.method ?? "GET";
@@ -199,10 +206,14 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<ApiResul
         headers,
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         cache: "no-store",
+        signal: init.signal,
       }),
     init.retryWhileWaking ?? !MUTATING.has(method),
   );
   if (!res.ok) {
+    if ((res.status === 401 || res.status === 410) && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
     throw await toApiError(res);
   }
   const text = await res.text();

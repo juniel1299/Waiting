@@ -96,3 +96,16 @@ export function appAlert(page: Page) {
 export function uniqueTitle(prefix: string) {
   return `${prefix} ${Date.now().toString(36)}`;
 }
+
+/** 계층형 메뉴의 항목으로 이동: 묶음이 접혀 있으면 펼친 뒤 누른다 (데스크톱 사이드바 / 모바일 서랍). */
+export async function menuLink(page: Page, group: string, item: string) {
+  const mobile = (page.viewportSize()?.width ?? 1280) < 900;
+  if (mobile) await page.getByRole("button", { name: "메뉴", exact: true }).click();
+  const scope = mobile
+    ? page.getByRole("dialog", { name: "메뉴" })
+    : page.getByRole("complementary", { name: "사이드 메뉴" });
+  const toggle = scope.getByRole("button", { name: group, exact: true });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await scope.getByRole("link", { name: item, exact: true }).click();
+}
+

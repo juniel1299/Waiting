@@ -25,7 +25,7 @@ test("만든 사람이 운영자를 임명하면 그 회원이 모임 공지를 
 
   await loginInBrowser(page, "alice");
   await page.goto(`/clubs/${club}`);
-  await page.getByRole("navigation", { name: "모임 안 메뉴" }).getByRole("link", { name: /회원 3명/ }).click();
+  await page.getByRole("navigation", { name: "모임 안 메뉴" }).getByRole("link", { name: "권한 관리" }).click();
   const bobRow = page.getByTestId("club-member").filter({ hasText: "밥" });
   await expect(bobRow).toContainText("회원");
   await bobRow.getByRole("button", { name: "운영자 임명" }).click();
@@ -73,7 +73,7 @@ test("회원이 아니면 모임 게시판에서 금지 안내를 보고, 생성
   const club = await approvedClub(uniqueTitle("이전 모임"));
 
   await loginInBrowser(page, "alice");
-  await page.goto(`/clubs/${club}/members`);
+  await page.goto(`/clubs/${club}/roles`);
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toContain("생성자를 넘길까요");
     await dialog.accept();
