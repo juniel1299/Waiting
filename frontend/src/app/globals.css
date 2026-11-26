@@ -1508,18 +1508,23 @@ button,
   margin: var(--space-3) 0;
 }
 
-.view-toggle button[aria-pressed="true"] {
+.view-toggle button[aria-pressed="true"],
+.view-toggle button[aria-pressed="true"]:not(:disabled):hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--surface-soft);
   font-weight: 600;
 }
 
+/* 좁은 화면에서 글자가 너무 작아지지 않게 최소 너비를 두고, 넘치면 차트 상자 안에서만 가로로 민다 */
 .chart {
   margin: var(--space-3) 0;
+  overflow-x: auto;
 }
 
 .chart svg {
   width: 100%;
+  min-width: 560px;
   height: auto;
   display: block;
 }
