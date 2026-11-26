@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 구현·로컬 검증 완료**, 2단계 대기 (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 구현·로컬 검증 완료(공개 검증 대기)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -105,9 +105,20 @@
 - 5단계: 카카오·네이버 개발자 앱 등록, 콜백 URL(`https://waiting-mauve.vercel.app/api/auth/oauth/{provider}/callback` 예정), 동의 항목(제공자 사용자 식별자만, 이메일·실명 선택 안 함), 클라이언트 ID·비밀키를 Render 환경변수로.
 - 7단계: 저장소 결정, Supabase 비공개 버킷·서비스 키를 Render 환경변수로.
 
+## 2단계 설계·구현 (2026-11-26)
+
+- **닉네임 규칙(`board/Nicknames`):** NFC → 앞뒤 공백 제거 → 연속 공백 하나. 한글·영문·숫자·공백 2~12자. 운영자·관리자·개발자·다음자리·탈퇴한 회원·admin·operator 를 **포함**하거나 '회원+숫자' 모양이면 400(이유 문구). 기존 2~20자·기호 허용 규칙에서 좁혔다(기존 닉네임은 그대로 두고, 바꿀 때만 새 규칙).
+- **유일성:** `ux_account_nickname`(대소문자 무시 `lower(nickname)` 유일 인덱스)가 최종. `GET /api/me/nickname/check?value=` 는 안내용(`{available, reason}`). 동시에 같은 이름 저장 → 하나 200·하나 409 `NICKNAME_TAKEN`(20회). 탈퇴하면 닉네임·소개·태그를 지워 이름이 다시 풀린다.
+- **가입:** 가입 트랜잭션 커밋 뒤 "형용사+명사+1~9999" 를 문장 하나로 넣고, 유일 인덱스에 걸리면 새 조합으로 최대 10번(못 주면 기본 '회원{id}' 표시).
+- **V17 이관(기존 데이터):** 닉네임 NFC·공백 정리 → 대소문자만 다른 중복은 가장 먼저 만든 계정만 두고 나머지는 앞 10자+계정 id → 닉네임 없는 일반 회원(탈퇴·데모 제외)에 형용사+명사+계정 id → 유일 인덱스 생성. `NicknameMigrationTests` 가 V16 DB 에 기존 회원을 넣고 V17 을 적용해 확인.
+- **프로필:** `account.bio varchar(300)`, `interest_tags varchar(20)[]`(최대 5, DB check). `PATCH /api/me/profile {nickname?, bio?, tags?}` 는 보낸 항목만 바꾸고 태그는 공백 제거·중복 제거. `GET /api/profiles/{id}` 는 `{id, nickname, bio, tags}` 만(로그인 아이디·역할 없음, 비회원 401, 탈퇴 404). 글·멘션은 계정 id 로 이어져 이름을 바꾸면 새 이름으로 보인다.
+- **즐겨찾기:** `favorite(account_id, club_id | session_id)` 중 하나만(check), `(account_id, club_id)`·`(account_id, session_id)` 유일, 계정·모임·회차 FK `on delete cascade`. `PUT`/`DELETE /api/{sessions|clubs}/{id}/favorite` 멱등(`on conflict do nothing`, 대상 행 `for share` 확인). 담을 수 있는 것과 목록 모두 "지금 볼 수 있는 것"(승인된 모임, 데모가 아닌 회차). 탈퇴(본인·강제)하면 그 계정 즐겨찾기 삭제. 데모 403, 비회원 401.
+- **화면:** 내 정보 > 프로필(중복 확인 버튼·소개 글자 수·태그), 공개 프로필 `/profiles/{id}`, 회차·모임 상세의 ☆ 즐겨찾기(`aria-pressed`), 내 활동 > 즐겨찾기(해제 버튼, 빈 목록 다음 행동 링크).
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
 |---|---|---|---|---|---|
 | 1 | 완료·공개 검증 통과 | PR #50 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | PR #50 병합·배포 `1ee25983`(Render 11:52 UTC). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-26-public-platform1-open.txt)). 로그인 점검 통과(사용자 실행 11:56 UTC: 자기 상승 403·개발자 부여 뒤 같은 세션 반영·운영 API 403·자기 변경 403·회수 즉시 반영, [기록](../../loadtest/results/2026-11-26-public-platform1.txt)), Neon SQL 0·1·2 확인 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
-| 2~7 | 대기 | — | — | — | — |
+| 2 | 구현·로컬 검증 완료, 공개 검증 대기 | (PR 대기) | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | 배포 뒤: `public-platform2-open-check.mjs`(비밀번호 없음), `public-platform2-check.mjs`(테스트 회원 2명 가입·탈퇴, 사용자 실행) | 실제 iPhone Safari·스크린 리더, 운영 DB 의 V17 이관 결과(배포 뒤 SQL 확인 필요) |
+| 3~7 | 대기 | — | — | — | — |

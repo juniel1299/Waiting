@@ -1,0 +1,27 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100, 테스트 회원은 무작위 비밀번호·출력 없음, 2026-11-26 12:43 UTC)
+## BASE_URL=http://localhost:3100 node loadtest/public-platform2-open-check.mjs (종료 코드 0)
+시작 2026-11-26T12:43:25.379Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /me/profile 200, /me/favorites 200, /profiles/1 200
+성공 | 비회원 프로필·즐겨찾기 API 401 | 401, 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V17): 즐겨찾기 목록 200, 회차·모임 묶음 | 200 {"sessions":[],"clubs":[]}
+성공 | 내 프로필 응답 필드는 bio·id·nickname·tags 뿐 | 200 [bio,id,nickname,tags]
+성공 | 데모 프로필 수정·즐겨찾기 403 | 403 PROFILE_FORBIDDEN, 403 FAVORITE_FORBIDDEN
+결과: 성공 6 / 실패 0
+
+## BASE_URL=http://localhost:3100 node loadtest/public-platform2-check.mjs (종료 코드 0)
+12:43:25 A qa_pa2a11261243 가입 201 / 로그인 200
+12:43:26 B qa_pa2b11261243 가입 201 / 로그인 200
+12:43:26 A 가입 닉네임 "명랑한부엉이7475"
+12:43:26 B 가 A 닉네임 중복 확인 {"available":false,"reason":"이미 다른 회원이 쓰는 닉네임이에요."} | 저장 409 NICKNAME_TAKEN | 금지어 저장 400 VALIDATION_FAILED
+12:43:26 A 소개·태그 저장 200 tags=["자바","스프링"] | B 가 본 A 프로필 200 [bio,id,nickname,tags] 로그인 아이디 포함: false
+12:43:26 B 회차 8 즐겨찾기 두 번 200·200 → 목록 1개 → 해제 200
+12:43:26 B 모임 125 즐겨찾기 200 → 목록 1개 (탈퇴 정리에서 지워짐)
+12:43:26 확장 2단계 공개 점검 통과
+12:43:26 정리: A 탈퇴 204
+12:43:26 정리: B 탈퇴 204
+12:43:26 Neon SQL 편집기에서 확인 (두 값 모두 0: 남은 즐겨찾기, 닉네임·소개가 남은 탈퇴 계정):
+select (select count(*) from favorite where account_id in (2164, 2165)) as favorites_left,
+       (select count(*) from account where id in (2164, 2165) and (nickname is not null or bio is not null)) as profile_left;
+
+## 로컬 DB 에서 위 SQL 결과: 0|0
