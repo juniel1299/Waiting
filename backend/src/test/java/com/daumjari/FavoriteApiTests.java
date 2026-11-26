@@ -97,6 +97,21 @@ class FavoriteApiTests extends ApiTestSupport {
 	}
 
 	@Test
+	void withdrawalSelfOrForcedRemovesTheAccountsFavorites() throws Exception {
+		long club = approvedClub("탈퇴 정리 모임");
+		mockMvc.perform(withXsrf(put("/api/clubs/{id}/favorite", club), session)).andExpect(status().isOk());
+		mockMvc.perform(withXsrf(post("/api/me/withdraw"), session).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"password\":\"%s\"}".formatted(PASSWORD))).andExpect(status().isNoContent());
+		assertThat(count("select count(*) from favorite where account_id = ?", me.getId())).isZero();
+
+		Account other = newAccount("fv-forced", Role.PARTICIPANT);
+		mockMvc.perform(withXsrf(put("/api/clubs/{id}/favorite", club), login(other))).andExpect(status().isOk());
+		mockMvc.perform(withXsrf(post("/api/operator/accounts/{id}/withdraw", other.getId()), operator)
+			.contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"정리 확인\"}")).andExpect(status().isOk());
+		assertThat(count("select count(*) from favorite where account_id = ?", other.getId())).isZero();
+	}
+
+	@Test
 	void demoAndAnonymousCannotFavorite() throws Exception {
 		long club = approvedClub("데모 모임");
 		mockMvc.perform(withXsrf(put("/api/clubs/{id}/favorite", club), null)).andExpect(status().isUnauthorized());
