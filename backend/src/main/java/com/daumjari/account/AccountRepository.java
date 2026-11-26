@@ -32,6 +32,24 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 			""", nativeQuery = true)
 	java.util.List<Long> lockActiveOperatorIds();
 
+	/** 요청마다 확인하는 계정 상태: 탈퇴·정지 여부, 지금 기본 역할, 개발자 역할 여부 (한 번의 조회). */
+	interface AccessState {
+
+		String getRole();
+
+		boolean getBlocked();
+
+		boolean getDeveloper();
+
+	}
+
+	@Query(value = """
+			select a.role as role, (a.deleted_at is not null or a.suspended_at is not null) as blocked,
+			       exists (select 1 from account_role r where r.account_id = a.id and r.role = 'DEVELOPER') as developer
+			from account a where a.id = :id
+			""", nativeQuery = true)
+	Optional<AccessState> accessState(@Param("id") Long id);
+
 	/** 탈퇴: 계정 행을 먼저 잠근다 (잠금 순서: 계정 → 회차). */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select a from Account a where a.id = :id")
