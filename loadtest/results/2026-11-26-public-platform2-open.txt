@@ -8,3 +8,13 @@
 성공 | 내 프로필 응답 필드는 bio·id·nickname·tags 뿐 | 200 [bio,id,nickname,tags]
 성공 | 데모 프로필 수정·즐겨찾기 403 | 403 PROFILE_FORBIDDEN, 403 FAVORITE_FORBIDDEN
 결과: 성공 6 / 실패 0
+
+## Neon SQL 확인: 운영 DB 의 V17 이관 (사용자 실행, 2026-11-26 19:15 UTC)
+select
+  (select count(*) from account where nickname is null and deleted_at is null and demo_trial_id is null) as members_without_nickname,
+  (select count(*) from (select lower(nickname) from account where nickname is not null group by 1 having count(*) > 1) d) as case_insensitive_duplicates,
+  (select count(*) from account where nickname is not null and nickname <> normalize(btrim(nickname), NFC)) as not_normalized,
+  (select success from flyway_schema_history where version = '17') as v17_success;
+결과: 0 | 0 | 0 | true (기대값과 같음)
+
+## 로그인 점검 (node loadtest/public-platform2-check.mjs): 사용자 실행 대기
