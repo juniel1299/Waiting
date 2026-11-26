@@ -45,6 +45,14 @@ public class Account {
 	@Column(name = "nickname", length = 20)
 	private String nickname;
 
+	/** 공개 소개 (V17). */
+	@Column(name = "bio", length = 300)
+	private String bio;
+
+	/** 관심 태그 최대 5개 (V17). */
+	@Column(name = "interest_tags", nullable = false)
+	private String[] interestTags = new String[0];
+
 	/** 이용 정지 시각. 정지가 아니면 null (V10). */
 	@Column(name = "suspended_at")
 	private Instant suspendedAt;
@@ -83,6 +91,8 @@ public class Account {
 		displayName = WITHDRAWN_DISPLAY_NAME;
 		passwordHash = "!withdrawn-no-password";
 		nickname = null;
+		bio = null;
+		interestTags = new String[0];
 		deletedAt = now;
 	}
 

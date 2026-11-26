@@ -35,6 +35,8 @@ public enum ErrorCode {
 	NOT_COMMENT_AUTHOR(HttpStatus.FORBIDDEN, "이 댓글을 고치거나 지울 권한이 없습니다."),
 	REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "답글에는 답글을 달 수 없습니다."),
 	PROFILE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 닉네임을 정할 수 없습니다."),
+	NICKNAME_TAKEN(HttpStatus.CONFLICT, "이미 다른 회원이 쓰는 닉네임입니다."),
+	FAVORITE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 즐겨찾기를 쓸 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 알림입니다."),
 	CLUB_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 모임입니다."),
