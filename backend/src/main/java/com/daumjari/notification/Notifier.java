@@ -64,6 +64,20 @@ public class Notifier {
 		jdbc.update(INSERT, params(creatorId, type, null, type + ":" + clubId + ":" + version).addValue("club", clubId));
 	}
 
+	/** 개선사항 상태가 바뀌면 작성자에게. 바뀐 뒤 version 이 사건 열쇠다. 작성자 본인이 바꾼 경우는 알리지 않는다. */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void feedbackStatusChanged(Long feedbackId, Long authorId, Long actorId, long version) {
+		if (authorId.equals(actorId)) {
+			return;
+		}
+		jdbc.update("""
+				insert into notification (recipient_account_id, type, actor_account_id, feedback_id, event_key, created_at)
+				values (:recipient, 'FEEDBACK_STATUS', null, :feedback, :key, :now)
+				on conflict (event_key) do nothing
+				""", params(authorId, "FEEDBACK_STATUS", null, "FEEDBACK_STATUS:" + feedbackId + ":" + version)
+			.addValue("feedback", feedbackId));
+	}
+
 	/** 탈퇴: 계정 행은 익명화되어 남으므로 받은 알림은 여기서 지운다. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void forgetRecipient(Long accountId) {
