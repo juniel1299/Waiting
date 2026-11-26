@@ -1,7 +1,6 @@
 package com.daumjari;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
@@ -72,9 +71,12 @@ class CapacityRollbackTests extends ApiTestSupport {
 			return promoted;
 		}).when(spyBehindProxy()).promoteNext(anyLong());
 
-		assertThatThrownBy(() -> changeCapacity(operator, session, 4))
-			.hasRootCauseInstanceOf(IllegalStateException.class)
-			.hasRootCauseMessage("두 번째 승격 실패 주입");
+		// 예상하지 못한 오류는 에러 로그에 남고 500 INTERNAL_ERROR 로 응답한다(확장 3단계)
+		mockMvc.perform(withXsrf(patch("/api/operator/sessions/{id}/capacity", session.getId()), operator)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"capacity\":4}"))
+			.andExpect(status().isInternalServerError())
+			.andExpect(jsonPath("$.code").value("INTERNAL_ERROR"));
 
 		assertThat(calls.get()).isEqualTo(2);
 		assertThat(capacityOf(session)).isEqualTo(1);
