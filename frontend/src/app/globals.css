@@ -1471,3 +1471,9 @@ button,
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* 카드는 세로 flex 라 배지가 가로로 늘어나지 않게 */
+.card > .badge,
+.card .feedback .badge {
+  align-self: flex-start;
+}
