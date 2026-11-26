@@ -1415,3 +1415,65 @@ button,
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* 확장 3단계: 개선사항·에러 로그 */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.filters .field {
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+.text-button {
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 44px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.manage {
+  border-top: 1px solid var(--line);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.history {
+  padding-left: var(--space-6);
+}
+
+.error-message {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.badge.fb-on_hold,
+.badge.fb-verify_requested {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.badge.fb-done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge.fb-in_progress {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 카드는 세로 flex 라 배지가 가로로 늘어나지 않게 */
+.card > .badge,
+.card .feedback .badge {
+  align-self: flex-start;
+}

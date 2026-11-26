@@ -1,7 +1,6 @@
 package com.daumjari;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -113,8 +112,9 @@ class UsageCountTests extends ApiTestSupport {
 		long deleted = total(Metric.SESSION_DELETED, false);
 		doThrow(new IllegalStateException("집계 저장 실패 주입")).when(spy()).increment(eq(Metric.SESSION_DELETED), anyBoolean());
 
-		assertThatThrownBy(() -> mockMvc.perform(withXsrf(delete("/api/sessions/{id}", session.getId()), creator)))
-			.hasRootCauseMessage("집계 저장 실패 주입");
+		// 예상하지 못한 오류는 500 으로 응답하고(확장 3단계 에러 로그) 삭제는 롤백된다
+		mockMvc.perform(withXsrf(delete("/api/sessions/{id}", session.getId()), creator))
+			.andExpect(status().isInternalServerError());
 
 		assertThat(jdbc.queryForObject("select count(*) from study_session where id = ?", Long.class, session.getId()))
 			.isEqualTo(1L);

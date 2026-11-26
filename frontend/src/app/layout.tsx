@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { ServerWakingNotice } from "@/components/ServerWakingNotice";
 import { UiStoreProvider } from "@/lib/uiStore";
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <ServerWakingNotice />
         </Suspense>
+        <ErrorReporter />
         <UiStoreProvider>{children}</UiStoreProvider>
       </body>
     </html>

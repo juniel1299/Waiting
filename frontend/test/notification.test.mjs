@@ -25,3 +25,9 @@ test("모임 신청 결과 알림은 모임 이름과 승인·반려를 알린�
   assert.equal(notificationText({ ...base, type: "CLUB_APPROVED", clubName: "독서" }), "‘독서’ 모임 신청이 승인됐어요.");
   assert.match(notificationText({ ...base, type: "CLUB_REJECTED", clubName: "독서" }), /반려됐어요/);
 });
+
+test("개선 요청 상태 알림과 개발자 오류 알림", () => {
+  assert.equal(notificationText({ ...base, type: "FEEDBACK_STATUS", feedbackTitle: "검색이 느려요" }),
+    "보낸 개선 요청 ‘검색이 느려요’의 처리 상태가 바뀌었어요.");
+  assert.equal(notificationText({ ...base, type: "ERROR_ALERT", errorMessage: "TypeError: x" }), "새 오류가 생겼어요: TypeError: x");
+});

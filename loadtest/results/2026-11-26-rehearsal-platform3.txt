@@ -1,0 +1,36 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100, 시드 운영자, 운영자 비밀번호는 파이프 입력·출력 0건, 2026-11-26 19:12 UTC)
+## BASE_URL=http://localhost:3100 node loadtest/public-platform3-open-check.mjs (종료 코드 0)
+시작 2026-11-26T19:11:59.083Z 표지 각갉간갅갉가갆갋
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /me/feedback 200, /dev/feedback 200, /dev/errors 200
+성공 | 새 백엔드(V18): 비회원 화면 오류 보고 202 | 202
+성공 | 비회원 개발 API·개선 요청 401 | 401, 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 데모 개발 API 403 | 403, 403
+성공 | 데모 개선 요청 403 | 403 FEEDBACK_FORBIDDEN
+결과: 성공 6 / 실패 0
+Neon SQL 편집기에서 확인 (가림: hunter2·token 없음, 경로 /board):
+select source, message, path, release, occurrences from error_group where message like '%각갉간갅갉가갆갋%';
+
+## BASE_URL=http://localhost:3100 node loadtest/public-platform3-check.mjs (종료 코드 0)
+19:12:03 운영자 로그인 200
+19:12:03 A qa_pa3a11261912 가입 201 / 로그인 200
+19:12:03 B qa_pa3b11261912 가입 201 / 로그인 200
+19:12:03 A 개선 요청 201 상태 RECEIVED 경로 /board
+19:12:03 운영자 혼자 개발 API 403 FORBIDDEN·403 FORBIDDEN | B(회원)가 A 요청 조회 404 FEEDBACK_NOT_FOUND
+19:12:03 B 개발자 부여 200 → 검색 1건 → 사유 없이 보류 400 VALIDATION_FAILED → 사유와 보류 200
+19:12:03 A 가 본 상태 ON_HOLD 사유 "[QA] 다음 분기 검토" | 알림 있음
+19:12:03 화면 오류 보고 202 → B 에러 로그 "[QA] 화면 오류 각갉간갅갊가갍갊 password=[가림] [가림]" 경로 /sessions/:id 횟수 1
+19:12:03 확장 3단계 공개 점검 통과
+19:12:04 정리: B 개발자 회수 200
+19:12:04 정리: A 탈퇴 204
+19:12:04 정리: B 탈퇴 204
+19:12:04 정리: 운영자 로그아웃 204
+19:12:04 Neon SQL 편집기에서 확인 (기대값: 0 | 2 | 가린 메시지에 hunter2·이메일 없음):
+select (select count(*) from account_role where account_id in (2258, 2259)) as dev_role_left,
+       (select count(*) from account where id in (2258, 2259) and deleted_at is not null) as withdrawn,
+       (select string_agg(message, ' | ') from error_group where message like '%각갉간갅갊가갍갊%') as masked_messages;
+19:12:04 (선택) 점검용 개선 요청·오류 묶음 정리 SQL (개선 요청은 작성자가 탈퇴해도 남는 것이 정책이라, 점검 데이터만 직접 지운다):
+delete from feedback where id = 7 and title like '[QA]%';
+delete from error_group where message like '%각갉간갅갊가갍갊%';
+
+## 로컬 DB 에서 위 확인 SQL 결과: 0|2|[QA] 배포 확인 각갉간갅갊가갍갊 | [QA] 화면 오류 각갉간갅갊가갍갊 password=[가림] [가림]

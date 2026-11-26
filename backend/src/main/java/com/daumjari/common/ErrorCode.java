@@ -36,6 +36,9 @@ public enum ErrorCode {
 	REPLY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "답글에는 답글을 달 수 없습니다."),
 	PROFILE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 닉네임을 정할 수 없습니다."),
 	NICKNAME_TAKEN(HttpStatus.CONFLICT, "이미 다른 회원이 쓰는 닉네임입니다."),
+	FEEDBACK_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 개선 요청을 보낼 수 없습니다."),
+	FEEDBACK_NOT_FOUND(HttpStatus.NOT_FOUND, "찾을 수 없는 개선 요청입니다."),
+	FEEDBACK_CHANGED(HttpStatus.CONFLICT, "다른 개발자가 먼저 바꿨습니다. 새로 고친 뒤 다시 확인해 주세요."),
 	FAVORITE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 즐겨찾기를 쓸 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 알림입니다."),

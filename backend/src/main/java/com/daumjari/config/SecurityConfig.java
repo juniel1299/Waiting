@@ -59,7 +59,9 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/demo/start").permitAll()
 				// 서비스 공지는 비회원도 읽는다. 글 상세는 회원 게시판 글이면 서비스가 로그인 여부를 다시 확인한다
 				.requestMatchers(HttpMethod.GET, "/api/boards/notice/posts", "/api/posts/*", "/api/posts/*/comments").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/errors").permitAll()
 				.requestMatchers("/api/operator/**").hasRole("OPERATOR")
+				.requestMatchers("/api/dev/**").hasRole("DEVELOPER")
 				.requestMatchers("/api/sessions/*/reservations", "/api/sessions/*/waitlist", "/api/reservations/**", "/api/me/reservations",
 						"/api/demo/sample-cancel")
 				.hasRole("PARTICIPANT")

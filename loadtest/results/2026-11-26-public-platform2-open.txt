@@ -1,0 +1,10 @@
+# 공개 점검 (비밀번호 없음) — 배포 69ed7e6d (Render 성공 18:37 UTC), 2026-11-26 18:37 UTC
+## node loadtest/public-platform2-open-check.mjs (종료 코드 0)
+시작 2026-11-26T18:37:46.122Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /me/profile 200, /me/favorites 200, /profiles/1 200
+성공 | 비회원 프로필·즐겨찾기 API 401 | 401, 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V17): 즐겨찾기 목록 200, 회차·모임 묶음 | 200 {"sessions":[],"clubs":[]}
+성공 | 내 프로필 응답 필드는 bio·id·nickname·tags 뿐 | 200 [bio,id,nickname,tags]
+성공 | 데모 프로필 수정·즐겨찾기 403 | 403 PROFILE_FORBIDDEN, 403 FAVORITE_FORBIDDEN
+결과: 성공 6 / 실패 0

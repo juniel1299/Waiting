@@ -58,6 +58,19 @@ daumjari:
   demo:
     ttl: ${DEMO_TTL:30m}
     max-starts-per-ip: ${DEMO_MAX_STARTS_PER_IP:10}
+  # 배포 버전(에러 로그 묶음 표시). Render 가 빌드 커밋을 넣어 준다
+  release: ${RENDER_GIT_COMMIT:local}
+  # Sentry: DSN 이 있을 때만 가린 오류 요약을 보낸다(같은 오류 1시간에 한 번). 비어 있으면 자체 DB 요약만
+  sentry:
+    dsn: ${SENTRY_DSN:}
+    # 에러 로그 화면의 상세 링크. {eventId} 자리에 이벤트 id 가 들어간다 (예: https://<org>.sentry.io/issues/?query={eventId})
+    issue-url-template: ${SENTRY_ISSUE_URL_TEMPLATE:}
+  error-log:
+    max-reports-per-ip: ${ERROR_REPORT_MAX_PER_IP:60}
+  # 개선사항 접수 제한 (로그인 제한과 같은 창)
+  feedback:
+    max-per-account: ${FEEDBACK_MAX_PER_ACCOUNT:5}
+    max-per-ip: ${FEEDBACK_MAX_PER_IP:30}
 
 management:
   endpoints:

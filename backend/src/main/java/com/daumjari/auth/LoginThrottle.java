@@ -69,6 +69,17 @@ public class LoginThrottle {
 		countPerIp("signup:", clientIp, max);
 	}
 
+	/** 화면 오류 보고 남용 제한: 같은 클라이언트 IP 로 같은 창 안에 max 회까지. */
+	public void countClientError(String clientIp, int max) {
+		countPerIp("client-error:", clientIp, max);
+	}
+
+	/** 개선사항 접수 남용 제한: 계정당 maxPerAccount, 같은 IP 로 maxPerIp (같은 창). */
+	public void countFeedback(Long accountId, String clientIp, int maxPerAccount, int maxPerIp) {
+		countPerIp("feedback-account:", String.valueOf(accountId), maxPerAccount);
+		countPerIp("feedback-ip:", clientIp, maxPerIp);
+	}
+
 	private void countPerIp(String purpose, String clientIp, int max) {
 		Instant now = Instant.now(clock);
 		long retryAfter = retryAfterSeconds(count(sha256(purpose + clientIp), now), max, now);
