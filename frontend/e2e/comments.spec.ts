@@ -119,7 +119,7 @@ test("비회원은 공지 댓글을 읽기만, 데모는 회원 게시판 댓글
 test("내 정보에서 공개 닉네임을 바꾸면 작성자 표시가 바뀐다", async ({ page }) => {
   const nick = `닉${Date.now().toString(36).slice(-5)}`;
   await loginInBrowser(page, "alice");
-  await menuLink(page, "내 정보", "닉네임");
+  await menuLink(page, "내 정보", "프로필");
   await visible(page, "공개 닉네임").fill("운영자");
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "쓸 수 없어요" })).toBeVisible();

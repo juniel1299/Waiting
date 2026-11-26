@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { api, ApiError, errorMessage, formatSeoul, type Me } from "@/lib/api";
 import { modeLabel, stageHint, STATUS_LABELS, type Club } from "@/lib/club";
 
@@ -81,6 +82,7 @@ export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
         ← {club.status === "APPROVED" ? "모임 목록" : "내 모임"}
       </Link>
       <h1>{club.name}</h1>
+      {club.status === "APPROVED" && !me.demo && <FavoriteButton kind="clubs" id={club.id} />}
       <p role="status" className="sr-only-when-empty">
         {status}
       </p>

@@ -24,7 +24,15 @@ test("데모는 쓰기·내 정보 메뉴가 없다", () => {
   const demo = labels(visibleMenu({ role: "PARTICIPANT", demo: true, roles: [] }));
   assert.ok(!demo.includes("회차 만들기"));
   assert.ok(!demo.includes("내 모임"));
-  assert.ok(!demo.includes("닉네임"));
+  assert.ok(!demo.includes("프로필"));
+  assert.ok(!demo.includes("즐겨찾기"));
+});
+
+test("회원은 내 활동 > 즐겨찾기와 내 정보 > 프로필이 있고, 프로필 화면 안에서도 그 항목이 강조된다", () => {
+  const member = visibleMenu({ role: "PARTICIPANT", demo: false, roles: [] });
+  assert.ok(member.find((g) => g.id === "activity").items.some((i) => i.label === "즐겨찾기"));
+  assert.ok(member.find((g) => g.id === "account").items.some((i) => i.label === "프로필"));
+  assert.equal(activeHref(member, "/me/favorites"), "/me/favorites");
 });
 
 test("현재 위치는 가장 길게 맞는 주소의 항목과 그 묶음", () => {

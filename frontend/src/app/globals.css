@@ -1375,3 +1375,43 @@ button,
 .button-link {
   min-height: 44px;
 }
+
+/* 확장 2단계: 프로필·즐겨찾기 */
+.inline-field {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.inline-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.meta.ok {
+  color: var(--ok);
+}
+
+.meta.danger {
+  color: var(--danger);
+}
+
+.tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+}
+
+.prewrap {
+  white-space: pre-wrap;
+}
+
+.fav-row button {
+  align-self: flex-start;
+}
+
+.favorite[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}

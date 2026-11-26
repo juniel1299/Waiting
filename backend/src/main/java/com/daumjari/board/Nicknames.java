@@ -53,7 +53,7 @@ public class Nicknames {
 		}
 		String lower = nickname.toLowerCase(Locale.ROOT);
 		if (RESERVED.stream().anyMatch(lower::contains) || DEFAULT_LIKE.matcher(nickname).matches()) {
-			return "다른 사람과 헷갈리거나 쓸 수 없는 이름이에요.";
+			return "운영 역할이나 기본 이름과 헷갈릴 수 있어 쓸 수 없어요.";
 		}
 		return null;
 	}

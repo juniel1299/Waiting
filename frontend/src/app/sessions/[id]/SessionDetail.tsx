@@ -15,6 +15,7 @@ import {
   type StudySession,
 } from "@/lib/api";
 import { DemoStartButton } from "@/components/DemoStartButton";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { useVisiblePolling } from "@/lib/useVisiblePolling";
 import { lastListHref } from "@/lib/sessionSearch";
 import { describeChange, HIGHLIGHT_MS } from "@/lib/reservationChange";
@@ -198,6 +199,7 @@ function Detail({ sessionId, demoVisitor }: { sessionId: string; demoVisitor: bo
     <>
       <BackToList />
       <h1>{session.title}</h1>
+      {!demoVisitor && <FavoriteButton kind="sessions" id={session.id} />}
       {session.canDelete && (
         <Link href={`/sessions/${session.id}/manage`} className="link">
           회차 관리
