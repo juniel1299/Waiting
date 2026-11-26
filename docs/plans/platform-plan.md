@@ -109,5 +109,5 @@
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
 |---|---|---|---|---|---|
-| 1 | 구현·로컬 검증 완료 (PR 대기) | 코디네이터가 엶 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | PR #50 병합·배포 `1ee25983`(Render 11:52 UTC). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-26-public-platform1-open.txt)). 로그인 점검 스크립트 `loadtest/public-platform1-check.mjs` 로컬 리허설 통과([기록](../../loadtest/results/2026-11-26-rehearsal-platform1.txt)), 사용자 실행 대기 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
+| 1 | 완료·공개 검증 통과 | PR #50 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | PR #50 병합·배포 `1ee25983`(Render 11:52 UTC). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-26-public-platform1-open.txt)). 로그인 점검 통과(사용자 실행 11:56 UTC: 자기 상승 403·개발자 부여 뒤 같은 세션 반영·운영 API 403·자기 변경 403·회수 즉시 반영, [기록](../../loadtest/results/2026-11-26-public-platform1.txt)), Neon SQL 0·1·2 확인 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
 | 2~7 | 대기 | — | — | — | — |
