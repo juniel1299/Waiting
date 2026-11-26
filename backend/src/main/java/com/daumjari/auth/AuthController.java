@@ -42,9 +42,13 @@ public class AuthController {
 
 	private final AccountRepository accounts;
 
+	private final com.daumjari.role.ServiceRoleService serviceRoles;
+
 	public AuthController(AuthenticationManager authenticationManager, SessionLogin sessionLogin,
-			LoginThrottle loginThrottle, SignupService signupService, AccountRepository accounts) {
+			LoginThrottle loginThrottle, SignupService signupService, AccountRepository accounts,
+			com.daumjari.role.ServiceRoleService serviceRoles) {
 		this.accounts = accounts;
+		this.serviceRoles = serviceRoles;
 		this.authenticationManager = authenticationManager;
 		this.sessionLogin = sessionLogin;
 		this.loginThrottle = loginThrottle;
@@ -72,7 +76,7 @@ public class AuthController {
 			throw new ApiException(ErrorCode.ACCOUNT_SUSPENDED);
 		}
 		sessionLogin.establish(user, request, response);
-		return MeResponse.from(user);
+		return MeResponse.from(user, user.isDemo() ? java.util.List.of() : serviceRoles.rolesOf(user.id()));
 	}
 
 	/** 가입만 하고 로그인은 하지 않는다. 화면은 로그인으로 안내한다. */
@@ -86,7 +90,7 @@ public class AuthController {
 
 	@GetMapping("/me")
 	public MeResponse me(@AuthenticationPrincipal SessionUser user) {
-		return MeResponse.from(user);
+		return MeResponse.from(user, user.isDemo() ? java.util.List.of() : serviceRoles.rolesOf(user.id()));
 	}
 
 }

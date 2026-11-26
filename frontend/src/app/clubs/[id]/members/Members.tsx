@@ -8,16 +8,26 @@ import { AuthGate } from "@/components/AuthGate";
 import { api, errorMessage, formatSeoul } from "@/lib/api";
 import { memberRoleLabel, type Club, type ClubMember } from "@/lib/club";
 
-export function Members() {
+/** manage: 모임 안 "권한 관리" 탭(역할별 할 수 있는 일 + 만든 사람의 임명·회수·생성자 넘기기). 아니면 회원 목록만. */
+export function Members({ manage = false }: { manage?: boolean }) {
   const { id } = useParams<{ id: string }>();
-  return <AuthGate>{() => <MemberList clubId={id} />}</AuthGate>;
+  return <AuthGate>{() => <MemberList clubId={id} manage={manage} />}</AuthGate>;
 }
+
+const CAPABILITIES: [string, string, string, string][] = [
+  ["모임 게시판 읽기·쓰기, 댓글·추천", "○", "○", "○"],
+  ["모임 공지 쓰기·수정·삭제", "✗", "○", "○"],
+  ["다른 회원의 글·댓글 삭제", "✗", "○", "○"],
+  ["모임 운영자 임명·회수", "✗", "✗", "○"],
+  ["생성자 넘기기·모임 수정·삭제", "✗", "✗", "○"],
+  ["모임 탈퇴", "○", "○", "생성자를 넘긴 뒤"],
+];
 
 /**
  * 모임 회원 목록. 만든 사람만 모임 운영자 임명·회수와 생성자 넘기기를 한다 (근거는 서버, 다른 사람에게는 버튼이 없다).
  * 역할은 글자 배지로 보이고, 바뀐 결과는 role=status 로 알린다.
  */
-function MemberList({ clubId }: { clubId: string }) {
+function MemberList({ clubId, manage }: { clubId: string; manage: boolean }) {
   const [club, setClub] = useState<Club | null>(null);
   const [members, setMembers] = useState<ClubMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,14 +95,40 @@ function MemberList({ clubId }: { clubId: string }) {
     );
   }
   if (!club || !members) return <p>불러오는 중…</p>;
-  const creator = club.mine;
+  const creator = club.mine && manage;
 
   return (
     <>
       <Link href={`/clubs/${clubId}`} className="link">
         ← {club.name}
       </Link>
-      <h1>회원 {members.length}명</h1>
+      <h1>{manage ? "권한 관리" : `회원 ${members.length}명`}</h1>
+      {manage && (
+        <div className="table-scroll">
+          <table>
+            <caption className="meta">역할별로 할 수 있는 일 (서버가 요청마다 지금 역할로 다시 확인해요)</caption>
+            <thead>
+              <tr>
+                <th scope="col">기능</th>
+                <th scope="col">회원</th>
+                <th scope="col">모임 운영자</th>
+                <th scope="col">만든 사람</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CAPABILITIES.map(([what, ...cells]) => (
+                <tr key={what}>
+                  <th scope="row">{what}</th>
+                  {cells.map((c, i) => (
+                    <td key={i}>{c}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {manage && !club.mine && <p className="meta">임명·회수와 생성자 넘기기는 만든 사람만 할 수 있어요.</p>}
       <p role="status" className="sr-only-when-empty">
         {status}
       </p>

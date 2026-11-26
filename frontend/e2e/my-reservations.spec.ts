@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ApiActor, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 const PASSWORD = "mine-pass-1!";
 const POLL_MS = Number(process.env.NEXT_PUBLIC_SESSION_POLL_MS ?? 5000);
@@ -30,7 +30,7 @@ test("예약·대기 신청 뒤 메뉴의 '내 신청'에 상태와 함께 보�
   await page.getByRole("button", { name: "대기 신청" }).click();
   await expect(page.getByTestId("my-reservation")).toHaveText("대기 1번");
 
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   await expect(page).toHaveURL(/\/me\/reservations$/);
   const openItem = page.getByRole("listitem").filter({ hasText: openTitle });
   const fullItem = page.getByRole("listitem").filter({ hasText: fullTitle });
@@ -60,7 +60,7 @@ test("다른 참가자의 신청은 보이지 않고, 신청이 없으면 회차
   await ApiActor.signup(loginId, PASSWORD);
 
   await loginInBrowser(page, loginId, PASSWORD);
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   await expect(page.getByText("아직 신청한 회차가 없어요")).toBeVisible();
   // 숨겨 둔 이전 화면(회차 목록)은 빼고 보이는 항목만 센다
   await expect(page.getByRole("listitem").filter({ hasText: bobsTitle })).toHaveCount(0);
@@ -86,8 +86,8 @@ test("데모 방문자도 메뉴에서 자기 체험 신청만 본다", async ({
   await expect(page).toHaveURL(/\/sessions\/\d+$/);
   await page.getByRole("button", { name: "대기 신청" }).click();
   await expect(page.getByTestId("my-reservation")).toHaveText("대기 1번");
-  await page.getByRole("link", { name: "내 신청" }).click();
-  const items = page.getByRole("listitem");
+  await menuLink(page, "내 활동", "내 신청");
+  const items = page.getByRole("main").getByRole("listitem");
   await expect(items).toHaveCount(1);
   await expect(items.first()).toContainText("체험 회차");
   await expect(items.first().getByTestId("reservation-status")).toHaveText("대기 1번");
@@ -95,7 +95,7 @@ test("데모 방문자도 메뉴에서 자기 체험 신청만 본다", async ({
 
 test("운영자 메뉴에는 '내 신청'이 없다", async ({ page }) => {
   await loginInBrowser(page, "operator");
-  await expect(page.getByRole("link", { name: "운영자", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "사이드 메뉴" }).getByRole("button", { name: "관리" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 신청" })).toHaveCount(0);
 });
 
@@ -104,10 +104,12 @@ test("모바일 머리글의 메뉴 이름은 한 줄로 보이고 가로 넘침
   await ApiActor.signup(loginId, PASSWORD);
   await page.setViewportSize({ width: 375, height: 812 });
   await loginInBrowser(page, loginId, PASSWORD);
-  await page.getByRole("link", { name: "내 신청" }).click();
+  await menuLink(page, "내 활동", "내 신청");
   await expect(page.getByRole("heading", { name: "내 신청" })).toBeVisible();
-  for (const name of ["회차 목록", "내 신청", "회원 탈퇴"]) {
-    const link = page.getByRole("banner").getByRole("link", { name });
+  // 모바일 메뉴는 서랍에 있다: 열어서 현재 묶음의 항목 이름이 한 줄인지 본다
+  await page.getByRole("button", { name: "메뉴", exact: true }).click();
+  for (const name of ["내 신청", "알림"]) {
+    const link = page.getByRole("dialog", { name: "메뉴" }).getByRole("link", { name, exact: true });
     expect(await link.evaluate((el) => {
         // 요소가 flex 항목이면 getClientRects 는 늘 1개라, 글자 줄 상자의 서로 다른 top 수로 줄 수를 센다
         const range = document.createRange();
@@ -115,5 +117,6 @@ test("모바일 머리글의 메뉴 이름은 한 줄로 보이고 가로 넘침
         return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
       }), name).toBe(1);
   }
+  await page.keyboard.press("Escape");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

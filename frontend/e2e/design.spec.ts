@@ -56,9 +56,9 @@ test("검색 입력과 정렬 선택은 포커스되면 테두리·링이 바뀐
 
 test("메뉴는 현재 위치를 aria-current 로 표시하고 다른 항목과 다르게 보인다", async ({ page }) => {
   await loginInBrowser(page, "bob");
-  const nav = page.getByRole("navigation", { name: "주 메뉴" });
+  const nav = page.getByRole("complementary", { name: "사이드 메뉴" }).getByRole("navigation", { name: "주 메뉴" });
   await expect(nav.getByRole("link", { name: "회차 목록" })).toHaveAttribute("aria-current", "page");
-  await expect(nav.getByRole("link", { name: "내 신청" })).not.toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "회차 만들기" })).not.toHaveAttribute("aria-current", "page");
   await nav.getByRole("link", { name: "내가 만든 회차" }).click();
   await expect(nav.getByRole("link", { name: "내가 만든 회차" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "회차 목록" })).not.toHaveAttribute("aria-current", "page");

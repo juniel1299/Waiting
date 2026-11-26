@@ -27,7 +27,14 @@ final class AccountUserDetails implements UserDetails {
 	}
 
 	static List<GrantedAuthority> authoritiesOf(SessionUser user) {
-		return List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()));
+		return authoritiesOf(user, false);
+	}
+
+	/** 기본 역할(ROLE_PARTICIPANT·ROLE_OPERATOR) + 더해진 역할(ROLE_DEVELOPER). */
+	public static List<GrantedAuthority> authoritiesOf(SessionUser user, boolean developer) {
+		return developer
+				? List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()), new SimpleGrantedAuthority("ROLE_DEVELOPER"))
+				: List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()));
 	}
 
 	@Override

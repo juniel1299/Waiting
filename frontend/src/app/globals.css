@@ -1160,3 +1160,218 @@ fieldset.field {
   padding-top: 24px;
   border-top: 1px solid var(--line);
 }
+
+/* ── 확장 1단계: 디자인 토큰과 계층형 메뉴 (docs/design-system.md) ── */
+:root {
+  --radius: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --surface: var(--background);
+  --surface-soft: rgba(37, 99, 235, 0.06);
+  --sidebar-width: 220px;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "top top" "side main";
+  min-height: 100vh;
+}
+
+.shell.collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.shell > .topbar {
+  grid-area: top;
+}
+
+.shell > .sidebar {
+  grid-area: side;
+  border-right: 1px solid var(--line);
+  padding: var(--space-3) var(--space-2);
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.shell > main {
+  grid-area: main;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: nowrap;
+}
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.menu-button {
+  display: none;
+}
+
+.sidebar-toggle {
+  width: 100%;
+  font-size: 0.85rem;
+  margin-bottom: var(--space-2);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.menu-group-toggle {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--foreground);
+  font-weight: 700;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 8px;
+  min-height: 40px;
+}
+
+/* 화살표는 aria-hidden 요소로 둔다 (::after 내용은 버튼 이름에 섞여 화면 읽기에 "게시판 ▸" 로 읽힌다) */
+.menu-group-toggle .chevron {
+  float: right;
+  display: inline-block;
+  transition: transform var(--motion) ease;
+}
+
+.menu-group-toggle[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+.menu ul {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.menu ul a {
+  display: block;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 40px;
+  transition: background-color var(--motion) ease;
+}
+
+.menu ul a:hover {
+  background: var(--surface-soft);
+}
+
+.menu ul a[aria-current="page"] {
+  background: var(--surface-soft);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 40;
+}
+
+.drawer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(300px, 85vw);
+  background: var(--background);
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.2);
+  animation: drawer-in var(--motion) ease;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+}
+
+.drawer-close {
+  margin-bottom: var(--space-3);
+}
+
+.toaster {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 50;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.toast {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+.toast button {
+  margin-left: auto;
+  min-height: 32px;
+}
+
+/* 모바일: 사이드바 대신 서랍 */
+@media (max-width: 899px) {
+  .shell,
+  .shell.collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "main";
+  }
+
+  .shell > .sidebar {
+    display: none;
+  }
+
+  .menu-button {
+    display: inline-flex;
+  }
+
+  .topbar .who {
+    display: none;
+  }
+}
+
+/* 카드·입력·버튼: 토큰으로 통일 (터치 높이 44px) */
+.card {
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+input,
+select,
+textarea,
+button,
+.button-link {
+  min-height: 44px;
+}

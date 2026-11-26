@@ -1,13 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ApiActor, appAlert, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, appAlert, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 // 커뮤니티 6단계: 1~5단계를 잇는 전체 흐름(실제 Spring Boot + PostgreSQL)과 화면 상태·375px·키보드·동작 줄이기.
 // 가입 → 회원 게시판 글·댓글·추천·멘션 → 알림함 → 모임 신청·승인 → 가입 → 모임 공지·게시판 → 운영자 임명·회수
 // → 생성자 이전 → 모임 탈퇴 → 모임 삭제·계정 탈퇴와 정리.
 const PASSWORD = "e2e-flow-pass-1!";
 const visible = (page: Page, name: string) => page.getByLabel(name, { exact: true }).filter({ visible: true });
-const nav = (page: Page) => page.getByRole("navigation", { name: "주 메뉴" });
+
 const status = (page: Page, text: string | RegExp) => page.getByRole("status").filter({ hasText: text });
 
 async function myId(page: Page): Promise<number> {
@@ -34,7 +34,7 @@ test("가입부터 게시판·알림·모임 신청·내부 게시판·역할·�
 
     // 2) 회원 게시판 글 → 다른 회원의 멘션 댓글 → 추천
     const title = uniqueTitle("흐름 글");
-    await nav(page).getByRole("link", { name: "게시판" }).click();
+    await menuLink(page, "게시판", "회원게시판");
     await page.getByRole("link", { name: "글쓰기" }).click();
     await visible(page, "제목").fill(title);
     await visible(page, "본문").fill("첫 글이에요\n잘 부탁해요");
@@ -75,7 +75,7 @@ test("가입부터 게시판·알림·모임 신청·내부 게시판·역할·�
     // 5) 다른 회원 가입 → 모임 안 메뉴 → 운영자 임명 → 그 회원의 모임 공지 → 회수 → 거절
     await alice.post(`/api/clubs/${club}/join`);
     await page.goto(`/clubs/${club}`);
-    await page.getByRole("navigation", { name: "모임 안 메뉴" }).getByRole("link", { name: /회원 2명/ }).click();
+    await page.getByRole("navigation", { name: "모임 안 메뉴" }).getByRole("link", { name: "권한 관리" }).click();
     const aliceRow = page.getByTestId("club-member").filter({ hasNotText: "만든 사람" });
     await aliceRow.getByRole("button", { name: "운영자 임명" }).click();
     await expect(status(page, "모임 운영자로 임명했어요")).toBeVisible();
@@ -85,7 +85,7 @@ test("가입부터 게시판·알림·모임 신청·내부 게시판·역할·�
     const noticeId = (await notice.json()).id;
     await page.goto(`/clubs/${club}/notices`);
     await expect(page.getByRole("link", { name: noticeTitle })).toBeVisible();
-    await page.goto(`/clubs/${club}/members`);
+    await page.goto(`/clubs/${club}/roles`);
     await aliceRow.getByRole("button", { name: "운영자 회수" }).click();
     await expect(status(page, "권한을 회수했어요")).toBeVisible();
     expect((await alice.post(`/api/clubs/${club}/boards/notice/posts`, { title: "회수 뒤", body: "x" })).status()).toBe(403);

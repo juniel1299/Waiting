@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ApiActor, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 // 커뮤니티 2단계 화면: 댓글·한 단계 답글(들여쓰기)·추천(선택 여부와 개수)·멘션 자동완성(키보드)·삭제 확인·권한별 노출.
 const visible = (page: Page, name: string) => page.getByLabel(name, { exact: true }).filter({ visible: true });
@@ -119,7 +119,7 @@ test("비회원은 공지 댓글을 읽기만, 데모는 회원 게시판 댓글
 test("내 정보에서 공개 닉네임을 바꾸면 작성자 표시가 바뀐다", async ({ page }) => {
   const nick = `닉${Date.now().toString(36).slice(-5)}`;
   await loginInBrowser(page, "alice");
-  await page.getByRole("link", { name: "내 정보" }).click();
+  await menuLink(page, "내 정보", "닉네임");
   await visible(page, "공개 닉네임").fill("운영자");
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "쓸 수 없어요" })).toBeVisible();

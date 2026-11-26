@@ -45,6 +45,8 @@ public enum ErrorCode {
 	CLUB_MEMBERS_ONLY(HttpStatus.FORBIDDEN, "모임 회원만 볼 수 있습니다."),
 	CLUB_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "이 모임의 회원이 아닙니다."),
 	CREATOR_ROLE_FIXED(HttpStatus.CONFLICT, "만든 사람의 모임 운영자 권한은 회수할 수 없습니다. 먼저 다른 회원에게 생성자를 넘겨 주세요."),
+	SELF_ROLE_CHANGE(HttpStatus.FORBIDDEN, "자기 자신의 역할은 바꿀 수 없습니다. 다른 운영자에게 요청해 주세요."),
+	ROLE_CHANGE_FORBIDDEN(HttpStatus.FORBIDDEN, "운영자만 역할을 바꿀 수 있습니다."),
 	RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다.");
 
 	private final HttpStatus status;

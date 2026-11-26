@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { ApiActor, appAlert, loginInBrowser, uniqueTitle } from "./support";
+import { ApiActor, appAlert, loginInBrowser, uniqueTitle, menuLink } from "./support";
 
 const PASSWORD = "withdraw-pass-1!";
 
@@ -27,7 +27,7 @@ test("계정 메뉴 → 탈퇴 안내·비밀번호 재확인 → 탈퇴하면 �
   await loginInBrowser(otherPage, loginId, PASSWORD);
 
   await loginInBrowser(page, loginId, PASSWORD);
-  await page.getByRole("link", { name: "회원 탈퇴" }).click();
+  await menuLink(page, "내 정보", "회원 탈퇴");
   await expect(page).toHaveURL(/\/account\/withdraw$/);
   await expect(page.getByText("시작 전 확정 예약(지금 1건)")).toBeVisible();
   await expect(page.getByText("대기 중인 다음 분이 자동으로 확정돼요")).toBeVisible();

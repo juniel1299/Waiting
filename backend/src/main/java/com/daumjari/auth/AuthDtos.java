@@ -13,10 +13,12 @@ final class AuthDtos {
 	record LoginRequest(@NotBlank @Size(max = 50) String loginId, @NotBlank @Size(max = 100) String password) {
 	}
 
-	record MeResponse(Long id, String loginId, String displayName, Role role, boolean demo) {
+	/** roles: 서비스 역할(OPERATOR·DEVELOPER, 메뉴 노출용). 판단은 늘 서버가 다시 한다. */
+	record MeResponse(Long id, String loginId, String displayName, Role role, boolean demo,
+			java.util.List<com.daumjari.role.ServiceRoleService.ServiceRole> roles) {
 
-		static MeResponse from(SessionUser user) {
-			return new MeResponse(user.id(), user.loginId(), user.displayName(), user.role(), user.isDemo());
+		static MeResponse from(SessionUser user, java.util.List<com.daumjari.role.ServiceRoleService.ServiceRole> roles) {
+			return new MeResponse(user.id(), user.loginId(), user.displayName(), user.role(), user.isDemo(), roles);
 		}
 
 	}

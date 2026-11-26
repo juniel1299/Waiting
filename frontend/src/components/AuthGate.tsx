@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { api, ApiError, errorMessage, type Me } from "@/lib/api";
 
-import { NotificationBell } from "./NotificationBell";
+import { Shell } from "./Shell";
 
 interface AuthGateProps {
   children: (me: Me) => ReactNode;
@@ -53,12 +53,7 @@ export function AuthGate({ children }: AuthGateProps) {
   if (!me) {
     return <main className="container">불러오는 중…</main>;
   }
-  return (
-    <>
-      <Header me={me} />
-      <main className="container">{children(me)}</main>
-    </>
-  );
+  return <Shell me={me}>{children(me)}</Shell>;
 }
 
 /** 비회원도 볼 수 있는 화면(서비스 공지). 로그인했으면 평소 머리글, 아니면 공개 머리글과 함께 me=null 로 그린다. */
@@ -76,8 +71,14 @@ export function OptionalAuthGate({ children }: { children: (me: Me | null) => Re
   }
   return (
     <>
-      {me ? <Header me={me} /> : <PublicHeader />}
-      <main className="container">{children(me)}</main>
+      {me ? (
+        <Shell me={me}>{children(me)}</Shell>
+      ) : (
+        <>
+          <PublicHeader />
+          <main className="container">{children(me)}</main>
+        </>
+      )}
     </>
   );
 }
@@ -89,76 +90,13 @@ function PublicHeader() {
         다음자리
       </Link>
       <nav className="nav" aria-label="주 메뉴">
-        <NavLink href="/notices">공지사항</NavLink>
+        <Link href="/notices" aria-current={usePathname().startsWith("/notices") ? "page" : undefined}>
+          공지사항
+        </Link>
       </nav>
       <Link href="/login" className="link">
         로그인
       </Link>
-    </header>
-  );
-}
-
-/** 현재 위치는 aria-current 로 알린다. 운영자 메뉴는 하위 탭(/operator/...)에서도 현재 위치다. */
-function NavLink({ href, children }: { href: string; children: ReactNode }) {
-  const pathname = usePathname();
-  // 하위 화면(/operator/..., /board/12, /notices/new)에서도 그 메뉴가 현재 위치다
-  // 모임 목록은 모임 소개·신청·수정(/clubs/12)에서도 현재 위치지만, 모임 홍보(/clubs/promo)는 따로 메뉴다
-  const current =
-    pathname === href ||
-    (["/operator", "/board", "/notices", "/clubs"].includes(href) && pathname.startsWith(`${href}/`) && !pathname.startsWith("/clubs/promo"));
-  return (
-    <Link href={href} aria-current={current ? "page" : undefined}>
-      {children}
-    </Link>
-  );
-}
-
-function Header({ me }: { me: Me }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-
-  async function logout() {
-    try {
-      await api("/api/auth/logout", { method: "POST" });
-      router.replace("/login");
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }
-
-  return (
-    <header className="header">
-      <Link href="/" className="brand">
-        다음자리
-      </Link>
-      <nav className="nav" aria-label="주 메뉴">
-        <NavLink href="/sessions">회차 목록</NavLink>
-        <NavLink href="/board">게시판</NavLink>
-        <NavLink href="/notices">공지사항</NavLink>
-        <NavLink href="/clubs/promo">모임 홍보</NavLink>
-        <NavLink href="/clubs">모임 목록</NavLink>
-        {!me.demo && <NavLink href="/me/clubs">내 모임</NavLink>}
-        {me.role === "PARTICIPANT" && <NavLink href="/me/reservations">내 신청</NavLink>}
-        {!me.demo && <NavLink href="/me/sessions">내가 만든 회차</NavLink>}
-        {!me.demo && <NavLink href="/sessions/new">회차 만들기</NavLink>}
-        {me.role === "OPERATOR" && <NavLink href="/operator">운영자</NavLink>}
-      </nav>
-      <span className="who">{me.displayName} 님</span>
-      <NotificationBell />
-      {!me.demo && (
-        <Link href="/me/profile" className="link">
-          내 정보
-        </Link>
-      )}
-      {me.role === "PARTICIPANT" && !me.demo && (
-        <Link href="/account/withdraw" className="link">
-          회원 탈퇴
-        </Link>
-      )}
-      <button type="button" className="secondary" onClick={logout}>
-        로그아웃
-      </button>
-      {error && <p role="alert">{error}</p>}
     </header>
   );
 }
