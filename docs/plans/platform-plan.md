@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 진행 중** (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -24,7 +24,7 @@
 |---|---|---|---|
 | 1 | 계층형 메뉴·디자인 규칙, 서비스 역할(여러 개)·서비스 권한 관리 화면, 모임 안 권한 관리 탭, Zustand(메뉴·토스트)·공통 요청 모듈 | — | V16 `account_role`, `account_role_change` |
 | 2 | 프로필(소개·관심 태그)·공개 프로필, 랜덤 한글 닉네임·유일성, 즐겨찾기(모임·회차) | 1(메뉴 자리) | V17 닉네임 정규화 키 유일·기존 회원 이관, `profile`, `favorite` |
-| 3 | 개선사항 접수·관리, 에러 로그(자체 요약 + Sentry 링크), 마스킹·보관·샘플링 | 1(개발자 역할) | V18 `feedback`, `error_group`·`error_event` |
+| 3 | 개선사항 접수·관리, 에러 로그(자체 요약 + Sentry 링크), 마스킹·보관·샘플링 | 1(개발자 역할) | V18 `feedback`·`feedback_history`, `error_group`(개별 `error_event` 는 두지 않음), 알림 종류 2개 |
 | 4 | 대시보드 그리드·차트 전환(같은 데이터·기간·필터) | 1(관리 메뉴) | 없음(`usage_daily` 재사용) |
 | 5 | 카카오·네이버 로그인·계정 연결·해제·소셜 전용 회원 탈퇴 | 1(요청마다 재확인), 2(새 계정 랜덤 닉네임) | V19 `account_identity` |
 | 6 | 모임 단체 채팅(모임당 1방, 텍스트) | 1(모임 탭), 실시간 방식 실험 | V20 `chat_message`, `chat_read` |
@@ -115,10 +115,22 @@
 - **즐겨찾기:** `favorite(account_id, club_id | session_id)` 중 하나만(check), `(account_id, club_id)`·`(account_id, session_id)` 유일, 계정·모임·회차 FK `on delete cascade`. `PUT`/`DELETE /api/{sessions|clubs}/{id}/favorite` 멱등(`on conflict do nothing`, 대상 행 `for share` 확인). 담을 수 있는 것과 목록 모두 "지금 볼 수 있는 것"(승인된 모임, 데모가 아닌 회차). 탈퇴(본인·강제)하면 그 계정 즐겨찾기 삭제. 데모 403, 비회원 401.
 - **화면:** 내 정보 > 프로필(중복 확인 버튼·소개 글자 수·태그), 공개 프로필 `/profiles/{id}`, 회차·모임 상세의 ☆ 즐겨찾기(`aria-pressed`), 내 활동 > 즐겨찾기(해제 버튼, 빈 목록 다음 행동 링크).
 
+## 3단계 설계·구현 (2026-11-27)
+
+- **권한:** `/api/dev/**` 는 개발자 역할만(`hasRole("DEVELOPER")`, 운영자만으로는 403). 개선 요청 접수는 로그인 회원(데모 403·비회원 401), 계정당 5건·IP 당 30건/로그인 제한 창(15분). 작성자는 자기 요청만, 남의 요청은 404(있는지 알리지 않음).
+- **개선사항(`feedback`):** 종류(오류 신고·기능 제안·기타)·제목 100자·내용 2000자·보낸 화면 경로(질의·조각 버림). 상태 접수 → 진행 중·검증 요청·완료·보류, 검증 요청·보류는 사유 필수(앱 + DB check). 처리 내용 2000자, PR 링크는 `https://github.com/` 만. 상태 변경은 행 잠금 + `version` 비교(낡으면 409 `FEEDBACK_CHANGED`), 바뀌면 `feedback_history` 기록과 작성자 알림(`FEEDBACK_STATUS`). 작성자가 탈퇴해도 요청은 남고 '탈퇴한 회원'으로 보인다.
+- **에러 로그(`error_group`):** 다른 처리기가 처리하지 않은 서버 예외(마지막 순서의 `UnexpectedErrorResolver`)와 화면 오류 보고(`POST /api/errors`, 누구나, IP 당 60건/창)를 지문(출처 + 숫자를 지운 메시지 + 경로 틀 SHA-256)별 한 행으로 모아 횟수·처음/마지막 시각·배포 버전(`RENDER_GIT_COMMIT`, 화면은 `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`)·마지막 추적 ID 만 둔다. 4xx(사용자 실수)는 모으지 않는다. 서버 500 응답은 `{code: INTERNAL_ERROR, traceId}` + `X-Trace-Id` 헤더(이전에는 스프링 기본 오류 응답).
+- **가림(`ErrorMasking`, 저장·전송 전):** 비밀번호·비밀·토큰·쿠키·세션 이름 뒤 값, Bearer, JWT, 이메일, 휴대전화, 24자 이상 영숫자 덩어리(UUID 포함). 메시지는 한 줄 300자. 경로는 질의·조각 제거, 숫자·UUID 조각을 `:id` 로. 요청·응답 본문(글·채팅)은 받지 않는다.
+- **알림·샘플링:** 새 오류이거나 마지막 알림 1시간이 지난 오류만 개발자에게 알림(`ERROR_ALERT`) + Sentry 전송. DB 횟수는 매번 센다(묶음 갱신이라 추가 샘플링 없음). 화면은 같은 오류 1번·화면 적재당 최대 5건만 보낸다.
+- **보관:** 마지막으로 본 지 30일이 지난 묶음은 1시간마다 지운다(알림은 FK cascade).
+- **Sentry:** `SENTRY_DSN` 이 있을 때만 envelope API 로 가린 요약 1건을 비동기 전송(SDK·새 의존성 없음, 실패해도 무시). 에러 로그 화면 링크는 `SENTRY_ISSUE_URL_TEMPLATE`(`{eventId}` 자리 채움)이 있을 때만. 둘 다 비어 있으면 자체 DB 요약만(지금 상태, 월 0원).
+- **화면:** 내 활동 > 개선 요청(보내기·내 요청·상세와 상태 기록), 개발 묶음(개발자만): 개선사항 관리(검색·상태·종류 필터, 펼쳐서 상태·사유·처리 내용·PR 링크), 에러 로그(검색어·출처). 화면 오류 자동 보고(`ErrorReporter`).
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
 |---|---|---|---|---|---|
 | 1 | 완료·공개 검증 통과 | PR #50 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | PR #50 병합·배포 `1ee25983`(Render 11:52 UTC). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-26-public-platform1-open.txt)). 로그인 점검 통과(사용자 실행 11:56 UTC: 자기 상승 403·개발자 부여 뒤 같은 세션 반영·운영 API 403·자기 변경 403·회수 즉시 반영, [기록](../../loadtest/results/2026-11-26-public-platform1.txt)), Neon SQL 0·1·2 확인 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
 | 2 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #51 | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | PR #51 병합·배포 `69ed7e6d`(Render 18:37 UTC, V17 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform2-open.txt)). 로그인 점검 `public-platform2-check.mjs`(테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 iPhone Safari·스크린 리더, 운영 DB 의 V17 이관 결과(배포 뒤 SQL 확인 필요) |
-| 3~7 | 대기 | — | — | — | — |
+| 3 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | 배포 뒤: `public-platform3-open-check.mjs`(비밀번호 없음), `public-platform3-check.mjs`(운영자 비밀번호, 테스트 회원 2명 가입·탈퇴, 사용자 실행) | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
+| 4~7 | 대기 | — | — | — | — |
