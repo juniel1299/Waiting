@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 진행 중** (아래 "상태 기록").
+진행: **1단계 구현·로컬 검증 완료**, 2단계 대기 (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -48,7 +48,7 @@
 
 - `account_role(account_id, role)` PK, `role` ∈ `OPERATOR`·`DEVELOPER`. 계정 삭제 시 CASCADE.
 - `account_role_change(id, target_account_id, role, action GRANT|REVOKE, reason, actor_account_id, created_at)`. 처리자·대상은 계정 id 로만(탈퇴하면 화면에 '탈퇴한 회원').
-- **기존 데이터:** `account.role = 'OPERATOR'` 인 계정마다 `account_role(…, 'OPERATOR')` 를 넣는다. `account.role` 칸은 남기고 운영자 부여·회수 때 함께 바꿔 둔다(기존 쿼리·예약 규칙 `hasRole("PARTICIPANT")` 를 그대로 두기 위해. 기준은 `account_role`). 데모 계정은 역할 없음(지금처럼 `PARTICIPANT` + `demo_trial_id`).
+- **기존 데이터 (구현에서 바꾼 점):** 운영자 여부는 기존 `account.role` 을 그대로 기준으로 쓰고(이관 없음, 기존 운영 계정·예약 규칙 `hasRole("PARTICIPANT")`·테스트 유지), `account_role` 에는 더해지는 역할(`DEVELOPER`)만 둔다. 운영자 부여·회수는 `account.role` 을 바꾼다. 데모 계정은 역할 없음(지금처럼 `PARTICIPANT` + `demo_trial_id`).
 
 ### 권한표
 
@@ -109,5 +109,5 @@
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
 |---|---|---|---|---|---|
-| 1 | 진행 중 | — | — | — | — |
+| 1 | 구현·로컬 검증 완료 (PR 대기) | 코디네이터가 엶 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | 배포 뒤 비밀번호 없는 점검·운영자 점검 예정 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
 | 2~7 | 대기 | — | — | — | — |

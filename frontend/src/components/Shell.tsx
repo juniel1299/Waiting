@@ -57,7 +57,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     <div className={collapsed ? "shell collapsed" : "shell"}>
       <TopBar me={me} menuButton={menuButton} drawerOpen={drawerOpen} onMenu={() => setDrawerOpen(!drawerOpen)} />
       <aside className="sidebar" aria-label="사이드 메뉴">
-        <button type="button" className="sidebar-toggle" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
+        <button type="button" className="secondary sidebar-toggle" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? "메뉴 펼치기" : "메뉴 접기"}
         </button>
         {!collapsed && <MenuTree menu={menu} pathname={pathname} label="주 메뉴" />}
