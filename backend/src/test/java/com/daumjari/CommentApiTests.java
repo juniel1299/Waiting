@@ -185,7 +185,7 @@ class CommentApiTests extends ApiTestSupport {
 	void mentionsLinkToAccountIdsAndShowTheCurrentNicknameOnly() throws Exception {
 		Account target = newAccount("cmt-target", Role.PARTICIPANT);
 		MockHttpSession targetSession = login(target);
-		nickname(targetSession, "  별빛 개발자 ").andExpect(status().isOk()).andExpect(jsonPath("$.nickname").value("별빛 개발자"));
+		nickname(targetSession, "  별빛 코더 ").andExpect(status().isOk()).andExpect(jsonPath("$.nickname").value("별빛 코더"));
 		String token = "@[예전이름#" + target.getId() + "]";
 		long c = idOf(comment(readerSession, postId, null, "안녕 " + token + " 그리고 @[없는사람#999999999]"));
 
@@ -193,7 +193,7 @@ class CommentApiTests extends ApiTestSupport {
 			.andExpect(jsonPath("$[0].body").value("안녕 " + token + " 그리고 @[없는사람#999999999]"))
 			.andExpect(jsonPath("$[0].mentions.length()").value(1))
 			.andExpect(jsonPath("$[0].mentions[0].id").value(target.getId()))
-			.andExpect(jsonPath("$[0].mentions[0].nickname").value("별빛 개발자"))
+			.andExpect(jsonPath("$[0].mentions[0].nickname").value("별빛 코더"))
 			.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 		assertThat(body).doesNotContain(target.getLoginId());
 		assertThat(count("select count(*) from mention where comment_id = ? and account_id = ?", c, target.getId())).isEqualTo(1L);

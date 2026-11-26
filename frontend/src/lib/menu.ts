@@ -23,7 +23,7 @@ const member = (u: MenuUser) => !u.demo;
 const participant = (u: MenuUser) => u.role === "PARTICIPANT";
 const operator = (u: MenuUser) => u.role === "OPERATOR";
 
-/** 아직 없는 화면(즐겨찾기·프로필·로그인 계정 연결·개선사항·에러 로그)은 해당 단계에서 더한다. */
+/** 아직 없는 화면(로그인 계정 연결·개선사항·에러 로그)은 해당 단계에서 더한다. */
 export const MENU: MenuGroup[] = [
   { id: "board", label: "게시판", items: [{ href: "/board", label: "회원게시판" }, { href: "/notices", label: "공지사항" }] },
   {
@@ -49,6 +49,7 @@ export const MENU: MenuGroup[] = [
     label: "내 활동",
     items: [
       { href: "/me/reservations", label: "내 신청", show: participant },
+      { href: "/me/favorites", label: "즐겨찾기", show: member },
       { href: "/me/notifications", label: "알림" },
     ],
   },
@@ -57,7 +58,7 @@ export const MENU: MenuGroup[] = [
     label: "내 정보",
     show: member,
     items: [
-      { href: "/me/profile", label: "닉네임" },
+      { href: "/me/profile", label: "프로필" },
       { href: "/account/withdraw", label: "회원 탈퇴", show: participant },
     ],
   },

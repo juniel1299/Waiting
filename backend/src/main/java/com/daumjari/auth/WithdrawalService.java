@@ -13,6 +13,7 @@ import com.daumjari.account.Role;
 import com.daumjari.common.ApiException;
 import com.daumjari.common.ErrorCode;
 import com.daumjari.club.ClubService;
+import com.daumjari.favorite.FavoriteCleanup;
 import com.daumjari.notification.Notifier;
 import com.daumjari.reservation.ReservationService;
 
@@ -40,9 +41,12 @@ public class WithdrawalService {
 
 	private final ClubService clubs;
 
+	private final FavoriteCleanup favorites;
+
 	public WithdrawalService(AccountRepository accounts, ReservationService reservations,
 			PasswordEncoder passwordEncoder, LoginThrottle throttle, TransactionTemplate transaction, Clock clock, Notifier notifier,
-			ClubService clubs) {
+			ClubService clubs, FavoriteCleanup favorites) {
+		this.favorites = favorites;
 		this.notifier = notifier;
 		this.clubs = clubs;
 		this.accounts = accounts;
@@ -70,6 +74,7 @@ public class WithdrawalService {
 			reservations.releaseAllOf(account.getId(), now);
 			notifier.forgetRecipient(account.getId());
 			clubs.forgetAccount(account.getId());
+			favorites.forgetAccount(account.getId());
 			// 본인 회차 삭제(deleteRowById)가 영속성 컨텍스트를 비워 account 가 분리되므로, 다시 읽어 익명화해야 저장된다
 			accounts.findById(account.getId()).orElseThrow().withdraw(now);
 		});
