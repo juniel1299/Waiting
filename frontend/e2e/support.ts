@@ -46,9 +46,14 @@ export class ApiActor {
     return this.ctx.patch(path, { data, headers: { [csrf.headerName]: csrf.token } });
   }
 
-  async delete(path: string) {
+  async put(path: string, data?: unknown) {
     const csrf = await (await this.ctx.get("/api/auth/csrf")).json();
-    return this.ctx.delete(path, { headers: { [csrf.headerName]: csrf.token } });
+    return this.ctx.put(path, { data, headers: { [csrf.headerName]: csrf.token } });
+  }
+
+  async delete(path: string, data?: unknown) {
+    const csrf = await (await this.ctx.get("/api/auth/csrf")).json();
+    return this.ctx.delete(path, { data, headers: { [csrf.headerName]: csrf.token } });
   }
 
   async createSession(title: string, capacity: number, startsAt?: Date): Promise<number> {

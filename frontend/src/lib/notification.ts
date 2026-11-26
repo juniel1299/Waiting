@@ -1,6 +1,6 @@
 // 알림함 응답 계약은 README "커뮤니티 3단계 · 알림 API" 와 맞춘다.
 
-export type NotificationType = "PROMOTED" | "MENTION" | "CLUB_APPROVED" | "CLUB_REJECTED";
+export type NotificationType = "PROMOTED" | "MENTION" | "CLUB_APPROVED" | "CLUB_REJECTED" | "FEEDBACK_STATUS" | "ERROR_ALERT";
 
 export interface NotificationItem {
   id: number;
@@ -15,6 +15,10 @@ export interface NotificationItem {
   onComment: boolean;
   /** 모임 신청 결과 알림의 모임 이름 */
   clubName: string | null;
+  /** 개선 요청 상태 알림의 요청 제목 */
+  feedbackTitle?: string | null;
+  /** 개발자 오류 알림의 (가린) 오류 메시지 */
+  errorMessage?: string | null;
 }
 
 export interface NotificationPage {
@@ -30,6 +34,8 @@ export const NOTIFICATIONS_CHANGED = "notifications-changed";
 
 /** 알림 한 줄 문구. 제목·이름은 서버가 준 현재 값이고 화면에는 글자로만 넣는다. */
 export function notificationText(n: NotificationItem): string {
+  if (n.type === "FEEDBACK_STATUS") return `보낸 개선 요청 ‘${n.feedbackTitle ?? "요청"}’의 처리 상태가 바뀌었어요.`;
+  if (n.type === "ERROR_ALERT") return `새 오류가 생겼어요: ${n.errorMessage ?? "에러 로그를 확인해 주세요"}`;
   if (n.type === "CLUB_APPROVED") return `‘${n.clubName ?? "모임"}’ 모임 신청이 승인됐어요.`;
   if (n.type === "CLUB_REJECTED") return `‘${n.clubName ?? "모임"}’ 모임 신청이 반려됐어요. 사유를 확인해 주세요.`;
   if (n.type === "PROMOTED") {

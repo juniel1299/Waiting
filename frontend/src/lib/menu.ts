@@ -22,8 +22,9 @@ export interface MenuGroup {
 const member = (u: MenuUser) => !u.demo;
 const participant = (u: MenuUser) => u.role === "PARTICIPANT";
 const operator = (u: MenuUser) => u.role === "OPERATOR";
+const developer = (u: MenuUser) => !u.demo && (u.roles ?? []).includes("DEVELOPER");
 
-/** 아직 없는 화면(로그인 계정 연결·개선사항·에러 로그)은 해당 단계에서 더한다. */
+/** 아직 없는 화면(로그인 계정 연결 등)은 해당 단계에서 더한다. */
 export const MENU: MenuGroup[] = [
   { id: "board", label: "게시판", items: [{ href: "/board", label: "회원게시판" }, { href: "/notices", label: "공지사항" }] },
   {
@@ -51,6 +52,7 @@ export const MENU: MenuGroup[] = [
       { href: "/me/reservations", label: "내 신청", show: participant },
       { href: "/me/favorites", label: "즐겨찾기", show: member },
       { href: "/me/notifications", label: "알림" },
+      { href: "/me/feedback", label: "개선 요청", show: member },
     ],
   },
   {
@@ -72,6 +74,15 @@ export const MENU: MenuGroup[] = [
       { href: "/operator/sessions", label: "전체 회차" },
       { href: "/operator/clubs", label: "모임 승인" },
       { href: "/operator/roles", label: "서비스 권한 관리" },
+    ],
+  },
+  {
+    id: "dev",
+    label: "개발",
+    show: developer,
+    items: [
+      { href: "/dev/feedback", label: "개선사항 관리" },
+      { href: "/dev/errors", label: "에러 로그" },
     ],
   },
 ];

@@ -43,3 +43,13 @@ test("현재 위치는 가장 길게 맞는 주소의 항목과 그 묶음", () 
   assert.equal(activeGroup(op, "/board/3"), "board");
   assert.equal(activeHref(op, "/"), null);
 });
+
+test("개발자 역할이 있으면 개발 묶음(개선사항 관리·에러 로그)이 보이고, 회원·운영자만으로는 없다", () => {
+  const dev = visibleMenu({ role: "PARTICIPANT", demo: false, roles: ["DEVELOPER"] });
+  assert.deepEqual(dev.find((g) => g.id === "dev").items.map((i) => i.label), ["개선사항 관리", "에러 로그"]);
+  assert.ok(!visibleMenu({ role: "OPERATOR", demo: false, roles: ["OPERATOR"] }).some((g) => g.id === "dev"));
+  const member = visibleMenu({ role: "PARTICIPANT", demo: false, roles: [] });
+  assert.ok(!member.some((g) => g.id === "dev"));
+  assert.ok(member.find((g) => g.id === "activity").items.some((i) => i.label === "개선 요청"));
+  assert.ok(!labels(visibleMenu({ role: "PARTICIPANT", demo: true, roles: [] })).includes("개선 요청"));
+});
