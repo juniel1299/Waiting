@@ -1,0 +1,31 @@
+# 공개 점검 (비밀번호 없음) — 화면 정리(PR #64)·라이트/다크 전환(PR #65) 배포 뒤
+배포: main fc98eba0 (PR #65 병합), Vercel Production 성공 2026-11-27 19:15 UTC. 사용자가 배포 확인을 알림(22:03 UTC).
+환경: 이 Mac 의 Playwright Chromium(375px) + WebKit 27.2(iPhone 17 Pro 에뮬레이션). 실제 iPhone 아님.
+
+## node loadtest/public-theme-layout-open-check.mjs
+시작 2026-11-27T22:08:01.519Z https://waiting-mauve.vercel.app
+성공 | Chromium 375px: 로그인 전 화면에 '다크 모드' 버튼 | /, /login, /signup, /notices
+성공 | Chromium 375px: 기기 설정 라이트 → 버튼으로 다크 | rgb(255, 255, 255) → rgb(10, 10, 10), aria-pressed=true
+성공 | Chromium 375px: 다크에서 로그인 버튼 글자 대비 4.5:1 이상 | rgb(10, 10, 10) on rgb(96, 165, 250) = 7.79
+성공 | Chromium 375px: 새로 고쳐도 다크 유지 | rgb(10, 10, 10)
+성공 | Chromium 375px: 화면 스크립트 전에 적용(깜빡임 없음) | dark rgb(10, 10, 10)
+성공 | Chromium 375px: 데모 시작 | 201
+성공 | Chromium 375px: 회차 목록 날짜 입력이 검색 상자 안·한 줄에 하나 | 폭 375px inside=true stacked=true
+성공 | Chromium 375px: 선택창·상단 막대 버튼 44px | 선택창 44,44,44 / 상단 44,44,44
+성공 | Chromium 375px: 가로 넘침 없음 | 0
+성공 | WebKit iPhone 17 Pro: 로그인 전 화면에 '다크 모드' 버튼 | /, /login, /signup, /notices
+성공 | WebKit iPhone 17 Pro: 기기 설정 라이트 → 버튼으로 다크 | rgb(255, 255, 255) → rgb(10, 10, 10), aria-pressed=true
+성공 | WebKit iPhone 17 Pro: 다크에서 로그인 버튼 글자 대비 4.5:1 이상 | rgb(10, 10, 10) on rgb(96, 165, 250) = 7.79
+성공 | WebKit iPhone 17 Pro: 새로 고쳐도 다크 유지 | rgb(10, 10, 10)
+성공 | WebKit iPhone 17 Pro: 화면 스크립트 전에 적용(깜빡임 없음) | dark rgb(10, 10, 10)
+성공 | WebKit iPhone 17 Pro: 데모 시작 | 201
+성공 | WebKit iPhone 17 Pro: 회차 목록 날짜 입력이 검색 상자 안·한 줄에 하나 | 폭 402px inside=true stacked=true
+성공 | WebKit iPhone 17 Pro: 선택창·상단 막대 버튼 44px | 선택창 44,44,44 / 상단 44,44,44
+성공 | WebKit iPhone 17 Pro: 가로 넘침 없음 | 0
+결과: 성공 18 / 실패 0
+
+첫 실행(22:07 UTC)은 15/18: 스크립트가 /notices 의 머리 막대(로그인 확인 뒤 그려짐)를 기다리지 않았고, 버튼 색 전환(180ms) 중에 대비를 재서 실패. 기다림을 고친 뒤 18/18.
+
+## 운영자·실제 iPhone 확인 (사용자, 대기)
+- 운영자 로그인 화면(관리 > 전체 회차·사용량·계정 관리)의 날짜 입력·버튼: docs/plans/layout-fix.md '남은 확인'
+- iPhone 18 Pro Safari: 날짜 입력이 상자 안, 다크 모드 버튼·기억
