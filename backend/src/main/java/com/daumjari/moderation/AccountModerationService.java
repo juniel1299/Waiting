@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.daumjari.auth.SocialAccounts;
 import com.daumjari.favorite.FavoriteCleanup;
 import com.daumjari.account.Account;
 import com.daumjari.account.AccountRepository;
@@ -50,9 +51,12 @@ public class AccountModerationService {
 
 	private final FavoriteCleanup favorites;
 
+	private final SocialAccounts socialAccounts;
+
 	public AccountModerationService(AccountRepository accounts, ReservationService reservations, AccountAdminQuery query,
-			Clock clock, FavoriteCleanup favorites) {
+			Clock clock, FavoriteCleanup favorites, SocialAccounts socialAccounts) {
 		this.favorites = favorites;
+		this.socialAccounts = socialAccounts;
 		this.accounts = accounts;
 		this.reservations = reservations;
 		this.query = query;
@@ -118,6 +122,7 @@ public class AccountModerationService {
 		Instant now = Instant.now(clock);
 		Release release = reservations.releaseAllOf(targetId, now);
 		favorites.forgetAccount(targetId);
+		socialAccounts.forgetAccount(targetId);
 		// 본인 회차 삭제(deleteRowById)가 영속성 컨텍스트를 비워 target 이 분리되므로 다시 읽어 익명화한다 (행 잠금은 유지됨)
 		accounts.findById(targetId).orElseThrow().withdraw(now);
 		query.record(operator.id(), targetId, Action.FORCE_WITHDRAW, reason, release.cancelledReservations(),

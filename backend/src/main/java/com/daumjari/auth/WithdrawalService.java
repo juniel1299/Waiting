@@ -43,10 +43,13 @@ public class WithdrawalService {
 
 	private final FavoriteCleanup favorites;
 
+	private final SocialAccounts socialAccounts;
+
 	public WithdrawalService(AccountRepository accounts, ReservationService reservations,
 			PasswordEncoder passwordEncoder, LoginThrottle throttle, TransactionTemplate transaction, Clock clock, Notifier notifier,
-			ClubService clubs, FavoriteCleanup favorites) {
+			ClubService clubs, FavoriteCleanup favorites, SocialAccounts socialAccounts) {
 		this.favorites = favorites;
+		this.socialAccounts = socialAccounts;
 		this.notifier = notifier;
 		this.clubs = clubs;
 		this.accounts = accounts;
@@ -75,6 +78,7 @@ public class WithdrawalService {
 			notifier.forgetRecipient(account.getId());
 			clubs.forgetAccount(account.getId());
 			favorites.forgetAccount(account.getId());
+			socialAccounts.forgetAccount(account.getId());
 			// 본인 회차 삭제(deleteRowById)가 영속성 컨텍스트를 비워 account 가 분리되므로, 다시 읽어 익명화해야 저장된다
 			accounts.findById(account.getId()).orElseThrow().withdraw(now);
 		});

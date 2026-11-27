@@ -39,6 +39,9 @@ public enum ErrorCode {
 	FEEDBACK_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 개선 요청을 보낼 수 없습니다."),
 	FEEDBACK_NOT_FOUND(HttpStatus.NOT_FOUND, "찾을 수 없는 개선 요청입니다."),
 	FEEDBACK_CHANGED(HttpStatus.CONFLICT, "다른 개발자가 먼저 바꿨습니다. 새로 고친 뒤 다시 확인해 주세요."),
+	SOCIAL_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 소셜 계정을 연결할 수 없습니다."),
+	SOCIAL_NOT_FOUND(HttpStatus.NOT_FOUND, "연결된 소셜 계정이 없습니다."),
+	OAUTH_PROVIDER_NOT_FOUND(HttpStatus.NOT_FOUND, "지원하지 않는 로그인 방식입니다."),
 	FAVORITE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 즐겨찾기를 쓸 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 알림입니다."),
