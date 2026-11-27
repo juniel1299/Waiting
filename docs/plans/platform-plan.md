@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 배포(꺼진 상태 점검 통과), 6단계 배포(비밀번호 없는 점검 통과), 7단계 진행 중** (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 배포(꺼진 상태 점검 통과), 6단계 배포(비밀번호 없는 점검 통과), 7단계 구현·로컬 검증 완료(PR·공개 검증 대기, 저장소 선택은 사용자)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -158,6 +158,19 @@
 - **화면:** 모임 안 메뉴 '채팅'(회원에게만), `role="log"` 목록(새 메시지 알림은 polite), 맨 아래 근처일 때만 따라 내려가기, Enter 보내기·Shift+Enter 줄바꿈·한글 조합 중 보내지 않음, 1000자 표시, 삭제 버튼(본인·모임 운영자), 회원이 아니게 되면 안내로 바뀜.
 - **미구현(범위 밖):** 이전 메시지 더 불러오기(최근 50건만), 읽음 표시, 첨부, 알림.
 
+## 7단계 설계·구현 (2026-11-27)
+
+- **저장소:** 사용자가 아직 고르지 않아 추천안대로 **Neon DB(bytea) 저장**으로 진행했다. 바이트는 `PhotoStorage` 인터페이스(`put`·`get`·`delete`) 뒤에 두고 지금 구현은 `DbPhotoStorage`(`photo_object` 표) 하나다. Supabase Storage 등으로 바꾸면 이 구현만 바꾸면 된다(그때는 저장이 트랜잭션 밖이라 실패·고아 파일 재처리 작업 표가 필요하다). 병합 전 사용자 선택에 따라 바뀔 수 있다.
+- **권한:** 승인된 모임의 지금 회원만 목록·이미지 보기·올리기(요청마다 `ClubRoles` 재확인, 탈퇴 직후 403). 본인 또는 모임 운영자 삭제. 모임 삭제 시 `club_photo`·`photo_object` FK cascade.
+- **형식·크기:** 확장자·Content-Type 이 아니라 **바이트 시그니처**로 JPEG(FFD8FF)·PNG(89 50 4E 47 …)·WebP(RIFF…WEBP)만. 원본 5MB(multipart 한도와 서비스 둘 다), 디코드 전에 픽셀 수 4천만 상한(압축 폭탄 방지), 깨진 파일 400 `PHOTO_INVALID`.
+- **저장본:** EXIF 방향(1~8)을 픽셀에 반영한 뒤 긴 변 1600px JPEG(품질 0.85) + 썸네일 400px(0.8)를 **새로 인코딩**한다. 새 JPEG 에는 EXIF(위치 포함)가 없다. 투명 PNG 는 흰 바탕. 원본은 저장하지 않는다.
+- **상한:** 계정별 업로드 10분 10장(`PHOTO_MAX_PER_WINDOW`·`PHOTO_WINDOW`, 429), 모임당 200장(409 `PHOTO_CLUB_FULL`), 전체 저장 용량 300MB(Neon 무료 0.5GB 안, 409 `PHOTO_STORAGE_FULL`). 장수·용량 확인과 넣기는 모임 행 공유 잠금 + 전체 용량 advisory 잠금 안에서 해 동시 업로드에도 상한을 넘지 않는다(이미지 처리는 잠금 밖).
+- **응답:** 이미지는 회원 확인 뒤 `Cache-Control: private, max-age=300`, `X-Content-Type-Options: nosniff`, `image/jpeg`.
+- **의존성:** JDK 17 ImageIO 에는 WebP 가 없어 `com.twelvemonkeys.imageio:imageio-webp:3.12.0`(읽기만, 쓰기는 모두 JDK JPEG)을 더했다. 함께 들어오는 jar 6개 합계 약 564KB(imageio-webp 80KB, imageio-core 120KB, imageio-metadata 84KB, common-lang 122KB, common-io 92KB, common-image 80KB). 라이선스 BSD-3.
+- **프록시 한도:** Vercel 함수 요청 본문 한도가 4.5MB 라, 화면은 4MB 넘는 사진을 브라우저에서 긴 변 2400px JPEG 로 줄여 보낸다(최종 처리·EXIF 제거는 서버). `api()` 에 FormData 전송을 더했다.
+- **화면:** 모임 안 메뉴 '사진첩'(회원에게만), 썸네일 격자(눌러 원본), 장수 표시, 사진 올리기(키보드로도 고를 수 있는 파일 입력), 형식 안내, 삭제, 더 보기(30장씩), 회원이 아니면 안내.
+- **알려진 한계:** CMYK JPEG 는 JDK 기본 리더가 못 읽어 `PHOTO_INVALID` 로 거부된다(필요하면 TwelveMonkeys imageio-jpeg 추가). HEIC(아이폰 기본)는 받지 않는다(화면이 안내).
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
@@ -168,4 +181,4 @@
 | 4 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 변경 없음(793 그대로). 프런트 단위 43(새 `dashboard.test.mjs` 5, 구현 전 실패 확인), e2e 112(새 `dashboard.spec.ts` 2: 카드=표 값, 차트 전환·이름의 합계=표 합계·새로 고침 뒤 기억, 빈 기간, 오류 뒤 다시 시도), `tsc`·`eslint` 0. 스크린샷: 표·차트(데스크톱), 차트(모바일 어두운 테마, 가로 넘침 0) | 배포 뒤 공개 화면 확인(운영자 로그인 필요, 사용자) | 실제 스크린 리더로 차트 이름 읽기, 실제 iPhone Safari |
 | 5 | 배포 완료(꺼진 상태), 비밀번호 없는 공개 점검 8/8, 공급자 앱 등록·환경 변수는 사용자 | PR #54 | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | PR #54 병합·배포 `0a483e40`(Render 01:56 UTC, V19 적용). 꺼진 상태 점검 8/8 ([기록](../../loadtest/results/2026-11-27-public-platform5-open.txt)). 환경 변수 넣은 뒤 같은 스크립트 재실행(공급자 인가 주소) + 직접 연결·로그인은 대기 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
 | 6 | 배포 완료, 비밀번호 없는 공개 점검 5/5, 로그인 점검 대기 | PR #55 | 백엔드 831(새 `ClubChatApiTests` 5: 주고받기·이어 받기, 비회원·탈퇴 직후·내보내기 직후 403, 길이·속도 제한, 본인·운영자 삭제 표시, 모임 삭제 cascade / `ClubChatConcurrencyTests` 5회: 4명 동시 60건 보내는 동안 cursor 이어 받기가 모두 받음·id 순, 구현 전 10개 실패 확인), e2e 116(새 `club-chat.spec.ts` 2), 프런트 단위 47, `tsc`·`eslint` 0. 공개 점검 리허설 5/5·통과, 정리 SQL 0·0·2 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform6.txt)) | PR #55 병합·배포 `cf7d8b2c`(Render 03:20 UTC, V20 적용). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-27-public-platform6-open.txt)). 로그인 점검 `public-platform6-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명, 모임 1개 만들고 삭제)는 사용자 실행 대기 | 공개 환경에서 여러 사람 동시 채팅·Render 재시작 중 이어 받기, 실제 iPhone Safari·스크린 리더 |
-| 7 | 대기 | — | — | — | — |
+| 7 | 구현·로컬 검증 완료, PR·공개 검증 대기(저장소는 Neon 저장으로 진행, 사용자 선택에 따라 바뀔 수 있음) | (PR 대기) | 백엔드 842(새 `ClubPhotoApiTests` 5: 줄인 JPEG·썸네일·private 캐시·nosniff, EXIF 위치 표지 제거·방향 반영, 시그니처(가짜 .jpg·GIF·깨진 파일 거부, PNG·WebP 허용), 5MB 초과 413, 권한·삭제·탈퇴 직후 403·모임 삭제 cascade / `ClubPhotoQuotaTests` 1: 속도 429·모임당 장수 409 / `ClubPhotoConcurrencyTests` 5회: 8명 동시 업로드에서 정확히 남은 3장만 저장·용량 상한 이하, 구현 전 11개 실패 확인), e2e 118(새 `club-photos.spec.ts` 2, 업로드가 Next 프록시 경유), 프런트 단위 48, `tsc`·`eslint` 0. 공개 점검 리허설 5/5·통과, 정리 SQL 0·0·0·2 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform7.txt)) | 배포 뒤 `public-platform7-open-check.mjs`(비밀번호 없음), `public-platform7-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명, 모임 1개 만들고 삭제, 사용자 실행) | 실제 휴대폰 사진(큰 원본·HEIC·CMYK), Vercel 4.5MB 근처 업로드, 공개 환경 용량 경합, 실제 iPhone Safari·스크린 리더 |

@@ -1,0 +1,30 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100 — 업로드도 Next 프록시 경유, 시드 운영자, 운영자 비밀번호는 파이프 입력·출력 0건, 2026-11-27 03:41 UTC)
+## BASE_URL=http://localhost:3100 node loadtest/public-platform7-open-check.mjs (종료 코드 0)
+시작 2026-11-27T03:41:48.075Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /clubs/1/photos 200
+성공 | 비회원 사진첩 목록·썸네일·삭제 401 | 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V21): 회원이 아닌 데모는 사진첩 403 CLUB_MEMBERS_ONLY | 모임 184: 목록 403 CLUB_MEMBERS_ONLY, 올리기 403 CLUB_MEMBERS_ONLY
+성공 | 없는 모임 사진첩 404 | 404 CLUB_NOT_FOUND
+결과: 성공 5 / 실패 0
+
+## BASE_URL=http://localhost:3100 node loadtest/public-platform7-check.mjs (종료 코드 0, 테스트 회원 2명 = 가입 제한 15분 5회 안)
+03:41:48 운영자 로그인 200
+03:41:48 A qa_pa7a11270341 가입 201 / 로그인 200
+03:41:48 B qa_pa7b11270341 가입 201 / 로그인 200
+03:41:48 모임 신청 201 → 승인 200 → B 가입 전 사진첩 403 CLUB_MEMBERS_ONLY → B 가입 200
+03:41:48 확장자만 .jpg 인 글자 파일 400 PHOTO_INVALID | EXIF(표지 포함 true) JPEG 201 크기 20×30
+03:41:49 A 원본 보기 200 image/jpeg | max-age=300, private | nosniff | 표지 남음 false, EXIF 남음 false | 썸네일 200 | 비회원 401
+03:41:49 B 본인 사진 삭제 204 → 원본 404
+03:41:49 확장 7단계 공개 점검 통과
+03:41:49 정리: 모임 삭제(사진 함께) 204
+03:41:49 정리: A 탈퇴 204
+03:41:49 정리: B 탈퇴 204
+03:41:49 정리: 운영자 로그아웃 204
+03:41:49 Neon SQL 편집기에서 확인 (기대값: 0 | 0 | 0 | 2 — 남은 모임, 남은 사진, 남은 사진 바이트, 탈퇴한 점검 계정):
+select (select count(*) from club where id = 185) as club_left,
+       (select count(*) from club_photo where club_id = 185) as photos_left,
+       (select count(*) from photo_object where photo_id in (3)) as bytes_left,
+       (select count(*) from account where id in (2577, 2578) and deleted_at is not null) as withdrawn;
+
+## 로컬 DB 에서 위 확인 SQL 결과: 0|0|0|2
