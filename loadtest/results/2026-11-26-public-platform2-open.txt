@@ -17,4 +17,4 @@ select
   (select success from flyway_schema_history where version = '17') as v17_success;
 결과: 0 | 0 | 0 | true (기대값과 같음)
 
-## 로그인 점검 (node loadtest/public-platform2-check.mjs): 사용자 실행 대기
+## 로그인 점검 (node loadtest/public-platform2-check.mjs): 2026-11-27 06:29 UTC 재실행 통과, Neon SQL 0 | 0 — [2026-11-27-public-platform2.txt](2026-11-27-public-platform2.txt)

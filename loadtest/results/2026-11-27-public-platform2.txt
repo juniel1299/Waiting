@@ -1,0 +1,19 @@
+# 로그인 점검 — 확장 2단계 프로필·닉네임·즐겨찾기 (사용자 실행, 2026-11-27)
+05:39 UTC 실행은 같은 IP 가입 제한(15분 5회)에 걸려 B 가입 429 로 중단(A 탈퇴 204). 15분 뒤 재실행해 통과했다.
+
+## node loadtest/public-platform2-check.mjs 재실행 (06:25~06:29 UTC, 통과)
+06:29:07 A qa_pa2a11270625 가입 201 / 로그인 200
+06:29:11 B qa_pa2b11270625 가입 201 / 로그인 200
+06:29:12 A 가입 닉네임 "포근한펭귄7604"
+06:29:13 B 가 A 닉네임 중복 확인 {"available":false,"reason":"이미 다른 회원이 쓰는 닉네임이에요."} | 저장 409 NICKNAME_TAKEN | 금지어 저장 400 VALIDATION_FAILED
+06:29:14 A 소개·태그 저장 200 tags=["자바","스프링"] | B 가 본 A 프로필 200 [bio,id,nickname,tags] 로그인 아이디 포함: false
+06:29:18 B 회차 20 즐겨찾기 두 번 200·200 → 목록 1개 → 해제 200
+06:29:18 B 모임 4 즐겨찾기 200 → 목록 1개 (탈퇴 정리에서 지워짐)
+06:29:18 확장 2단계 공개 점검 통과
+06:29:20 정리: A 탈퇴 204
+06:29:21 정리: B 탈퇴 204
+06:29:21 Neon SQL 편집기에서 확인 (두 값 모두 0: 남은 즐겨찾기, 닉네임·소개가 남은 탈퇴 계정):
+select (select count(*) from favorite where account_id in (282, 283)) as favorites_left,
+       (select count(*) from account where id in (282, 283) and (nickname is not null or bio is not null)) as profile_left;
+
+## Neon SQL 결과 (사용자 실행, 06:31 UTC 보고): 0 | 0 — 기대값과 같음
