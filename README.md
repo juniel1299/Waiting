@@ -21,6 +21,7 @@
 | 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
 | 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 예약·자동 승격 영상과 단계별 화면, 모임·커뮤니티 영상과 역할 관리 화면, 플랫폼 기능 화면(채팅·사진첩·공개 프로필·다크 모드). 2026-11-28 지금 화면으로 다시 촬영([촬영 기록](loadtest/results/2026-11-28-tour-recording.txt)). 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 |
 | 한 장 정리 | [플랫폼 확장 정리](docs/platform-expansion-summary.md) (7단계·후속 개발 PR #50~#65) |
+| 이력서용 프로젝트 정리 | [프로젝트 정리](docs/project-summary.md) (소개·스택·기능·문제 해결 사례·이력서 문장 후보·한계, 면접에서 설명할 수준으로) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
 | 설계·검증 문서 | [확장 계획](docs/plans/platform-plan.md) · [커뮤니티 계획](docs/plans/community-plan.md) · [채팅 이전 기록](docs/plans/chat-history.md) · [사진 업로드](docs/plans/photo-upload.md) · [화면 정리](docs/plans/layout-fix.md) · [디자인 규칙](docs/design-system.md) · [소셜 연결 설정](docs/social-login-setup.md) |
 | 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [마지막 자리·취소/승격](loadtest/results/2026-11-21-local.md) · [정원 증설](loadtest/results/2026-11-21-local-capacity.md) (로컬) |
@@ -1240,7 +1241,7 @@ commit;
 | 항목 | 상태 | 비고 |
 |---|---|---|
 | 휴대폰 화면 (공개 배포) | **에뮬레이션 통과**: Playwright Chromium 의 iPhone 13 기기 에뮬레이션, 2026-11-21 11:01 UTC (배포 `f985ac24`), 21:22 UTC (배포 `cd6d49e6`, 첫 화면·내 신청) | 첫 화면 흐름·가로 넘침 없음, `/tour` `/api` 0건·mp4 `readyState 4`·이미지 4/4, 데모 시작 2.1초. 실제 기기 아님 |
-| 실제 iPhone Safari 영상 재생 | **확인 대기** (실기기 미확인) | 2026-11-28 다시 찍은 영상도 H.264 mp4(Main, yuv420p, faststart)를 먼저, webm 을 대체로 제공한다. 실제 iOS Safari 재생은 확인하지 못했다. 실기기 확인 뒤 이 행을 갱신한다 |
+| 실제 iPhone Safari 영상 재생 | **확인 완료** (사용자 실기기, 2026-11-27 22:44 UTC) | 2026-11-28 다시 찍은 `/tour` 영상(H.264 mp4 먼저, webm 대체)이 사용자 iPhone 에서 재생됨. 공개 확인 기록: [촬영 기록](loadtest/results/2026-11-28-tour-recording.txt) |
 | 공개 내 신청 (일반 가입 계정) | **완료** (2026-11-21 22:36 UTC, 사용자 실행) | 예약·대기 표시, 계정 간 비노출, 승격, 탈퇴 정리 모두 통과. 위 "일반 가입 계정 '내 신청' 공개 실행 완료" |
 | 공개 운영자 화면 (개편 뒤 사용량·전체 회차·계정 관리) | **통과** (2026-11-22 09:54 UTC, 3단계 점검이 화면과 API 를 비교, 사용자 실행) | 회차 명단·정원 변경 화면은 공개에서 운영자로 직접 보지는 않았다(1단계 점검이 생성자 API 로 명단·정원 증설을 확인) |
 | 개편 1·3단계 공개 점검 스크립트 | **1단계 통과**(2026-11-22 09:38 UTC) · **3단계 통과**(09:54 UTC), 모두 사용자 실행·정리 완료 | `public-stage1-check.mjs`(일반 계정 비밀번호), `public-stage3-check.mjs`(운영자 비밀번호). 로컬 운영 이미지 리허설은 통과 |
