@@ -31,6 +31,26 @@ public class PhotoProcessor {
 	public record Processed(byte[] image, byte[] thumb, int width, int height) {
 	}
 
+	/** 받지 않는 형식인데 이유를 따로 알려 줄 수 있는 경우(인쇄용 CMYK JPEG, 아이폰 HEIC). */
+	public static final class Unsupported extends IllegalArgumentException {
+
+		public enum Kind {
+			CMYK, HEIC
+		}
+
+		private final Kind kind;
+
+		Unsupported(Kind kind) {
+			super(kind.name());
+			this.kind = kind;
+		}
+
+		public Kind kind() {
+			return kind;
+		}
+
+	}
+
 	static final int MAX_SIDE = 1600;
 
 	static final int THUMB_SIDE = 400;
@@ -50,7 +70,14 @@ public class PhotoProcessor {
 	public Processed process(byte[] original) {
 		String format = format(original);
 		if (format == null) {
+			if (isHeic(original)) {
+				throw new Unsupported(Unsupported.Kind.HEIC);
+			}
 			throw new IllegalArgumentException("허용하지 않는 형식");
+		}
+		if ("jpeg".equals(format) && jpegComponents(original) == 4) {
+			// JDK 기본 JPEG 리더는 CMYK·YCCK 를 읽지 못한다: 깨진 파일과 구분해 RGB 로 저장해 달라고 안내한다
+			throw new Unsupported(Unsupported.Kind.CMYK);
 		}
 		BufferedImage decoded = decode(original, format);
 		BufferedImage upright = orient(decoded, "jpeg".equals(format) ? ExifOrientation.read(original) : 1);
@@ -73,6 +100,32 @@ public class PhotoProcessor {
 			return "webp";
 		}
 		return null;
+	}
+
+	/** ISO BMFF ftyp 상자의 브랜드가 HEIF 계열(heic·heix·hevc·heim·heis·mif1·msf1)인지. */
+	static boolean isHeic(byte[] b) {
+		if (b.length < 12 || b[4] != 'f' || b[5] != 't' || b[6] != 'y' || b[7] != 'p') {
+			return false;
+		}
+		String brand = new String(b, 8, 4, java.nio.charset.StandardCharsets.US_ASCII);
+		return java.util.List.of("heic", "heix", "hevc", "heim", "heis", "mif1", "msf1").contains(brand);
+	}
+
+	/** JPEG 의 첫 SOF(시작 프레임) 표지에 적힌 색 성분 수. 못 찾으면 0. */
+	static int jpegComponents(byte[] b) {
+		int i = 2;
+		while (i + 9 < b.length && (b[i] & 0xFF) == 0xFF) {
+			int marker = b[i + 1] & 0xFF;
+			int length = ((b[i + 2] & 0xFF) << 8) | (b[i + 3] & 0xFF);
+			if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
+				return b[i + 9] & 0xFF;
+			}
+			if (marker == 0xDA || length < 2) {
+				return 0;
+			}
+			i += 2 + length;
+		}
+		return 0;
 	}
 
 	private static BufferedImage decode(byte[] bytes, String format) {

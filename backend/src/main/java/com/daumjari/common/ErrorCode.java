@@ -46,6 +46,8 @@ public enum ErrorCode {
 	CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "본인 메시지나 모임 운영자만 지울 수 있습니다."),
 	CHAT_TOO_FAST(HttpStatus.TOO_MANY_REQUESTS, "메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요."),
 	PHOTO_INVALID(HttpStatus.BAD_REQUEST, "JPEG·PNG·WebP 사진만 올릴 수 있어요."),
+	PHOTO_HEIC_UNSUPPORTED(HttpStatus.BAD_REQUEST, "HEIC 사진은 아직 받지 않아요. JPEG·PNG·WebP 로 올려 주세요(아이폰: 설정 > 카메라 > 포맷 > 높은 호환성, 또는 사진을 JPEG 로 내보내기)."),
+	PHOTO_CMYK_UNSUPPORTED(HttpStatus.BAD_REQUEST, "인쇄용(CMYK) JPEG 는 받지 않아요. RGB 로 저장한 JPEG·PNG·WebP 로 올려 주세요."),
 	PHOTO_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "사진은 5MB 이하만 올릴 수 있어요."),
 	PHOTO_TOO_FAST(HttpStatus.TOO_MANY_REQUESTS, "사진을 너무 많이 올리고 있어요. 잠시 후 다시 올려 주세요."),
 	PHOTO_CLUB_FULL(HttpStatus.CONFLICT, "이 모임의 사진첩이 가득 찼어요. 오래된 사진을 지운 뒤 올려 주세요."),
