@@ -109,6 +109,7 @@ export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
         <nav aria-label="모임 안 메뉴" className="tabs">
           <Link href={`/clubs/${clubId}/notices`}>모임 공지</Link>
           <Link href={`/clubs/${clubId}/board`}>모임 게시판</Link>
+          {club.joined && <Link href={`/clubs/${clubId}/chat`}>채팅</Link>}
           <Link href={`/clubs/${clubId}/members`}>회원 {club.memberCount}명</Link>
           <Link href={`/clubs/${clubId}/roles`}>권한 관리</Link>
         </nav>
