@@ -1,0 +1,13 @@
+# 공개 점검 (비밀번호 없음) — 배포 cf7d8b2c (PR #55, Render 성공 03:20 UTC, V20 적용), 2026-11-27 03:20 UTC
+## node loadtest/public-platform6-open-check.mjs (종료 코드 0)
+시작 2026-11-27T03:20:46.072Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /clubs/1/chat 200
+성공 | 비회원 채팅 읽기·쓰기 401 | 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V20): 회원이 아닌 데모는 채팅 403 CLUB_MEMBERS_ONLY | 모임 4: 403 CLUB_MEMBERS_ONLY, 403 CLUB_MEMBERS_ONLY
+성공 | 없는 모임 채팅 404 | 404 CLUB_NOT_FOUND
+결과: 성공 5 / 실패 0
+
+바꾸는 데이터: 데모 시작 1회(30분 뒤 서버가 지움). 메시지는 보내지 않는다.
+
+## 로그인 점검 (node loadtest/public-platform6-check.mjs): 사용자 실행 대기
