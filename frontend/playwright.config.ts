@@ -20,7 +20,13 @@ export default defineConfig({
     locale: "ko-KR",
     timezoneId: "Asia/Seoul",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // 화면 배치만 Safari 엔진으로 다시 본다(E2E_WEBKIT=1, `npx playwright install webkit` 필요). macOS WebKit 이라 iOS 전용 동작은 재현되지 않는다
+    ...(process.env.E2E_WEBKIT
+      ? [{ name: "webkit-iphone", testMatch: /layout\.spec\.ts/, use: { ...devices["iPhone 17 Pro"] } }]
+      : []),
+  ],
   webServer: [
     {
       // 로그인 제한 창을 짧게: 제한 후 정상 로그인까지 e2e 에서 기다릴 수 있게.

@@ -43,20 +43,27 @@ function PublicProfile({ id }: { id: string }) {
     );
   }
   if (!profile) return <p>불러오는 중…</p>;
+  // 아바타는 사진 없이 닉네임 첫 글자(이모지·한글도 한 글자로)
+  const initial = Array.from(profile.nickname)[0] ?? "?";
   return (
-    <>
-      <h1>{profile.nickname}</h1>
-      <p className="meta">공개 프로필</p>
-      <section className="card">
-        <h2>소개</h2>
-        <p className="prewrap">{profile.bio ?? "아직 소개가 없어요."}</p>
-        {profile.tags.length > 0 && (
-          <>
-            <h2>관심 태그</h2>
-            <TagList tags={profile.tags} />
-          </>
-        )}
+    <article className="profile">
+      <header className="profile-head">
+        <span className="avatar" aria-hidden="true">
+          {initial}
+        </span>
+        <div className="profile-name">
+          <h1>{profile.nickname}</h1>
+          <p className="meta">공개 프로필</p>
+        </div>
+      </header>
+      <section className="panel" aria-labelledby="profile-bio">
+        <h2 id="profile-bio">자기소개</h2>
+        {profile.bio ? <p className="prewrap profile-text">{profile.bio}</p> : <p className="meta">아직 소개가 없어요.</p>}
       </section>
-    </>
+      <section className="panel" aria-labelledby="profile-tags">
+        <h2 id="profile-tags">관심 태그</h2>
+        {profile.tags.length > 0 ? <TagList tags={profile.tags} /> : <p className="meta">아직 등록한 관심 태그가 없어요.</p>}
+      </section>
+    </article>
   );
 }

@@ -139,6 +139,8 @@ h2 {
 input,
 button {
   font: inherit;
+  /* line-height: normal 은 글꼴(Apple SD Gothic Neo·Noto Sans KR)마다 높이가 달라 같은 줄의 입력·버튼 높이가 어긋났다 */
+  line-height: 1.25;
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--line);
@@ -147,6 +149,12 @@ button {
 }
 
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  vertical-align: middle;
+  text-align: center;
   /* 모바일 탭 강조가 눌린 모양처럼 남지 않게 한다. 키보드 포커스는 아래 :focus-visible 링으로 보인다 */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -242,6 +250,8 @@ input:focus-visible {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -367,6 +377,7 @@ td {
 /* ── 회차 검색 목록 (전체 회차·내가 만든 회차) ── */
 select {
   font: inherit;
+  line-height: 1.25;
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--line);
@@ -391,6 +402,7 @@ select:focus-visible {
 .search-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 12px;
 }
 
@@ -464,7 +476,14 @@ select:focus-visible {
 }
 
 .button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  vertical-align: middle;
+  line-height: 1.25;
   padding: 8px 12px;
+  border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
   color: #fff;
@@ -1122,11 +1141,28 @@ fieldset.field {
   margin: 0;
 }
 
-.choice {
+/* .form label(세로 배치)보다 뒤·같은 구체성으로 둬서 라디오 라벨은 가로 한 줄 */
+label.choice {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 6px;
-  margin-right: 16px;
+  min-height: 44px;
+  padding-right: 8px;
+  cursor: pointer;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.choice input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
 }
 
 /* ── 커뮤니티 5단계: 모임 회원 목록. 역할은 글자 배지(만든 사람·모임 운영자·회원) ── */
@@ -1241,12 +1277,16 @@ fieldset.field {
   font-weight: 700;
   padding: var(--space-2) var(--space-3);
   border-radius: 8px;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 /* 화살표는 aria-hidden 요소로 둔다 (::after 내용은 버튼 이름에 섞여 화면 읽기에 "게시판 ▸" 로 읽힌다) */
+.menu-group-toggle {
+  display: flex;
+  justify-content: space-between;
+}
+
 .menu-group-toggle .chevron {
-  float: right;
   display: inline-block;
   transition: transform var(--motion) ease;
 }
@@ -1266,7 +1306,9 @@ fieldset.field {
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
   border-radius: 8px;
   color: var(--foreground);
-  min-height: 40px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
   transition: background-color var(--motion) ease;
 }
 
@@ -1688,9 +1730,13 @@ button,
 .button-label {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  line-height: 1.25;
   min-height: 44px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
   background: var(--accent);
   color: #fff;
   cursor: pointer;
@@ -1750,4 +1796,226 @@ button,
   display: block;
   margin: calc(-1 * var(--space-2)) auto var(--space-3);
   border-radius: 999px;
+}
+
+/* ── 날짜·시간 입력 (전체 회차·내가 만든 회차·누적 사용량·회차 만들기/수정) ──
+   날짜 입력은 브라우저가 정한 고유 최소 너비(달력 버튼 + 날짜 글자)가 있어 flex 칸이 그보다 좁으면 테두리 밖으로 나간다.
+   칸 너비를 따르게 하고(min-width 0), 칸의 기본 너비를 날짜가 다 보이는 180px 로 두어 좁은 화면에서는 한 줄에 하나씩 놓는다. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 44px;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.search-row .field:has(> input[type="date"]) {
+  flex: 1 1 180px;
+}
+
+/* 좁은 화면: 시작일·종료일을 각자 한 줄(다른 칸과 섞여 짝이 갈라지지 않게) */
+@media (max-width: 599px) {
+  .search-row .field:has(> input[type="date"]) {
+    flex-basis: 100%;
+  }
+}
+
+/* 선택창: WebKit(Safari·iPhone)은 기본 모양의 select 에 min-height 를 적용하지 않아 22px 정도로 낮게 그린다.
+   기본 모양을 끄고 화살표를 직접 그려 입력·버튼과 같은 44px 로 맞춘다 */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 44px;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+}
+
+/* iOS Safari: 날짜 입력이 고유 너비로 부모를 넘고 글자가 가운데로 몰린다. 기본 모양을 끄면 너비를 따르고, 누르면 그대로 날짜 선택기가 열린다 */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.25em;
+  }
+}
+
+/* ── 화면별 레이아웃 (2026-11-27): 공개 프로필·모임 상세·회차 관리 ── */
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.push-end {
+  margin-left: auto;
+}
+
+/* 공개 프로필: 상단 아바타·닉네임, 소개·태그는 각자 상자 */
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.profile-name {
+  min-width: 0;
+}
+
+.profile-name h1,
+.profile-text {
+  overflow-wrap: anywhere;
+}
+
+.profile .panel h2,
+.club-body h2 {
+  font-size: 1rem;
+}
+
+/* 모임 상세: 머리 상자(이름·가입 상태·정보·버튼) → 모임 안 메뉴 → 본문 */
+.club-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.club-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.club-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.club-title h1 {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.club-membership {
+  margin: 0;
+}
+
+.club-facts dd {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.club-actions {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* 모임 안 메뉴는 본문과 구분되는 띠, 좁으면 가로로 밀어 본다(줄바꿈 대신 한 줄 유지) */
+.club-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.club-tabs a {
+  flex: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.club-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 회차 관리: 영역별 상자, 정원 입력과 버튼은 같은 줄·아래선 정렬, 삭제는 선으로 떨어뜨림 */
+.stat-cards.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: var(--space-2) 0 0;
+}
+
+.stat-cards.compact .stat-card {
+  padding: var(--space-3);
+}
+
+.stat-cards.compact .stat-value {
+  font-size: 1.35rem;
+}
+
+.capacity-row .field:first-child {
+  flex: 0 1 200px;
+}
+
+.capacity-row .field.end {
+  flex: 0 0 auto;
+}
+
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--danger);
+}
+
+@media (max-width: 480px) {
+  .profile-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .club-head {
+    padding: var(--space-3);
+  }
+
+  .push-end {
+    margin-left: 0;
+  }
 }

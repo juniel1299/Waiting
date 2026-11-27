@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
-import { api, errorMessage, formatSeoul, type RosterEntry, type StudySession } from "@/lib/api";
+import { api, errorMessage, formatSeoul, STATUS_LABEL, type RosterEntry, type StudySession } from "@/lib/api";
 
 /** 회차 관리: 생성자는 명단·정원·삭제, 운영자는 명단·삭제. 권한은 서버가 정하고(다른 회원은 403) 화면은 응답을 따른다. */
 export function Manage() {
@@ -51,41 +51,83 @@ function RosterTable({ sessionId }: { sessionId: string }) {
       </Link>
       {error && <p role="alert">{error}</p>}
       {!error && entries === null && <p>불러오는 중…</p>}
-      {entries && (
+      {entries && data && (
         <>
-          <h1>회차 관리 · {data?.session.title}</h1>
-          {data?.session.canManage && data.session.status !== "STARTED" && (
-            <Link href={`/sessions/${sessionId}/edit`} className="link">
-              제목·시작·장소 수정
-            </Link>
-          )}
-          {data?.session.canManage && (
+          <h1 className="title-text">회차 관리 · {data.session.title}</h1>
+          {/* 1) 회차 정보 2) 인원 3) 정원 변경 4) 명단 5) 관리 작업(삭제는 따로) */}
+          <section className="panel" aria-labelledby="manage-info">
+            <h2 id="manage-info">회차 정보</h2>
+            <dl className="facts">
+              <dt>일시</dt>
+              <dd>{formatSeoul(data.session.startsAt)}</dd>
+              <dt>장소</dt>
+              <dd className="wrap-anywhere">{data.session.location}</dd>
+              <dt>모집 상태</dt>
+              <dd>
+                <span className={`badge status-${data.session.status.toLowerCase()}`}>{STATUS_LABEL[data.session.status]}</span>
+              </dd>
+            </dl>
+            <ul className="stat-cards compact" aria-label="인원">
+              <li className="stat-card">
+                <span className="meta">정원</span>
+                <strong className="stat-value">{data.session.capacity}명</strong>
+              </li>
+              <li className="stat-card">
+                <span className="meta">확정</span>
+                <strong className="stat-value">{data.session.confirmedCount}명</strong>
+              </li>
+              <li className="stat-card">
+                <span className="meta">대기</span>
+                <strong className="stat-value">{data.session.waitingCount}명</strong>
+              </li>
+            </ul>
+          </section>
+          {data.session.canManage && (
             <CapacityForm session={data.session} onChanged={() => fetchRoster().then(setData)} />
           )}
-          <h2>확정 명단</h2>
-          {entries.length === 0 ? (
-            <p>확정된 참가자가 없어요.</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">이름</th>
-                  <th scope="col">아이디</th>
-                  <th scope="col">예약 시각</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e) => (
-                  <tr key={e.reservationId}>
-                    <td>{e.displayName}</td>
-                    <td>{e.loginId}</td>
-                    <td>{formatSeoul(e.reservedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <section className="panel" aria-labelledby="manage-roster">
+            <h2 id="manage-roster">확정 명단</h2>
+            {entries.length === 0 ? (
+              <p className="meta">확정된 참가자가 없어요.</p>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">이름</th>
+                      <th scope="col">아이디</th>
+                      <th scope="col">예약 시각</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((e) => (
+                      <tr key={e.reservationId}>
+                        <td>{e.displayName}</td>
+                        <td>{e.loginId}</td>
+                        <td>{formatSeoul(e.reservedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="meta">
+              대기 {data.session.waitingCount}명은 신청 순서대로 자리가 나면 자동으로 확정돼요.
+            </p>
+          </section>
+          {(data.session.canManage || data.session.canDelete) && (
+            <section className="panel" aria-labelledby="manage-actions">
+              <h2 id="manage-actions">관리 작업</h2>
+              {data.session.canManage && data.session.status !== "STARTED" && (
+                <div className="actions">
+                  <Link href={`/sessions/${sessionId}/edit`} className="button-link secondary-link">
+                    제목·시작·장소 수정
+                  </Link>
+                </div>
+              )}
+              {data.session.canDelete && <DeleteSession session={data.session} />}
+            </section>
           )}
-          {data?.session.canDelete && <DeleteSession session={data.session} />}
         </>
       )}
     </>
@@ -116,15 +158,18 @@ function CapacityForm({ session, onChanged }: { session: StudySession; onChanged
   }
 
   return (
-    <section className="form">
-      <p data-testid="capacity">
+    <section className="panel" aria-labelledby="manage-capacity">
+      <h2 id="manage-capacity">정원 변경</h2>
+      <p data-testid="capacity" className="meta">
         정원 {session.capacity}명 · 확정 {session.confirmedCount}명 · 대기 {session.waitingCount}명
       </p>
-      <form onSubmit={submit} className="actions">
-        <label>
-          새 정원
+      <form onSubmit={submit} className="search-row capacity-row">
+        <div className="field">
+          <label htmlFor={`capacity-${session.id}`}>새 정원</label>
           <input
+            id={`capacity-${session.id}`}
             type="number"
+            inputMode="numeric"
             min={1}
             max={1000}
             step={1}
@@ -132,10 +177,12 @@ function CapacityForm({ session, onChanged }: { session: StudySession; onChanged
             onChange={(e) => setCapacity(e.target.value)}
             required
           />
-        </label>
-        <button type="submit" disabled={busy || session.status === "STARTED"}>
-          정원 변경
-        </button>
+        </div>
+        <div className="field end">
+          <button type="submit" disabled={busy || session.status === "STARTED"}>
+            정원 변경
+          </button>
+        </div>
       </form>
       {session.status === "STARTED" && <p className="meta">시작된 회차는 정원을 바꿀 수 없어요.</p>}
       {notice && <p role={notice.kind}>{notice.text}</p>}
@@ -166,11 +213,12 @@ function DeleteSession({ session }: { session: StudySession }) {
   }
 
   return (
-    <section className="form" aria-label="회차 삭제">
+    <div className="danger-zone" aria-label="회차 삭제" role="group">
+      <p className="meta">삭제하면 이 회차의 신청이 모두 함께 지워지고 복구할 수 없어요.</p>
       <button type="button" className="danger" onClick={remove} disabled={busy}>
         회차 삭제
       </button>
       {error && <p role="alert">{error}</p>}
-    </section>
+    </div>
   );
 }

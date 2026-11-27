@@ -76,37 +76,85 @@ export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
   }
   if (!club) return <p>불러오는 중…</p>;
 
+  const roleLabel = club.mine ? "만든 사람 · 모임 운영자" : club.myRole === "MANAGER" ? "모임 운영자" : "회원";
+  const showTabs = club.status === "APPROVED" && (club.joined || me.role === "OPERATOR");
+  const hasActions = club.canJoin || club.canLeave || club.canEdit || club.canCancel || club.canDelete;
+
   return (
     <article className="club-detail">
       <Link href={club.status === "APPROVED" ? "/clubs" : "/me/clubs"} className="link">
         ← {club.status === "APPROVED" ? "모임 목록" : "내 모임"}
       </Link>
-      <h1>{club.name}</h1>
-      {club.status === "APPROVED" && !me.demo && <FavoriteButton kind="clubs" id={club.id} />}
-      <p role="status" className="sr-only-when-empty">
-        {status}
-      </p>
-      {club.status !== "APPROVED" && (
-        <div className="stage">
-          <span className={`badge club-${club.status.toLowerCase()}`}>{STATUS_LABELS[club.status]}</span>
-          <span>{stageHint(club.status)}</span>
-          {club.rejectReason && <p className="reject-reason">반려 사유: {club.rejectReason}</p>}
+      {/* 상단: 이름·가입 상태·활동 정보·주요 버튼을 한 상자에서 */}
+      <header className="club-head">
+        <div className="club-title">
+          <h1>{club.name}</h1>
+          {club.status === "APPROVED" && !me.demo && <FavoriteButton kind="clubs" id={club.id} />}
         </div>
-      )}
-      <dl className="facts">
-        <dt>활동 방식</dt>
-        <dd>{modeLabel(club.mode)}</dd>
-        <dt>활동 장소</dt>
-        <dd>{club.place}</dd>
-        <dt>만든 사람</dt>
-        <dd>{club.creator.label}</dd>
-        <dt>회원</dt>
-        <dd>{club.memberCount}명</dd>
-        <dt>{club.status === "APPROVED" ? "승인" : "신청"}</dt>
-        <dd>{formatSeoul(club.decidedAt && club.status === "APPROVED" ? club.decidedAt : club.submittedAt)}</dd>
-      </dl>
-      {club.status === "APPROVED" && (club.joined || me.role === "OPERATOR") && (
-        <nav aria-label="모임 안 메뉴" className="tabs">
+        {/* 승인 전 모임은 아래 진행 단계 배지가 상태를 보인다 */}
+        {club.status === "APPROVED" && (
+          <p className="club-membership">
+            {club.myRole ? <span className="badge confirmed">가입함 · {roleLabel}</span> : <span className="badge">가입 전</span>}
+          </p>
+        )}
+        {club.status !== "APPROVED" && (
+          <div className="stage">
+            <span className={`badge club-${club.status.toLowerCase()}`}>{STATUS_LABELS[club.status]}</span>
+            <span>{stageHint(club.status)}</span>
+            {club.rejectReason && <p className="reject-reason">반려 사유: {club.rejectReason}</p>}
+          </div>
+        )}
+        <dl className="facts club-facts">
+          <dt>활동 방식</dt>
+          <dd>{modeLabel(club.mode)}</dd>
+          <dt>활동 장소</dt>
+          <dd>{club.place}</dd>
+          <dt>만든 사람</dt>
+          <dd>{club.creator.label}</dd>
+          <dt>회원</dt>
+          <dd>{club.memberCount}명</dd>
+          <dt>{club.status === "APPROVED" ? "승인" : "신청"}</dt>
+          <dd>{formatSeoul(club.decidedAt && club.status === "APPROVED" ? club.decidedAt : club.submittedAt)}</dd>
+        </dl>
+        {hasActions && (
+          <div className="actions club-actions">
+            {club.canJoin && (
+              <button type="button" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/join`, { method: "POST" }), "모임에 가입했어요.")}>
+                가입하기
+              </button>
+            )}
+            {club.canEdit && (
+              <Link href={`/clubs/${clubId}/edit`} className="button-link secondary-link">
+                {club.status === "REJECTED" || club.status === "CANCELLED" ? "고쳐서 다시 신청" : "수정"}
+              </Link>
+            )}
+            {club.canCancel && (
+              <button type="button" className="secondary" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/cancel`, { method: "POST" }), "신청을 취소했어요.")}>
+                신청 취소
+              </button>
+            )}
+            {club.canLeave && (
+              <button type="button" className="secondary" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/leave`, { method: "POST" }), "모임에서 탈퇴했어요.")}>
+                모임 탈퇴
+              </button>
+            )}
+            {/* 되돌릴 수 없는 작업은 일반 작업과 떨어진 오른쪽 끝(좁으면 다음 줄) */}
+            {club.canDelete && (
+              <button type="button" className="danger push-end" disabled={busy} onClick={remove}>
+                모임 삭제
+              </button>
+            )}
+          </div>
+        )}
+        {club.mine && club.status === "APPROVED" && (
+          <p className="meta">만든 사람은 모임을 탈퇴할 수 없어요. 회원 목록에서 다른 회원에게 생성자를 넘기면 탈퇴할 수 있어요.</p>
+        )}
+        <p role="status" className="sr-only-when-empty">
+          {status}
+        </p>
+      </header>
+      {showTabs && (
+        <nav aria-label="모임 안 메뉴" className="tabs club-tabs">
           <Link href={`/clubs/${clubId}/notices`}>모임 공지</Link>
           <Link href={`/clubs/${clubId}/board`}>모임 게시판</Link>
           {club.joined && <Link href={`/clubs/${clubId}/chat`}>채팅</Link>}
@@ -115,39 +163,10 @@ export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
           <Link href={`/clubs/${clubId}/roles`}>권한 관리</Link>
         </nav>
       )}
-      {club.myRole && <p className="meta">내 역할: {club.mine ? "만든 사람 · 모임 운영자" : club.myRole === "MANAGER" ? "모임 운영자" : "회원"}</p>}
-      <h2>소개</h2>
-      <p className="club-intro">{club.intro}</p>
-      <div className="actions">
-        {club.canJoin && (
-          <button type="button" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/join`, { method: "POST" }), "모임에 가입했어요.")}>
-            가입하기
-          </button>
-        )}
-        {club.canLeave && (
-          <button type="button" className="secondary" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/leave`, { method: "POST" }), "모임에서 탈퇴했어요.")}>
-            모임 탈퇴
-          </button>
-        )}
-        {club.mine && club.status === "APPROVED" && (
-          <span className="meta">만든 사람은 모임을 탈퇴할 수 없어요. 회원 목록에서 다른 회원에게 생성자를 넘기면 탈퇴할 수 있어요.</span>
-        )}
-        {club.canEdit && (
-          <Link href={`/clubs/${clubId}/edit`} className="button-link secondary-link">
-            {club.status === "REJECTED" || club.status === "CANCELLED" ? "고쳐서 다시 신청" : "수정"}
-          </Link>
-        )}
-        {club.canCancel && (
-          <button type="button" className="secondary" disabled={busy} onClick={() => act(() => api(`/api/clubs/${clubId}/cancel`, { method: "POST" }), "신청을 취소했어요.")}>
-            신청 취소
-          </button>
-        )}
-        {club.canDelete && (
-          <button type="button" className="danger" disabled={busy} onClick={remove}>
-            모임 삭제
-          </button>
-        )}
-      </div>
+      <section className="club-body" aria-labelledby="club-intro-title">
+        <h2 id="club-intro-title">소개</h2>
+        <p className="club-intro">{club.intro}</p>
+      </section>
     </article>
   );
 }
