@@ -94,9 +94,9 @@ export default function TourPage() {
         width={390}
         height={844}
       >
-        {/* 2026-11-28 새로 찍은 영상은 webm 만 있다(mp4 변환 전). webm 을 먼저 두고, webm 을 못 트는 브라우저는 이전 촬영본 mp4 로 */}
-        <source src="/tour/demo-flow.webm" type="video/webm" />
+        {/* iOS Safari 는 webm 을 못 틀 수 있어 H.264 mp4 를 먼저 둔다 */}
         <source src="/tour/demo-flow.mp4" type="video/mp4" />
+        <source src="/tour/demo-flow.webm" type="video/webm" />
         이 브라우저는 영상을 재생할 수 없어요. 아래 단계별 화면을 봐 주세요.
       </video>
       <ol className="tour-steps">
@@ -125,8 +125,8 @@ export default function TourPage() {
           height={844}
           aria-label="모임·커뮤니티 시연 영상"
         >
-          <source src="/tour/community/community-flow.webm" type="video/webm" />
           <source src="/tour/community/community-flow.mp4" type="video/mp4" />
+          <source src="/tour/community/community-flow.webm" type="video/webm" />
           이 브라우저는 영상을 재생할 수 없어요. 아래 화면 자료를 봐 주세요.
         </video>
         <h3>모임 역할 관리 화면 자료</h3>
