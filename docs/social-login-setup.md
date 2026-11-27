@@ -26,6 +26,16 @@ Render 백엔드 주소가 아니라 **프런트(Vercel) 주소**를 쓴다. 로
 5. (선택) 보안 > Client Secret: 코드 발급 후 '사용함'으로 켜면 `KAKAO_CLIENT_SECRET` 에도 넣는다. 켜지 않으면 비워 둔다.
 6. 앱 키 > **REST API 키**가 `KAKAO_CLIENT_ID` 다.
 
+### 문제 해결: KOE006 "앱 관리자 설정 오류"
+
+카카오 로그인 화면에서 KOE006 이 나오면 **Redirect URI 가 등록돼 있지 않거나 글자가 다르다**는 뜻이다(2026-11-27 실제로 겪음).
+- 카카오 Developers → 내 애플리케이션 → 다음자리 → 카카오 로그인(또는 앱 키 > REST API 키) 의 **Redirect URI** 에 아래를 글자 그대로 등록한다.
+  `https://waiting-mauve.vercel.app/api/auth/oauth/kakao/callback`
+  (https, 끝에 `/` 없음, `waiting-mauve.vercel.app` 철자 확인. Render 주소가 아니다.)
+- 카카오 로그인 **활성화 ON** 인지 확인한다.
+- `KAKAO_CLIENT_ID` 가 같은 앱의 **REST API 키**인지 확인한다(JavaScript 키·Admin 키가 아님).
+- 저장하면 바로 반영된다(Render 재배포 필요 없음).
+
 ## 네이버 Developers
 
 1. https://developers.naver.com 에 네이버 계정으로 로그인 → Application > 애플리케이션 등록.
