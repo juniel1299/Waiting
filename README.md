@@ -21,7 +21,7 @@
 | 공개 서비스 | https://waiting-mauve.vercel.app (가입 없이 `데모 체험하기`) |
 | 시연 자료 | [/tour](https://waiting-mauve.vercel.app/tour) — 예약·자동 승격 영상과 단계별 화면, 모임·커뮤니티 영상과 역할 관리 화면, 플랫폼 기능 화면(채팅·사진첩·공개 프로필·다크 모드). 2026-11-28 지금 화면으로 다시 촬영([촬영 기록](loadtest/results/2026-11-28-tour-recording.txt)). 백엔드 응답 없이 열리고, 서버 기동 안내에서 새 탭으로 연결된다 |
 | 한 장 정리 | [플랫폼 확장 정리](docs/platform-expansion-summary.md) (7단계·후속 개발 PR #50~#65) |
-| 이력서용 프로젝트 정리 | [프로젝트 정리](docs/project-summary.md) (기간·규모·스택·문제 해결 사례·검증 수치·직무별 문장 후보·한계) |
+| 이력서용 프로젝트 정리 | [프로젝트 정리](docs/project-summary.md) (소개·스택·기능·문제 해결 사례·이력서 문장 후보·한계, 면접에서 설명할 수준으로) |
 | 실행 | 아래 [실행](#실행) (`docker compose up -d` → `./gradlew bootRun` → `npm run dev`) |
 | 설계·검증 문서 | [확장 계획](docs/plans/platform-plan.md) · [커뮤니티 계획](docs/plans/community-plan.md) · [채팅 이전 기록](docs/plans/chat-history.md) · [사진 업로드](docs/plans/photo-upload.md) · [화면 정리](docs/plans/layout-fix.md) · [디자인 규칙](docs/design-system.md) · [소셜 연결 설정](docs/social-login-setup.md) |
 | 부하·정합성 검증 | [`loadtest/`](loadtest/README.md), 결과 [마지막 자리·취소/승격](loadtest/results/2026-11-21-local.md) · [정원 증설](loadtest/results/2026-11-21-local-capacity.md) (로컬) |
