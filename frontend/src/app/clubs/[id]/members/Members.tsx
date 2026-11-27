@@ -104,7 +104,7 @@ function MemberList({ clubId, manage }: { clubId: string; manage: boolean }) {
       </Link>
       <h1>{manage ? "권한 관리" : `회원 ${members.length}명`}</h1>
       {manage && (
-        <div className="table-scroll">
+        <div className="table-scroll role-table">
           <table>
             <caption className="meta">역할별로 할 수 있는 일 (서버가 요청마다 지금 역할로 다시 확인해요)</caption>
             <thead>

@@ -212,3 +212,24 @@ for (const width of [1280, 375]) {
     }
   });
 }
+
+test("375px 권한 관리: 역할표 네 칸과 설명이 화면 안에 들어온다 (가로로 밀지 않아도 '만든 사람' 칸이 보임)", async ({ page }) => {
+  const operator = await ApiActor.login("operator");
+  const created = await (await operator.post("/api/clubs", { name: uniqueTitle("역할표"), intro: "소개", place: "온라인", mode: "ONLINE" })).json();
+  expect((await operator.post(`/api/operator/clubs/${created.id}/approve`, { version: created.version })).status()).toBe(200);
+  try {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await loginInBrowser(page, "operator");
+    await page.goto(`/clubs/${created.id}/roles`);
+    const table = page.locator(".role-table table");
+    await expect(table.getByRole("columnheader", { name: "만든 사람" })).toBeVisible();
+    const scroll = await page.locator(".role-table").evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(scroll, "역할표가 상자보다 넓다").toBeLessThanOrEqual(0);
+    const header = await box(table.getByRole("columnheader", { name: "만든 사람" }));
+    expect(header.x + header.width).toBeLessThanOrEqual(375);
+    await noHorizontalOverflow(page);
+  } finally {
+    await operator.delete(`/api/clubs/${created.id}`);
+    await operator.dispose();
+  }
+});
