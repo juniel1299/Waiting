@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { api, ApiError, errorMessage, formatWait } from "@/lib/api";
 
 type Field = "loginId" | "password" | "passwordConfirm";
@@ -113,6 +114,9 @@ export default function SignupPage() {
 
   return (
     <main className="container narrow">
+      <div className="page-tools">
+        <ThemeToggle />
+      </div>
       <h1>회원가입</h1>
       <form onSubmit={submit} className="form" noValidate>
         {input("loginId", "아이디", loginId, setLoginId, { autoComplete: "username", autoCapitalize: "none" })}

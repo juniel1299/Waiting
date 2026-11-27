@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ErrorReporter } from "@/components/ErrorReporter";
 import { ServerWakingNotice } from "@/components/ServerWakingNotice";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { UiStoreProvider } from "@/lib/uiStore";
 
 import "./globals.css";
@@ -13,7 +14,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko">
+    // data-theme 은 아래 스크립트가 하이드레이션 전에 넣으므로 서버 그림과 다를 수 있다
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         {/* 주소(usePathname)를 읽으므로 정적 렌더와 분리한다 */}
         <Suspense fallback={null}>
