@@ -1,0 +1,14 @@
+# 공개 점검 (비밀번호 없음) — 배포 0a483e40 (PR #54, Render 성공 01:56 UTC, V19 적용), 2026-11-27 01:57 UTC
+## node loadtest/public-platform5-open-check.mjs (종료 코드 0, 공급자 환경 변수 없음 = 꺼진 상태가 기대값)
+시작 2026-11-27T01:57:14.250Z
+성공 | 화면 주소 200 | /me/accounts 200
+성공 | 새 백엔드(V19): 공급자 목록 200 | 200 {"kakao":false,"naver":false}
+성공 | 비회원 내 연결 목록 401 | 401
+성공 | kakao 비회원 연결 시작 → /me/accounts?error=OAUTH_PROVIDER_DISABLED | 302 /me/accounts?error=OAUTH_PROVIDER_DISABLED
+성공 | kakao 꺼짐: 로그인 시작 → 준비 중 안내 | 302 /login?error=OAUTH_PROVIDER_DISABLED
+성공 | naver 비회원 연결 시작 → /me/accounts?error=OAUTH_PROVIDER_DISABLED | 302 /me/accounts?error=OAUTH_PROVIDER_DISABLED
+성공 | naver 꺼짐: 로그인 시작 → 준비 중 안내 | 302 /login?error=OAUTH_PROVIDER_DISABLED
+성공 | 위조 state 콜백 거부 | 302 /login?error=OAUTH_STATE_INVALID
+결과: 성공 8 / 실패 0
+
+데이터를 바꾸지 않는다. 환경 변수를 넣은 뒤 같은 스크립트를 다시 실행하면 공급자 인가 주소(kauth.kakao.com·nid.naver.com) 이동을 확인한다.

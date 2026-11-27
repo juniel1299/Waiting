@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 배포(꺼진 상태 점검 통과), 6단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -144,6 +144,20 @@
 - **설정:** 공급자마다 클라이언트 id(네이버는 시크릿도)와 `OAUTH_REDIRECT_BASE` 가 있을 때만 켜진다. 없으면 목록 false, 화면 '준비 중', 로그인 화면 버튼 없음. 앱 등록·환경 변수는 [설정 안내](../social-login-setup.md).
 - **화면:** 내 정보 > 로그인 계정 연결(연결됨·연결일, 연결하기 링크, 비밀번호 확인 해제, 준비 중), 로그인 화면 '카카오로 로그인'·'네이버로 로그인'(켜진 공급자만), 콜백 결과 안내.
 
+## 6단계 설계·구현 (2026-11-27)
+
+- **권한:** 승인된 모임의 지금 회원만 읽고 쓴다. 요청마다 `ClubRoles` 로 가입·역할을 DB 에서 다시 읽어 모임 탈퇴·내보내기(회원 행 삭제) 직후 다음 요청부터 403 `CLUB_MEMBERS_ONLY`. 서비스 운영자도 회원이 아니면 못 본다(채팅은 회원끼리의 대화라 게시판의 운영자 열람 정책을 넓히지 않았다). 내보내기(강퇴) 화면·API 는 아직 없어 테스트는 회원 행 삭제로 대신했다.
+- **메시지:** 1000자(앞뒤 공백 제거 뒤 1자 이상), 계정별 전송 속도 제한 10초 5건(모든 모임 합산, `CHAT_MAX_PER_WINDOW`·`CHAT_WINDOW`) 넘으면 429 `CHAT_TOO_FAST`. 본인 또는 모임 운영자가 지우면 내용을 비우고 삭제 표시만 남긴다(다시 지우면 그대로 성공). 모임이 지워지면 FK cascade 로 함께 지워진다.
+- **스키마(V20):** `club_chat_message(club_id FK cascade, author_account_id, body null=삭제, seq, created_at, deleted_at, deleted_by)` + 시퀀스 `club_chat_seq`. `seq` 는 넣을 때와 지울 때 새로 받는 변경 순번.
+- **전송 방식 결정: 커서 기반 증분 폴링(3초, 화면이 보일 때만).** 근거:
+  - Vercel 프록시(`/api/[...path]`)는 응답 본문을 다 받은 뒤 넘기고 함수 실행 시간 한도(90초)가 있어, SSE·롱폴링 같은 긴 연결은 프록시를 고치거나 끊김 처리를 따로 해야 한다.
+  - Render 무료 인스턴스는 잠들고 다시 시작하면 연결이 모두 끊긴다. 짧은 요청은 기존 '깨우는 중' 재시도(503·Retry-After)를 그대로 탄다.
+  - 새 서비스·의존성 없이 기존 `useVisiblePolling`(탭 숨김 시 멈춤, 복귀·온라인 시 즉시 조회)을 재사용한다.
+  - 비용: 화면을 연 사람마다 3초에 1회 가벼운 조회(인덱스 `(club_id, seq)`). 모임 채팅 규모에서는 무료 한도 안.
+- **순서·누락 없음:** 표시 순서는 id. 이어 받기는 `GET ?after=cursor` 가 seq 가 더 큰 변경(새 메시지·삭제)을 seq 순으로 최대 200건 주고 다음 cursor 를 준다(더 있으면 `hasMore`). 같은 모임의 쓰기(보내기·지우기)는 모임 행 공유 잠금 뒤 모임 단위 advisory 잠금으로 한 줄로 서서, 커밋 순서 = seq 순서다. 그래서 어떤 seq 를 본 뒤 더 작은 seq 가 늦게 커밋되어 빠지는 일이 없다. 처음 조회는 최근 50건과 cursor 를 한 스냅숏(REPEATABLE READ)에서 읽는다. 재접속·탭 복귀는 마지막 cursor 로 이어 받는다.
+- **화면:** 모임 안 메뉴 '채팅'(회원에게만), `role="log"` 목록(새 메시지 알림은 polite), 맨 아래 근처일 때만 따라 내려가기, Enter 보내기·Shift+Enter 줄바꿈·한글 조합 중 보내지 않음, 1000자 표시, 삭제 버튼(본인·모임 운영자), 회원이 아니게 되면 안내로 바뀜.
+- **미구현(범위 밖):** 이전 메시지 더 불러오기(최근 50건만), 읽음 표시, 첨부, 알림.
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
@@ -152,5 +166,6 @@
 | 2 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #51 | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | PR #51 병합·배포 `69ed7e6d`(Render 18:37 UTC, V17 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform2-open.txt)). 운영 DB V17 이관 확인(사용자 Neon SQL 실행 19:15 UTC): 닉네임 없는 일반 회원 0·대소문자 무시 중복 0·정규화 안 된 닉네임 0·`flyway_schema_history` 17 성공 true. 로그인 점검 `public-platform2-check.mjs`(테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 iPhone Safari·스크린 리더 |
 | 3 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #52 | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | PR #52 병합·배포 `4e7d0427`(Render 19:19 UTC, V18 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform3-open.txt), QA 오류 보고 1건은 30일 뒤 자동 삭제 또는 기록의 SQL 로 삭제). 로그인 점검 `public-platform3-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
 | 4 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 변경 없음(793 그대로). 프런트 단위 43(새 `dashboard.test.mjs` 5, 구현 전 실패 확인), e2e 112(새 `dashboard.spec.ts` 2: 카드=표 값, 차트 전환·이름의 합계=표 합계·새로 고침 뒤 기억, 빈 기간, 오류 뒤 다시 시도), `tsc`·`eslint` 0. 스크린샷: 표·차트(데스크톱), 차트(모바일 어두운 테마, 가로 넘침 0) | 배포 뒤 공개 화면 확인(운영자 로그인 필요, 사용자) | 실제 스크린 리더로 차트 이름 읽기, 실제 iPhone Safari |
-| 5 | 구현·로컬 검증 완료, PR·공개 검증 대기(공급자 앱 등록·환경 변수는 사용자) | (PR 대기) | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | 배포 뒤 `public-platform5-open-check.mjs`(꺼짐 상태), 환경 변수 넣은 뒤 다시 실행(공급자 인가 주소) + 직접 연결·로그인 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
-| 6~7 | 대기 | — | — | — | — |
+| 5 | 배포 완료(꺼진 상태), 비밀번호 없는 공개 점검 8/8, 공급자 앱 등록·환경 변수는 사용자 | PR #54 | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | PR #54 병합·배포 `0a483e40`(Render 01:56 UTC, V19 적용). 꺼진 상태 점검 8/8 ([기록](../../loadtest/results/2026-11-27-public-platform5-open.txt)). 환경 변수 넣은 뒤 같은 스크립트 재실행(공급자 인가 주소) + 직접 연결·로그인은 대기 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
+| 6 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 831(새 `ClubChatApiTests` 5: 주고받기·이어 받기, 비회원·탈퇴 직후·내보내기 직후 403, 길이·속도 제한, 본인·운영자 삭제 표시, 모임 삭제 cascade / `ClubChatConcurrencyTests` 5회: 4명 동시 60건 보내는 동안 cursor 이어 받기가 모두 받음·id 순, 구현 전 10개 실패 확인), e2e 116(새 `club-chat.spec.ts` 2), 프런트 단위 47, `tsc`·`eslint` 0. 공개 점검 리허설 5/5·통과, 정리 SQL 0·0·2 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform6.txt)) | 배포 뒤 `public-platform6-open-check.mjs`(비밀번호 없음), `public-platform6-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명 가입·탈퇴, 모임 1개 만들고 삭제, 사용자 실행) | 공개 환경에서 여러 사람 동시 채팅·Render 재시작 중 이어 받기, 실제 iPhone Safari·스크린 리더 |
+| 7 | 대기 | — | — | — | — |

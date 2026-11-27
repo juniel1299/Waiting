@@ -1,0 +1,30 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100, 시드 운영자, 운영자 비밀번호는 파이프 입력·출력 0건, 2026-11-27 02:11 UTC)
+## BASE_URL=http://localhost:3100 node loadtest/public-platform6-open-check.mjs (종료 코드 0)
+시작 2026-11-27T02:11:25.485Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /clubs/1/chat 200
+성공 | 비회원 채팅 읽기·쓰기 401 | 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V20): 회원이 아닌 데모는 채팅 403 CLUB_MEMBERS_ONLY | 모임 167: 403 CLUB_MEMBERS_ONLY, 403 CLUB_MEMBERS_ONLY
+성공 | 없는 모임 채팅 404 | 404 CLUB_NOT_FOUND
+결과: 성공 5 / 실패 0
+
+## BASE_URL=http://localhost:3100 node loadtest/public-platform6-check.mjs (종료 코드 0, 테스트 회원 2명 = 가입 제한 15분 5회 안)
+02:11:25 운영자 로그인 200
+02:11:26 A qa_pa6a11270211 가입 201 / 로그인 200
+02:11:26 B qa_pa6b11270211 가입 201 / 로그인 200
+02:11:26 모임 신청 201 → 승인 200 → B 가입 전 채팅 403 CLUB_MEMBERS_ONLY → B 가입 200
+02:11:26 A 보냄 201 → B 처음 조회 1건 cursor 7 → A 보냄 201 → B 이어 받기 [[QA] 두 번째]
+02:11:26 B 연속 6건 201·201·201·201·201·429 CHAT_TOO_FAST
+02:11:26 B 본인 메시지 삭제 204 → A 이어 받기 삭제 표시 true 내용 null
+02:11:26 B 모임 탈퇴 200 → 직후 읽기·쓰기 403 CLUB_MEMBERS_ONLY·403 CLUB_MEMBERS_ONLY
+02:11:26 확장 6단계 공개 점검 통과
+02:11:26 정리: 모임 삭제(메시지 함께) 204
+02:11:26 정리: A 탈퇴 204
+02:11:26 정리: B 탈퇴 204
+02:11:26 정리: 운영자 로그아웃 204
+02:11:26 Neon SQL 편집기에서 확인 (기대값: 0 | 0 | 2 — 남은 모임, 남은 메시지, 탈퇴한 점검 계정):
+select (select count(*) from club where id = 168) as club_left,
+       (select count(*) from club_chat_message where club_id = 168) as messages_left,
+       (select count(*) from account where id in (2496, 2497) and deleted_at is not null) as withdrawn;
+
+## 로컬 DB 에서 위 확인 SQL 결과: 0|0|2
