@@ -38,10 +38,13 @@ try {
   expect(ol.status === 200 && ol.body?.role === "OPERATOR", `운영자 로그인 실패 ${brief(ol)}`);
   log("운영자 로그인 200");
   await waitForBackend();
+  // 가입마다 바로 id 를 잡아 두어, 중간에 멈춰도 끝의 확인 SQL 이 그 계정을 가리킨다
   log("A", a.loginId, await a.signupAndLogin());
-  log("B", b.loginId, await b.signupAndLogin());
   aId = (await a.req("GET", "/api/auth/me")).body?.id;
+  expect(a.loggedIn && aId, "A 가입·로그인 실패(가입 제한 429 이면 15분 뒤 다시 실행)");
+  log("B", b.loginId, await b.signupAndLogin());
   bId = (await b.req("GET", "/api/auth/me")).body?.id;
+  expect(b.loggedIn && bId, "B 가입·로그인 실패(가입 제한 429 이면 15분 뒤 다시 실행)");
 
   const sent = await a.req("POST", "/api/feedback", { category: "IDEA", title: `[QA] 공개 점검 ${marker}`, body: "공개 점검용 요청", pagePath: "/board?x=1" });
   feedbackId = sent.body?.id;

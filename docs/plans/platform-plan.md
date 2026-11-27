@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -126,11 +126,21 @@
 - **Sentry:** `SENTRY_DSN` 이 있을 때만 envelope API 로 가린 요약 1건을 비동기 전송(SDK·새 의존성 없음, 실패해도 무시). 에러 로그 화면 링크는 `SENTRY_ISSUE_URL_TEMPLATE`(`{eventId}` 자리 채움)이 있을 때만. 둘 다 비어 있으면 자체 DB 요약만(지금 상태, 월 0원).
 - **화면:** 내 활동 > 개선 요청(보내기·내 요청·상세와 상태 기록), 개발 묶음(개발자만): 개선사항 관리(검색·상태·종류 필터, 펼쳐서 상태·사유·처리 내용·PR 링크), 에러 로그(검색어·출처). 화면 오류 자동 보고(`ErrorReporter`).
 
+## 4단계 설계·구현 (2026-11-27)
+
+- **지표 정의는 그대로:** API(`GET /api/operator/usage`)와 현재 데이터(지금 남은 행)·누적 사용량(성공 횟수, `usage_daily`) 정의, 일반·데모 체험 구분을 바꾸지 않았다. 백엔드 변경 없음, 화면만 바꿨다.
+- **현재 수치:** 항목별 카드(큰 수 일반, 작은 수 데모 체험) + 같은 값의 표.
+- **누적 사용량 표 ↔ 차트:** `표`·`차트` 토글 버튼(`aria-pressed`), 고른 보기는 이 브라우저에 기억(localStorage, 못 쓰면 표). 표 보기는 기존 합계·날짜별 표. 차트 보기는 고른 지표의 일별 추이 선 차트(기록 없는 날 0으로 채움) + 지표별 합계 가로 막대 차트.
+- **차트 방식 결정:** 의존성에 차트 라이브러리가 없어(Next·React·Zustand 만) 새로 들이지 않고 SVG 로 직접 그렸다. 근거: 번들 0KB, 서버·클라이언트 렌더 차이 없음, 접근성 요소를 직접 정함. Recharts 는 수십 KB 이상 추가되고 SVG 의 이름·설명을 따로 붙여야 하며, Chart.js 는 canvas 라 스크린 리더가 읽을 대체 수단을 따로 만들어야 한다.
+- **접근성:** 차트는 `role="img"` 이고 이름에 기간·일반 합계·가장 많은 날·데모 합계를 글자로 담는다. 일반은 실선·원·채운 막대, 데모 체험은 점선·네모·빗금 막대로 색 말고도 구분. 차트 바로 아래 합계와 날짜별 수치 표(펼치기), 막대 차트 아래 합계 표가 같은 수치를 보인다. 좁은 화면에서는 차트 최소 너비 560px, 차트 상자 안에서만 가로 스크롤(화면 전체 가로 넘침 0).
+- **상태:** 불러오는 중(`role=status`), 빈 기간("이 기간에는 기록이 없어요."), 오류(안내 + 다시 시도).
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
 |---|---|---|---|---|---|
 | 1 | 완료·공개 검증 통과 | PR #50 | 백엔드 731(새 `ServiceRoleApiTests` 6·`ServiceRoleConcurrencyTests` 20), e2e 106(새 `menu.spec.ts` 4, 메뉴 개편으로 기존 e2e 24개 이동 경로 수정), 프런트 단위 33, `tsc`·`eslint` 0 (2026-11-26, 로컬) | PR #50 병합·배포 `1ee25983`(Render 11:52 UTC). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-26-public-platform1-open.txt)). 로그인 점검 통과(사용자 실행 11:56 UTC: 자기 상승 403·개발자 부여 뒤 같은 세션 반영·운영 API 403·자기 변경 403·회수 즉시 반영, [기록](../../loadtest/results/2026-11-26-public-platform1.txt)), Neon SQL 0·1·2 확인 | 실제 iPhone Safari·스크린 리더, 공개 환경 역할 경합 |
 | 2 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #51 | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | PR #51 병합·배포 `69ed7e6d`(Render 18:37 UTC, V17 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform2-open.txt)). 운영 DB V17 이관 확인(사용자 Neon SQL 실행 19:15 UTC): 닉네임 없는 일반 회원 0·대소문자 무시 중복 0·정규화 안 된 닉네임 0·`flyway_schema_history` 17 성공 true. 로그인 점검 `public-platform2-check.mjs`(테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 iPhone Safari·스크린 리더 |
-| 3 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | 배포 뒤: `public-platform3-open-check.mjs`(비밀번호 없음), `public-platform3-check.mjs`(운영자 비밀번호, 테스트 회원 2명 가입·탈퇴, 사용자 실행) | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
-| 4~7 | 대기 | — | — | — | — |
+| 3 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #52 | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | PR #52 병합·배포 `4e7d0427`(Render 19:19 UTC, V18 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform3-open.txt), QA 오류 보고 1건은 30일 뒤 자동 삭제 또는 기록의 SQL 로 삭제). 로그인 점검 `public-platform3-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
+| 4 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 변경 없음(793 그대로). 프런트 단위 43(새 `dashboard.test.mjs` 5, 구현 전 실패 확인), e2e 112(새 `dashboard.spec.ts` 2: 카드=표 값, 차트 전환·이름의 합계=표 합계·새로 고침 뒤 기억, 빈 기간, 오류 뒤 다시 시도), `tsc`·`eslint` 0. 스크린샷: 표·차트(데스크톱), 차트(모바일 어두운 테마, 가로 넘침 0) | 배포 뒤 공개 화면 확인(운영자 로그인 필요, 사용자) | 실제 스크린 리더로 차트 이름 읽기, 실제 iPhone Safari |
+| 5~7 | 대기 | — | — | — | — |
