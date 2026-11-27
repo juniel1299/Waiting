@@ -23,7 +23,7 @@ select (select count(*) from account_role where account_id in (274, 275)) as dev
 delete from feedback where id = 1 and title like '[QA]%';
 delete from error_group where message like '%각갋갈간가가갋갉%';
 
-## Neon SQL 결과: 이 통과 실행(계정 274·275, 표지 각갋갈간가가갋갉)의 값은 아직 받지 않음
+## Neon SQL 결과: 이 통과 실행(계정 274·275, 표지 각갋갈간가가갋갉)의 확인 SQL 을 사용자가 실행해 마쳤다고 알림(2026-11-27 06:59 UTC, 값은 받지 않음)
 
 ## 추가 실행 (05:59 UTC): 가입 제한으로 중단
 05:59:33 운영자 로그인 200
