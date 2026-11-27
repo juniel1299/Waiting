@@ -15,6 +15,13 @@ import com.daumjari.auth.LoginThrottledException;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+	/** multipart 한도(5MB)를 넘은 업로드: 사진첩 안내와 같은 코드로 413. */
+	@ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+	public org.springframework.http.ResponseEntity<ApiError> tooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+		return org.springframework.http.ResponseEntity.status(ErrorCode.PHOTO_TOO_LARGE.status())
+			.body(new ApiError(ErrorCode.PHOTO_TOO_LARGE.name(), ErrorCode.PHOTO_TOO_LARGE.message()));
+	}
+
 	@ExceptionHandler(ApiException.class)
 	ResponseEntity<ApiError> apiException(ApiException e) {
 		ErrorCode code = e.errorCode();
