@@ -28,11 +28,34 @@ const STEPS = [
   },
 ];
 
+const PLATFORM_STEPS = [
+  {
+    src: "/tour/platform/platform-1-chat.png",
+    title: "모임 채팅",
+    text: "모임 회원만 보는 채팅이에요. 몇 초마다 이어 받고, 위로 올리면 이전 기록을 불러와요. 내 메시지는 지울 수 있어요.",
+  },
+  {
+    src: "/tour/platform/platform-2-photos.png",
+    title: "모임 사진첩",
+    text: "올린 사진은 긴 변 1600px 로 줄이고 촬영 위치 같은 정보(EXIF)를 지워 저장해요. 모임마다 장수·용량 상한이 있어요.",
+  },
+  {
+    src: "/tour/platform/platform-3-profile.png",
+    title: "공개 프로필",
+    text: "닉네임·자기소개·관심 태그만 보여요. 로그인 아이디나 이메일은 나오지 않아요.",
+  },
+  {
+    src: "/tour/platform/platform-4-dark.png",
+    title: "다크 모드",
+    text: "상단 막대의 버튼으로 라이트·다크를 바꿔요. 처음에는 기기 설정을 따르고, 고른 모드는 이 브라우저에 기억해요.",
+  },
+];
+
 const ROLE_STEPS = [
   {
     src: "/tour/community/role-1-members.png",
-    title: "모임 회원 목록 (만든 사람 화면)",
-    text: "역할은 색과 글자로 보여요. 만든 사람에게만 운영자 임명·회수와 생성자 넘기기 버튼이 있어요.",
+    title: "권한 관리 (만든 사람 화면)",
+    text: "역할별로 할 수 있는 일을 표로 보여 주고, 역할은 색과 글자로 구분해요. 만든 사람에게만 운영자 임명·회수와 생성자 넘기기 버튼이 있어요.",
   },
   {
     src: "/tour/community/role-2-appointed.png",
@@ -59,8 +82,8 @@ export default function TourPage() {
         <ThemeToggle />
       </div>
       <h1>다음자리 시연</h1>
-      <h2>예약·자동 승격 (34초)</h2>
-      <p className="meta">공개 서비스에서 녹화한 핵심 흐름이에요: 대기 신청 → 빈자리 발생 → 예약 확정.</p>
+      <h2>예약·자동 승격 (20초)</h2>
+      <p className="meta">공개 서비스의 데모 체험에서 녹화한 핵심 흐름이에요(2026-11-28): 대기 신청 → 빈자리 발생 → 예약 확정.</p>
       <video
         className="tour-video"
         poster="/tour/poster.png"
@@ -71,9 +94,9 @@ export default function TourPage() {
         width={390}
         height={844}
       >
-        {/* iOS Safari 는 webm 을 못 틀 수 있어 H.264 mp4 를 먼저 둔다 */}
-        <source src="/tour/demo-flow.mp4" type="video/mp4" />
+        {/* 2026-11-28 새로 찍은 영상은 webm 만 있다(mp4 변환 전). webm 을 먼저 두고, webm 을 못 트는 브라우저는 이전 촬영본 mp4 로 */}
         <source src="/tour/demo-flow.webm" type="video/webm" />
+        <source src="/tour/demo-flow.mp4" type="video/mp4" />
         이 브라우저는 영상을 재생할 수 없어요. 아래 단계별 화면을 봐 주세요.
       </video>
       <ol className="tour-steps">
@@ -81,15 +104,15 @@ export default function TourPage() {
           <li key={step.src}>
             <h3>{step.title}</h3>
             <p>{step.text}</p>
-            <Image src={step.src} alt={step.title} width={705} height={1200} sizes="(max-width: 400px) 100vw, 360px" />
+            <Image src={step.src} alt={step.title} width={780} height={1688} sizes="(max-width: 400px) 100vw, 360px" />
           </li>
         ))}
       </ol>
       <section aria-labelledby="community-tour" className="tour-section">
-        <h2 id="community-tour">모임·커뮤니티 (15초)</h2>
+        <h2 id="community-tour">모임·커뮤니티 (16초)</h2>
         <p className="meta">
-          로컬 프로덕션 빌드에서 촬영용 가명 계정(새별·하람·모임장)으로 녹화했어요. 운영 서비스 화면이 아니며, 촬영 데이터는 녹화 뒤 지웠어요.
-          흐름: 모임 찾기 → 가입 → 모임 게시판 글에 댓글·답글 → 다른 회원의 멘션 알림 → 알림을 열어 그 댓글로 이동.
+          로컬 프로덕션 빌드에서 촬영용 가명 계정(새별·하람·모임장)으로 녹화했어요(2026-11-28). 운영 서비스 화면이 아니며, 촬영 데이터는 녹화 뒤 지웠어요.
+          흐름: 모임 검색 → 가입 → 모임 게시판 글에 댓글·답글 → 다른 회원의 멘션 알림 → 알림을 열어 그 댓글로 이동.
         </p>
         <video
           className="tour-video"
@@ -102,16 +125,29 @@ export default function TourPage() {
           height={844}
           aria-label="모임·커뮤니티 시연 영상"
         >
-          <source src="/tour/community/community-flow.mp4" type="video/mp4" />
           <source src="/tour/community/community-flow.webm" type="video/webm" />
+          <source src="/tour/community/community-flow.mp4" type="video/mp4" />
           이 브라우저는 영상을 재생할 수 없어요. 아래 화면 자료를 봐 주세요.
         </video>
         <h3>모임 역할 관리 화면 자료</h3>
-        <p className="meta">운영자 임명·회수와 생성자 넘기기는 만든 사람 화면의 회원 목록에서 해요. 같은 촬영에서 찍은 화면이에요.</p>
+        <p className="meta">운영자 임명·회수와 생성자 넘기기는 만든 사람의 모임 안 메뉴 ‘권한 관리’에서 해요. 같은 촬영에서 찍은 화면이에요.</p>
         <ol className="tour-steps">
           {ROLE_STEPS.map((step) => (
             <li key={step.src}>
               <h4>{step.title}</h4>
+              <p>{step.text}</p>
+              <Image src={step.src} alt={`${step.title}: ${step.text}`} width={780} height={1688} sizes="(max-width: 400px) 100vw, 360px" />
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section aria-labelledby="platform-tour" className="tour-section">
+        <h2 id="platform-tour">플랫폼 기능 화면 자료</h2>
+        <p className="meta">모임 채팅·사진첩, 공개 프로필, 다크 모드. 위 모임 촬영과 같은 가명 계정·로컬 빌드에서 찍었어요(사진은 촬영용으로 만든 그림).</p>
+        <ol className="tour-steps">
+          {PLATFORM_STEPS.map((step) => (
+            <li key={step.src}>
+              <h3>{step.title}</h3>
               <p>{step.text}</p>
               <Image src={step.src} alt={`${step.title}: ${step.text}`} width={780} height={1688} sizes="(max-width: 400px) 100vw, 360px" />
             </li>

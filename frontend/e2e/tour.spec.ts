@@ -69,7 +69,7 @@ test("모임·커뮤니티 시연 영상과 역할 관리 화면 자료도 백�
     return route.abort();
   });
   await page.goto("/tour");
-  const section = page.getByRole("region", { name: "모임·커뮤니티 (15초)" });
+  const section = page.getByRole("region", { name: "모임·커뮤니티 (16초)" });
   await expect(section).toContainText("로컬 프로덕션 빌드에서 촬영용 가명 계정");
   const video = section.getByLabel("모임·커뮤니티 시연 영상");
   await expect(video).toHaveAttribute("poster", /community-poster\.png$/);
@@ -98,3 +98,22 @@ test("모임·커뮤니티 시연 영상과 역할 관리 화면 자료도 백�
   expect(apiCalls).toBe(0);
 });
 
+
+test("플랫폼 기능 화면 자료(채팅·사진첩·공개 프로필·다크 모드)도 백엔드 없이 열린다", async ({ page }) => {
+  let apiCalls = 0;
+  await page.route("**/api/**", (route) => {
+    apiCalls += 1;
+    return route.abort();
+  });
+  await page.goto("/tour");
+  const section = page.getByRole("region", { name: "플랫폼 기능 화면 자료" });
+  await expect(section.getByRole("heading", { level: 3 })).toHaveText(["모임 채팅", "모임 사진첩", "공개 프로필", "다크 모드"]);
+  const images = section.locator("img");
+  await expect(images).toHaveCount(4);
+  for (const img of await images.all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+    await expect(img).toHaveAttribute("alt", /.+: .+/);
+  }
+  expect(apiCalls).toBe(0);
+});

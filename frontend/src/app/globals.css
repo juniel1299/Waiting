@@ -2084,3 +2084,15 @@ select {
     flex-shrink: 1;
   }
 }
+
+/* 권한 관리 역할표: 좁은 화면에서도 네 칸이 한 화면에 들어오게 글자를 줄바꿈(어절 단위). 설명(caption)이 잘리지 않게 */
+.role-table th,
+.role-table td,
+.role-table caption {
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.role-table td {
+  text-align: center;
+}
