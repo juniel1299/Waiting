@@ -96,6 +96,15 @@ final class HttpTestClient {
 		return http.send(request, BodyHandlers.ofString());
 	}
 
+	/** 날 연결(Socket)로 보낼 때 쓰는 쿠키 헤더 값. */
+	String cookieHeader() {
+		return String.join("; ", cookies.getCookieStore().getCookies().stream().map(c -> c.getName() + "=" + c.getValue()).toList());
+	}
+
+	String xsrf() {
+		return xsrfToken();
+	}
+
 	private String xsrfToken() {
 		return cookies.getCookieStore()
 			.getCookies()

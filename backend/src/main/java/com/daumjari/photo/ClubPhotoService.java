@@ -118,6 +118,10 @@ public class ClubPhotoService {
 		try {
 			processed = processor.process(original);
 		}
+		catch (PhotoProcessor.Unsupported unsupported) {
+			throw new ApiException(unsupported.kind() == PhotoProcessor.Unsupported.Kind.HEIC ? ErrorCode.PHOTO_HEIC_UNSUPPORTED
+					: ErrorCode.PHOTO_CMYK_UNSUPPORTED);
+		}
 		catch (IllegalArgumentException invalid) {
 			throw new ApiException(ErrorCode.PHOTO_INVALID);
 		}
