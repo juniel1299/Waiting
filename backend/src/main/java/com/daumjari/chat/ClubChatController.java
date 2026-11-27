@@ -12,8 +12,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.daumjari.auth.SessionUser;
+import com.daumjari.common.ApiException;
+import com.daumjari.common.ErrorCode;
 import com.daumjari.chat.ClubChatService.Message;
-import com.daumjari.chat.ClubChatService.Page;
 
 /** 모임 채팅 API. 화면은 GET ?after=cursor 를 몇 초마다 불러 이어 받는다(README·계획 문서 "6단계 전송 방식"). */
 @RestController
@@ -28,8 +29,16 @@ public class ClubChatController {
 		this.chat = chat;
 	}
 
+	/** 처음(인자 없음)·이어 받기(after=seq)·이전 기록(before=메시지 id, limit 최대 100). after 와 before 를 함께 주면 400. */
 	@GetMapping("/api/clubs/{id}/chat")
-	public Page read(@PathVariable Long id, @RequestParam(required = false) Long after, @AuthenticationPrincipal SessionUser user) {
+	public Object read(@PathVariable Long id, @RequestParam(required = false) Long after, @RequestParam(required = false) Long before,
+			@RequestParam(required = false) Integer limit, @AuthenticationPrincipal SessionUser user) {
+		if (before != null) {
+			if (after != null) {
+				throw new ApiException(ErrorCode.VALIDATION_FAILED);
+			}
+			return chat.history(id, before, limit, user);
+		}
 		return chat.read(id, after, user);
 	}
 

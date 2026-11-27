@@ -115,4 +115,69 @@ class ClubChatConcurrencyTests {
 		assertThat(seen).containsExactlyElementsOf(all);
 	}
 
+
+	/** 과거 120건을 거꾸로 읽는 동안 3명이 30건을 동시에 보내도, 처음 조회 + 과거 페이지 + 이어 받기의 합이 전체와 같다(3회). */
+	@RepeatedTest(3)
+	void pagingBackwardsWhileOthersSendLosesNothing() throws Exception {
+		List<Long> ids = new ArrayList<>();
+		List<HttpTestClient> clients = new ArrayList<>();
+		for (int i = 0; i < 4; i++) {
+			Account a = accounts.save(Account.create("ch-" + UUID.randomUUID().toString().substring(0, 8),
+					passwordEncoder.encode(PASSWORD), "ch", Role.PARTICIPANT, Instant.now()));
+			ids.add(a.getId());
+			clients.add(HttpTestClient.login("http://localhost:" + port, a.getLoginId(), PASSWORD));
+		}
+		long club = jdbc.queryForObject("""
+				insert into club (name, intro, place, mode, status, creator_account_id, created_at, submitted_at, decided_at)
+				values ('기록 경합', '소개', '온라인', 'ONLINE', 'APPROVED', ?, now(), now(), now()) returning id
+				""", Long.class, ids.get(0));
+		for (Long id : ids) {
+			jdbc.update("insert into club_member (club_id, account_id, role, joined_at) values (?, ?, 'MEMBER', now())", club, id);
+		}
+		for (int i = 0; i < 120; i++) {
+			jdbc.update("insert into club_chat_message (club_id, author_account_id, body, seq, created_at) values (?, ?, ?, nextval('club_chat_seq'), now())",
+					club, ids.get(0), "옛 " + i);
+		}
+		HttpTestClient reader = clients.remove(3);
+		ExecutorService pool = Executors.newFixedThreadPool(3);
+		List<Future<?>> sends = new ArrayList<>();
+		for (HttpTestClient c : clients) {
+			sends.add(pool.submit(() -> {
+				for (int i = 0; i < 10; i++) {
+					assertThat(c.send("POST", "/api/clubs/" + club + "/chat", "{\"body\":\"새 " + i + "\"}").statusCode()).isEqualTo(201);
+				}
+				return null;
+			}));
+		}
+		Set<Long> seen = new TreeSet<>();
+		HttpResponse<String> first = reader.send("GET", "/api/clubs/" + club + "/chat", null);
+		List<Number> firstIds = JsonPath.read(first.body(), "$.items[*].id");
+		firstIds.forEach(n -> seen.add(n.longValue()));
+		long cursor = ((Number) JsonPath.read(first.body(), "$.cursor")).longValue();
+		long before = firstIds.get(0).longValue();
+		boolean more = true;
+		while (more) {
+			HttpResponse<String> older = reader.send("GET", "/api/clubs/" + club + "/chat?before=" + before + "&limit=20", null);
+			List<Number> olderIds = JsonPath.read(older.body(), "$.items[*].id");
+			olderIds.forEach(n -> seen.add(n.longValue()));
+			more = JsonPath.read(older.body(), "$.hasMore");
+			if (!olderIds.isEmpty()) {
+				before = olderIds.get(0).longValue();
+			}
+			HttpResponse<String> changes = reader.send("GET", "/api/clubs/" + club + "/chat?after=" + cursor, null);
+			((List<Number>) JsonPath.read(changes.body(), "$.items[*].id")).forEach(n -> seen.add(n.longValue()));
+			cursor = ((Number) JsonPath.read(changes.body(), "$.cursor")).longValue();
+		}
+		for (Future<?> f : sends) {
+			f.get();
+		}
+		pool.shutdown();
+		HttpResponse<String> last = reader.send("GET", "/api/clubs/" + club + "/chat?after=" + cursor, null);
+		((List<Number>) JsonPath.read(last.body(), "$.items[*].id")).forEach(n -> seen.add(n.longValue()));
+
+		List<Long> all = jdbc.queryForList("select id from club_chat_message where club_id = ? order by id", Long.class, club);
+		assertThat(all).hasSize(150);
+		assertThat(seen).containsExactlyElementsOf(all);
+	}
+
 }

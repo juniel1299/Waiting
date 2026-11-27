@@ -39,8 +39,15 @@ public class ClubChatService {
 			Instant createdAt) {
 	}
 
-	/** cursor 는 다음 조회의 after 값. hasMore 면 바로 한 번 더 조회한다. */
-	public record Page(List<Message> items, long cursor, boolean hasMore) {
+	/**
+	 * cursor 는 다음 이어 받기의 after 값. hasMore 면 바로 한 번 더 조회한다.
+	 * hasMoreBefore 는 처음 조회에서만 의미가 있다(그보다 오래된 메시지가 있는지).
+	 */
+	public record Page(List<Message> items, long cursor, boolean hasMore, boolean hasMoreBefore) {
+	}
+
+	/** 이전 기록 한 쪽. 이어 받기 cursor 를 주지 않아 화면의 읽음 위치(after)를 되돌리지 않는다. */
+	public record History(List<Message> items, boolean hasMore) {
 	}
 
 	static final int BODY_MAX = 1000;
@@ -48,6 +55,10 @@ public class ClubChatService {
 	static final int RECENT = 50;
 
 	static final int CHANGES_MAX = 200;
+
+	static final int HISTORY_DEFAULT = 50;
+
+	static final int HISTORY_MAX = 100;
 
 	/** 모임 채팅 advisory 잠금의 첫 키(다른 잠금과 섞이지 않게). */
 	private static final int LOCK_NAMESPACE = 6001;
@@ -83,7 +94,11 @@ public class ClubChatService {
 			List<Message> recent = jdbc.query("select " + COLUMNS + " from club_chat_message m join account a on a.id = m.author_account_id "
 					+ "where m.club_id = :club order by m.id desc limit " + RECENT, params, (rs, n) -> message(rs, user, role));
 			Long cursor = jdbc.queryForObject("select coalesce(max(seq), 0) from club_chat_message where club_id = :club", params, Long.class);
-			return new Page(recent.stream().sorted(Comparator.comparing(Message::id)).toList(), cursor, false);
+			List<Message> ordered = recent.stream().sorted(Comparator.comparing(Message::id)).toList();
+			boolean older = !ordered.isEmpty() && Boolean.TRUE.equals(jdbc.queryForObject(
+					"select exists (select 1 from club_chat_message where club_id = :club and id < :oldest)",
+					params.addValue("oldest", ordered.get(0).id()), Boolean.class));
+			return new Page(ordered, cursor, false, older);
 		}
 		List<Map.Entry<Long, Message>> changed = jdbc.query("select " + COLUMNS + " from club_chat_message m "
 				+ "join account a on a.id = m.author_account_id where m.club_id = :club and m.seq > :after order by m.seq limit "
@@ -91,7 +106,20 @@ public class ClubChatService {
 		boolean hasMore = changed.size() > CHANGES_MAX;
 		List<Map.Entry<Long, Message>> page = hasMore ? changed.subList(0, CHANGES_MAX) : changed;
 		long cursor = page.isEmpty() ? after : page.get(page.size() - 1).getKey();
-		return new Page(page.stream().map(Map.Entry::getValue).sorted(Comparator.comparing(Message::id)).toList(), cursor, hasMore);
+		return new Page(page.stream().map(Map.Entry::getValue).sorted(Comparator.comparing(Message::id)).toList(), cursor, hasMore, false);
+	}
+
+	/** before(메시지 id)보다 오래된 메시지를 최신 쪽부터 limit 건(최대 100), id 오름차순으로. 삭제 표시도 그대로 준다. */
+	@Transactional(readOnly = true)
+	public History history(Long clubId, long before, Integer limit, SessionUser user) {
+		String role = member(clubId, user, false);
+		int size = limit == null ? HISTORY_DEFAULT : Math.max(1, Math.min(HISTORY_MAX, limit));
+		List<Message> rows = jdbc.query("select " + COLUMNS + " from club_chat_message m join account a on a.id = m.author_account_id "
+				+ "where m.club_id = :club and m.id < :before order by m.id desc limit " + (size + 1),
+				new MapSqlParameterSource("club", clubId).addValue("before", before), (rs, n) -> message(rs, user, role));
+		boolean more = rows.size() > size;
+		List<Message> page = more ? rows.subList(0, size) : rows;
+		return new History(page.stream().sorted(Comparator.comparing(Message::id)).toList(), more);
 	}
 
 	@Transactional
