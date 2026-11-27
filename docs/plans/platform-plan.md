@@ -191,7 +191,7 @@
 - **실패·취소된 업로드:** 저장 중 실패하면 사진 행·바이트가 같은 트랜잭션으로 되돌아가고, 본문을 다 보내기 전에 끊긴 요청은 아무것도 남기지 않는다(`ClubPhotoFailureTests`).
 - **점검 SQL(읽기 전용):** [loadtest/sql/storage-check.sql](../../loadtest/sql/storage-check.sql). DB 전체 크기, 테이블별 heap·TOAST·인덱스·합계·살아 있는 행·dead tuple, 사진 논리 용량 vs 실제 바이트 vs `photo_object` 디스크, 채팅·오류 로그·세션·알림 행 수.
 - **로컬 측정**(운영 값 아님): DB 12MB, 사진 0장인데 `photo_object` 디스크 56KB(앞선 테스트에서 지운 사진 자리) — 논리 용량과 실제 저장량이 다르다는 예. [기록](../../loadtest/results/2026-11-27-storage-local.txt)
-- **운영 Neon: 미측정.** 사용자가 위 SQL 을 Neon SQL 편집기에서 실행해 결과를 알려 주면 기록한다. 이 계정 프로젝트에 적용된 저장 한도(공식 문서 기준 Free 1GB)도 Neon 콘솔(Usage)에서 확인 필요.
+- **운영 Neon (사용자 실행, 2026-11-27 11:12 UTC):** DB 10MB(공식 Free 한도 1GB 의 약 1%), 가장 큰 테이블 152 kB(`spring_session_attributes`), 사진 0장·논리 0·`photo_object` 디스크 32 kB(빈 테이블 기본 페이지), dead tuple 은 점검 스크립트 정리 흔적이고 autovacuum 이 돌았다. [기록](../../loadtest/results/2026-11-27-storage-neon.txt). Neon 콘솔 Usage(11-20 부터, 사용자 보고): Compute 8.92 CU-시간·Storage 34.92MB·History 2.05MB·전송 10.13MB — 공식 Free 한도(100 CU-시간·1GB·5GB) 대비 각 약 9%·3.5%·0.2%. 계정에 적용된 한도 값 자체는 화면에 없어 미확인.
 
 ## 상태 기록
 

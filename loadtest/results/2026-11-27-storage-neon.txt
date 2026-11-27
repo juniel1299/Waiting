@@ -1,0 +1,42 @@
+# 저장 용량 점검 — 운영 Neon (사용자 실행, 2026-11-27 11:12 UTC 보고)
+## loadtest/sql/storage-check.sql 을 Neon SQL 편집기에서 실행 (읽기 전용 SELECT)
+
+1) DB 전체: 10 MB (10665984 bytes) — 공식 문서 Free 저장 한도 1GB 의 약 1%
+
+2) 테이블 상위 (table | heap | toast | indexes | total | total_bytes | live | dead | last_autovacuum)
+spring_session_attributes | 96 kB | 8192 bytes | 16 kB | 152 kB | 155648 | 0 | 29 | 2026-11-27 05:59:58
+reservation               | 8192 bytes | 0 bytes | 80 kB | 120 kB | 122880 | 6 | 16 | 2026-11-26 18:32:09
+account                   | 16 kB | 8192 bytes | 64 kB | 120 kB | 122880 | 70 | 62 | 2026-11-26 18:32:09
+study_session             | 8192 bytes | 0 bytes | 64 kB | 104 kB | 106496 | 1 | 41 | 2026-11-22 08:09:18
+spring_session            | 8192 bytes | 0 bytes | 64 kB | 104 kB | 106496 | 0 | 29 | 2026-11-27 08:04:51
+club_chat_message         | 8192 bytes | 8192 bytes | 64 kB | 80 kB | 81920 | 0 | 8 |
+playing_with_neon         | 24 kB | 8192 bytes | 16 kB | 72 kB | 73728 | 390 | 0 |   (Neon 예제 테이블, 앱이 만든 것 아님)
+notification              | 8192 bytes | 0 bytes | 64 kB | 72 kB | 73728 | 1 | 20 |
+mention                   | 8192 bytes | 0 bytes | 64 kB | 72 kB | 73728 | 0 | 10 |
+favorite                  | 8192 bytes | 0 bytes | 64 kB | 72 kB | 73728 | 0 | 6 |
+login_attempt             | 8192 bytes | 0 bytes | 32 kB | 72 kB | 73728 | 0 | 1 | 2026-11-27 09:46:17
+error_group               | 8192 bytes | 8192 bytes | 48 kB | 64 kB | 65536 | 5 | 5 |
+moderation_action         | 8192 bytes | 8192 bytes | 48 kB | 64 kB | 65536 | 3 | 0 |
+club                      | 8192 bytes | 8192 bytes | 48 kB | 64 kB | 65536 | 1 | 17 |
+board_post                | 8192 bytes | 8192 bytes | 48 kB | 64 kB | 65536 | 2 | 16 |
+(붙여 넣은 결과에서 맨 위 행 앞부분이 잘려 위 순서는 사용자가 보낸 그대로다. 가장 큰 테이블도 152 kB.)
+
+3) 사진: photos 0 | logical_bytes 0 | stored_data_bytes 0 | photo_object_disk_bytes 32768 | 0.00% of 300MB
+4) 행 수: chat_messages 0 | chat_deleted 0 | error_groups 5 | sessions 0 | notifications 1 | accounts 70
+
+## 해석
+- 저장 여유가 크다: DB 10MB, 사진 0장, 테이블 하나가 152 kB 이하. 대부분 인덱스·최소 페이지(8 kB) 크기.
+- dead tuple(account 62, study_session 41, 세션 29 등)은 점검 스크립트의 가입·탈퇴·데모 정리 흔적. autovacuum 이 돌았고 그 자리는 같은 테이블이 다시 쓴다. VACUUM FULL 은 하지 않는다.
+- photo_object 는 0행인데 디스크 32 kB: 빈 테이블·인덱스의 기본 페이지(논리 용량 0 과 실제 저장량이 다른 예).
+- 사진 업로드: 사용자가 "업로드 테스트 했어"라고 알림(기기·항목별 결과는 받지 않음). 측정 시점에 사진 0장·photo_object 0행 — 올린 사진을 지웠다면 남은 바이트 없음과 맞는다(측정이 업로드 전이었는지는 모름).
+- 미확인: 이 계정 프로젝트에 적용된 한도(Neon 콘솔 Usage), Neon 콘솔이 보여 주는 사용량(변경 기록 포함, SQL 값보다 클 수 있음).
+
+## Neon 콘솔 Usage (사용자, 2026-11-27 11:17 UTC 보고, 집계 기간 2026-11-20 부터)
+- Compute 8.92 CU-시간 (공식 Free 월 100 CU-시간의 약 9%)
+- Storage 34.92 MB (공식 Free 1GB 의 약 3.5%). SQL 로 잰 DB 10MB 보다 크다: 콘솔은 프로젝트 전체 브랜치·DB 와 내부 저장분을 합친 값으로 보이며 내역은 미확인
+- History 2.05 MB (변경 기록)
+- Network transfer 10.13 MB (공식 Free 월 5GB 의 약 0.2%)
+- 이 화면에 계정 한도 값은 없어서, 적용 한도는 공식 문서 기준(1GB·100 CU-시간·5GB)으로만 비교했다.
+
+## 사진 실기기 확인 (사용자, 2026-11-27 11:17 UTC 보고)
+- 아이폰 사진 올리기 성공, 저장본에 위치 정보 없음 확인. 사용자가 "다 확인했어"라고 알림(기기 모델·브라우저·항목별 세부는 받지 않음).
