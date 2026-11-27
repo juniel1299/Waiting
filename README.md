@@ -45,7 +45,7 @@
 | #64 | 화면 정리: 날짜 입력 넘침, 버튼·선택창·메뉴 높이 44px, 공개 프로필·모임 상세·회차 관리 배치, 모임 신청 라디오 | e2e Chromium·WebKit(iPhone 에뮬레이션) ([원인·수정](docs/plans/layout-fix.md)) |
 | #65 | 라이트·다크 모드 전환 버튼, 다크 버튼 글자 대비 4.5:1 이상 | 공개 점검 18/18 ([기록](loadtest/results/2026-11-28-public-theme-layout.txt)) |
 
-**테스트 (마지막 로컬 기준):** 백엔드 848(JUnit·Testcontainers PostgreSQL), e2e 141(Playwright Chromium) + WebKit 배치·모드 18, 프런트 단위 57, `tsc`·`eslint` 0.
+**테스트 (한 번에 돌린 전체 실행, 2026-11-28, 커밋 `38e612cf` = main `d5c41e79` 코드):** 백엔드 854(JUnit·Testcontainers PostgreSQL), e2e 162(Chromium 143 + WebKit 화면 배치·다크 모드 19), 프런트 단위 57, `tsc`·`eslint` 0 — [실행 기록](loadtest/results/2026-11-28-test-run.txt).
 
 이전 확장 기록: **커뮤니티 확장 (2026-11-23~25)** — 단계별 검증은 아래 [커뮤니티 1단계](#커뮤니티-1단계-회원-게시판서비스-공지-v11-2026-11-23)~[6단계](#커뮤니티-6단계-전체-흐름화면-상태공개-검증-2026-11-24), 사례는 [포트폴리오](docs/portfolio/backend.md#8-커뮤니티-확장-2026-11-2325-권한경합알림). **플랫폼 확장 7단계 (2026-11-25~27)** — 단계별 결과는 [한 장 정리](docs/platform-expansion-summary.md), 공개 검증 기록은 [확장 계획](docs/plans/platform-plan.md).
 
@@ -88,11 +88,11 @@
 
 | 주제 | 해결한 문제 | 방식 | 확인한 테스트 |
 |---|---|---|---|
-| 회차 행 잠금 | 마지막 자리에 동시에 예약하면 정원을 넘길 수 있다 | 예약·대기·취소가 회차 행을 `SELECT … FOR UPDATE` 로 잠근 뒤 같은 트랜잭션에서 잔여석·대기열을 판단. 같은 회차는 직렬화, 다른 회차는 서로 막지 않음. 활성 신청은 부분 unique 인덱스로 한 건 | [`ReservationConcurrencyTests`](backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java), [`CapacityConcurrencyTests`](backend/src/test/java/com/daumjari/CapacityConcurrencyTests.java), [`SchemaConstraintTests`](backend/src/test/java/com/daumjari/SchemaConstraintTests.java), 부하 시나리오 A |
-| 취소·승격 트랜잭션 | 취소와 승격 사이에 신규 예약이 끼면 대기자가 밀린다. 승격만 실패하면 좌석이 사라진다 | 취소와 첫 대기자(id 순) 승격을 같은 트랜잭션·같은 회차 잠금 아래에서 처리(`WaitlistPromoter` 는 `MANDATORY`). 대기자가 있으면 빈자리가 보여도 신규 예약은 409. 실패하면 취소까지 롤백. 탈퇴도 같은 규칙(계정 → 회차 순 잠금) | [`PromotionRollbackTests`](backend/src/test/java/com/daumjari/PromotionRollbackTests.java), [`WaitlistConcurrencyTests`](backend/src/test/java/com/daumjari/WaitlistConcurrencyTests.java), [`WaitlistApiTests`](backend/src/test/java/com/daumjari/WaitlistApiTests.java), [`WithdrawalConcurrencyTests`](backend/src/test/java/com/daumjari/WithdrawalConcurrencyTests.java), 부하 시나리오 B·SQL ③④ |
-| 5초 폴링 | 다른 사람의 취소로 내가 확정돼도 화면이 그대로다 | 상세 화면이 보이고 온라인일 때만 5초마다 조회, 탭 복귀(`visibilitychange`)·네트워크 복구(`online`) 때 즉시 조회, 늦게 온 옛 응답은 버림. 숨긴 탭은 요청 0 | [`auto-refresh.spec.ts`](frontend/e2e/auto-refresh.spec.ts) (반영 4.8초, 탭 복귀 28ms, [측정](#회차-상세-자동-갱신)) |
-| 방문자별 데모 격리 | 가입 없는 공개 체험이 서로의 데이터를 보거나 바꾸면 안 된다 | 체험마다 방문자·샘플 계정·회차를 `demo_trial_id` 로 묶고, 회차는 같은 체험 계정에게만 보임(아니면 404). 샘플 취소는 파라미터 없이 세션의 체험에서 대상을 찾음. 30분 뒤 통째로 정리 | [`DemoApiTests`](backend/src/test/java/com/daumjari/DemoApiTests.java), [`demo.spec.ts`](frontend/e2e/demo.spec.ts) (두 브라우저 격리) |
-| 프록시 전달 헤더 | 프록시 뒤에서는 모든 요청이 프록시 IP 로 보여 IP 제한이 무의미하고, 클라이언트가 `X-Forwarded-For` 를 위조할 수 있다 | 프런트(Vercel·`server.mjs`)가 클라이언트가 보낸 전달 헤더를 버리고 실제 접속 주소로 다시 씀. 백엔드는 공유 비밀 토큰이 맞을 때만 그 IP 를 믿고(토큰 없는 직접 호출 403), 로컬은 loopback 프록시만 신뢰 | [`ProxyTokenTests`](backend/src/test/java/com/daumjari/ProxyTokenTests.java), [`ForwardedHeaderTrustTests`](backend/src/test/java/com/daumjari/ForwardedHeaderTrustTests.java), [`proxy.test.mjs`](frontend/test/proxy.test.mjs), 공개 배포 IP 집계 실측(모바일 데이터 vs Mac) |
+| 회차 행 잠금 | 마지막 자리에 동시에 예약하면 정원을 넘길 수 있다 | 예약·대기·취소가 회차 행을 `SELECT … FOR UPDATE` 로 잠근 뒤 같은 트랜잭션에서 잔여석·대기열을 판단. 예약 잠금의 경합 범위를 해당 회차로 제한(같은 회차 요청만 줄을 섬). 활성 신청은 부분 unique 인덱스로 한 건 | [`ReservationConcurrencyTests`](backend/src/test/java/com/daumjari/ReservationConcurrencyTests.java), [`CapacityConcurrencyTests`](backend/src/test/java/com/daumjari/CapacityConcurrencyTests.java), [`SchemaConstraintTests`](backend/src/test/java/com/daumjari/SchemaConstraintTests.java), 부하 시나리오 A |
+| 취소·승격 트랜잭션 | 취소와 승격 사이에 신규 예약이 끼면 대기자가 밀린다. 취소만 반영되고 승격이 실패하면 대기자가 확정되지 않은 상태가 남을 수 있다 | 취소와 첫 대기자(id 순) 승격을 같은 트랜잭션·같은 회차 잠금 아래에서 처리(`WaitlistPromoter` 는 `MANDATORY`). 대기자가 있으면 빈자리가 보여도 신규 예약은 409. 실패하면 취소까지 롤백. 탈퇴도 같은 규칙(계정 → 회차 순 잠금) | [`PromotionRollbackTests`](backend/src/test/java/com/daumjari/PromotionRollbackTests.java), [`WaitlistConcurrencyTests`](backend/src/test/java/com/daumjari/WaitlistConcurrencyTests.java), [`WaitlistApiTests`](backend/src/test/java/com/daumjari/WaitlistApiTests.java), [`WithdrawalConcurrencyTests`](backend/src/test/java/com/daumjari/WithdrawalConcurrencyTests.java), 부하 시나리오 B·SQL ③④ |
+| 5초 폴링 (회차 상세; 모임 채팅은 3초) | 다른 사람의 취소로 내가 확정돼도 화면이 그대로다 | 상세 화면이 보이고 온라인일 때만 5초마다 조회, 탭 복귀(`visibilitychange`)·네트워크 복구(`online`) 때 즉시 조회, 늦게 온 옛 응답은 버림. 숨긴 탭은 요청 0 | [`auto-refresh.spec.ts`](frontend/e2e/auto-refresh.spec.ts) (반영 4.8초, 탭 복귀 28ms, [측정](#회차-상세-자동-갱신)) |
+| 방문자별 데모 격리 | 가입 없는 공개 체험이 서로의 데이터를 보거나 바꾸면 안 된다 | 체험마다 방문자·샘플 계정·회차를 `demo_trial_id` 로 묶고, 회차는 같은 체험 계정에게만 보임(아니면 404). 샘플 취소는 파라미터 없이 세션의 체험에서 대상을 찾음. 30분 후 만료되며 정리 작업이 관련 데이터를 삭제 | [`DemoApiTests`](backend/src/test/java/com/daumjari/DemoApiTests.java), [`demo.spec.ts`](frontend/e2e/demo.spec.ts) (두 브라우저 격리) |
+| 프록시 전달 헤더 | 프록시 뒤에서는 백엔드가 보는 접속 주소가 모두 프록시 IP 라 IP 별 한도가 모든 사용자에게 한꺼번에 걸리고, 클라이언트가 보낸 전달 헤더(`X-Forwarded-For`)를 그대로 신뢰하면 값을 바꿔 IP 제한을 우회할 수 있다 | 프런트(Vercel·`server.mjs`)가 클라이언트가 보낸 전달 헤더를 버리고 실제 접속 주소로 다시 씀. 백엔드는 공유 비밀 토큰이 맞을 때만 그 IP 를 믿고(토큰 없는 직접 호출 403), 로컬은 loopback 프록시만 신뢰 | [`ProxyTokenTests`](backend/src/test/java/com/daumjari/ProxyTokenTests.java), [`ForwardedHeaderTrustTests`](backend/src/test/java/com/daumjari/ForwardedHeaderTrustTests.java), [`proxy.test.mjs`](frontend/test/proxy.test.mjs), 공개 배포 IP 집계 실측(모바일 데이터 vs Mac) |
 | 로그인 제한 | 비밀번호 대입을 막되, 남의 아이디로 일부러 틀려 그 사람을 잠그게 하면 안 된다 | (아이디+IP) 15분 5회, IP 15분 50회. 비밀번호 확인 전에 PostgreSQL upsert 로 원자적으로 셈. 탈퇴 비밀번호 재확인도 같이 셈. 가입·데모 시작도 IP 한도 | [`LoginThrottleApiTests`](backend/src/test/java/com/daumjari/LoginThrottleApiTests.java), [`LoginThrottleConcurrencyTests`](backend/src/test/java/com/daumjari/LoginThrottleConcurrencyTests.java) (동시 10건 → 정확히 5건만 인증까지), [`login-throttle.spec.ts`](frontend/e2e/login-throttle.spec.ts) |
 
 ### 절전 후 체험 시작 2분 51초: 조건과 한계
@@ -281,7 +281,7 @@ DB 접속 기본값: `localhost:5432`, DB/계정/비밀번호 모두 `daumjari` 
 | 시작 전 회차 | 확정 예약 취소 → 기존 승격 로직으로 첫 대기자 확정. 대기 신청 취소 |
 | 시작된 회차 | 확정 기록은 참가 기록으로 남고 운영자 명단에 `탈퇴한 회원` 으로 보인다. 남은 대기는 취소 |
 | 같은 아이디 재가입 | 즉시 가능 (원래 아이디가 풀린다). 새 계정이라 예전 기록과 연결되지 않는다 |
-| 운영자·데모 계정 | `403 WITHDRAWAL_NOT_ALLOWED`. 운영자는 운영을 이어가야 하고, 데모 계정은 만료되면 통째로 정리된다. 화면에 메뉴도 없다 |
+| 운영자·데모 계정 | `403 WITHDRAWAL_NOT_ALLOWED`. 운영자는 운영을 이어가야 하고, 데모 계정은 만료되면 정리 작업이 관련 데이터를 삭제한다. 화면에 메뉴도 없다 |
 | 로그인·세션 | 탈퇴한 계정은 로그인 불가. 탈퇴한 세션은 즉시 무효화하고, 같은 계정의 다른 기기 세션은 요청마다 계정 상태를 확인하는 필터가 무효화해 `401 UNAUTHENTICATED` (메모리·JDBC 세션 저장소 공통) |
 | 일관성 | 한 트랜잭션: 계정 행 `FOR UPDATE` → 활성 신청이 있는 회차를 id 순으로 `FOR UPDATE` → 정리 → 익명화. 중간 실패는 전부 롤백. 예약·대기는 계정 행을 `FOR SHARE` 로 먼저 잠가(잠금 순서 계정 → 회차) 탈퇴와 겹치면 탈퇴 뒤 `401` 이 된다. 탈퇴와 예약 동시 요청 20회 반복에서 탈퇴된 계정의 활성 신청 0건 |
 
@@ -1265,4 +1265,4 @@ commit;
 | 데모 체험 범위 | 체험은 회차 예약·대기 흐름만 만든다(모임·채팅은 승인된 모임 보기만). 모임·채팅 체험 데이터를 추가할지 검토 |
 | 분산 로그인 시도 대응 | 여러 IP 에서 한 계정을 나눠 대는 시도: 계정 단위 지연·추가 확인(CAPTCHA)·알림 |
 | 예약 변경 이력 | 지금은 신청의 현재 상태만 저장해, 언제 대기 → 확정(승격)·취소됐는지 사후에 알 수 없다 (부하 검사 ③도 "직접 확정"과 "늦은 승격"을 구분 못 함). 상태 변경 이력 테이블(신청 id, 이전·이후 상태, 원인: 예약·취소·승격·정원 변경·탈퇴, 시각)을 같은 트랜잭션에서 남기고, 내 신청·운영자 명단에 이력 보기를 붙인다 |
-| 실시간 푸시 | 지금은 회차 5초·채팅 폴링. Vercel WebSocket 은 베타·Hobby 300초 제한이라 보류([근거](docs/plans/platform-plan.md)). 동시 접속이 커지면 SSE 등과 부하 측정 검토 |
+| 실시간 갱신 방식 | 지금은 증분 폴링(회차 상세 5초, 모임 채팅 3초). 현재 인증·프록시 구조와 무료 배포의 운영 복잡도를 고려해 선택했다(Vercel WebSocket 은 베타·Hobby 300초 제한, [근거](docs/plans/platform-plan.md)). 동시 접속 증가에 따른 조회 부하와 갱신 지연을 측정해 SSE·WebSocket 전환을 검토한다 |
