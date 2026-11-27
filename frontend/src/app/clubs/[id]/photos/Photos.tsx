@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useId, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent } from "react";
 
 import { AuthGate } from "@/components/AuthGate";
 import { api, ApiError, errorMessage, formatSeoul } from "@/lib/api";
-import { uploadPlan, type ClubPhoto, type PhotoPage } from "@/lib/photo";
+import { MAX_UPLOAD_BYTES, uploadFailureText, uploadPlan, type ClubPhoto, type PhotoPage } from "@/lib/photo";
 import { useUi } from "@/lib/uiStore";
 
 export function Photos() {
@@ -34,6 +34,10 @@ function ClubPhotos({ clubId }: { clubId: string }) {
   const [failure, setFailure] = useState<{ text: string; forbidden: boolean } | null>(null);
   const [notice, setNotice] = useState<{ kind: "status" | "alert"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 마지막으로 실패한 파일(다시 시도용) */
+  const [failed, setFailed] = useState<File | null>(null);
+  const sending = useRef(false);
+  const abort = useRef<AbortController | null>(null);
 
   const [version, setVersion] = useState(0);
   const load = useCallback(() => setVersion((v) => v + 1), []);
@@ -66,27 +70,54 @@ function ClubPhotos({ clubId }: { clubId: string }) {
     }
   }
 
+  /** 고른 파일을 확인해 보낸다. 보내는 동안은 다시 고를 수 없고(중복 제출 방지), 실패하면 같은 파일로 다시 시도할 수 있다. */
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) await send(file);
+  }
+
+  async function send(file: File) {
+    if (sending.current) return;
     const plan = uploadPlan(file);
     if (!plan.ok) {
+      setFailed(null);
       setNotice({ kind: "alert", text: plan.error });
       return;
     }
+    sending.current = true;
+    const ctrl = new AbortController();
+    abort.current = ctrl;
     setBusy(true);
+    setFailed(null);
     setNotice({ kind: "status", text: plan.shrink ? "사진을 줄여서 올리는 중…" : "올리는 중…" });
     try {
+      let body: Blob = file;
+      if (plan.shrink) {
+        try {
+          body = await shrink(file);
+        } catch {
+          throw { status: 0, code: "SHRINK_FAILED", message: "" };
+        }
+        if (body.size > MAX_UPLOAD_BYTES) throw { status: 413, code: "TOO_LARGE_AFTER_SHRINK", message: "" };
+      }
       const form = new FormData();
-      form.append("file", plan.shrink ? await shrink(file) : file, file.name);
-      await api(`/api/clubs/${clubId}/photos`, { method: "POST", body: form });
+      form.append("file", body, file.name);
+      await api(`/api/clubs/${clubId}/photos`, { method: "POST", body: form, signal: ctrl.signal });
       setNotice({ kind: "status", text: "사진을 올렸어요. 위치 정보는 지우고 저장했어요." });
       load();
     } catch (e) {
-      setNotice({ kind: "alert", text: errorMessage(e) });
+      if (ctrl.signal.aborted) {
+        setNotice({ kind: "status", text: "올리기를 취소했어요." });
+      } else {
+        setFailed(file);
+        setNotice({ kind: "alert", text: uploadFailureText(e) });
+      }
+    } finally {
+      sending.current = false;
+      abort.current = null;
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function remove(photo: ClubPhoto) {
@@ -116,16 +147,26 @@ function ClubPhotos({ clubId }: { clubId: string }) {
       </Link>
       <h1>모임 사진첩</h1>
       <p className="meta">
-        모임 회원만 볼 수 있어요. JPEG·PNG·WebP, 5MB까지. 올리면 긴 변 1600px 로 줄이고 촬영 위치 같은 정보(EXIF)는 지워요.
+        모임 회원만 볼 수 있어요. JPEG·PNG·WebP(HEIC 는 아직 안 돼요). 4MB 넘는 사진은 올리기 전에 이 기기에서 줄여요. 올리면 긴 변 1600px 로 줄이고 촬영 위치 같은 정보(EXIF)는 지워요.
         {page && ` · ${page.count} / ${page.maxPerClub}장`}
       </p>
       <div className="photo-upload">
         <label htmlFor={`${id}-file`} className={busy ? "button-label disabled" : "button-label"}>
           사진 올리기
         </label>
-        <input id={`${id}-file`} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={busy} className="visually-hidden" />
+        <input id={`${id}-file`} type="file" accept="image/jpeg,image/png,image/webp,.heic,.heif" onChange={upload} disabled={busy} className="visually-hidden" />
       </div>
+      {busy && (
+        <button type="button" className="secondary" onClick={() => abort.current?.abort()}>
+          올리기 취소
+        </button>
+      )}
       {notice && <p role={notice.kind}>{notice.text}</p>}
+      {failed && !busy && (
+        <button type="button" className="secondary" onClick={() => void send(failed)}>
+          다시 시도
+        </button>
+      )}
       {failure && <p role="alert">{failure.text}</p>}
       {!page ? (
         <p>불러오는 중…</p>
