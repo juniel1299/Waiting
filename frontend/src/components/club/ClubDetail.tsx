@@ -110,6 +110,7 @@ export function ClubDetail({ clubId, me }: { clubId: string; me: Me }) {
           <Link href={`/clubs/${clubId}/notices`}>모임 공지</Link>
           <Link href={`/clubs/${clubId}/board`}>모임 게시판</Link>
           {club.joined && <Link href={`/clubs/${clubId}/chat`}>채팅</Link>}
+          {club.joined && <Link href={`/clubs/${clubId}/photos`}>사진첩</Link>}
           <Link href={`/clubs/${clubId}/members`}>회원 {club.memberCount}명</Link>
           <Link href={`/clubs/${clubId}/roles`}>권한 관리</Link>
         </nav>
