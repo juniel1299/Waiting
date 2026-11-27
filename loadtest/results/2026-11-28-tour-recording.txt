@@ -20,5 +20,5 @@
 - 권한 관리 역할표가 390px 에서 '만든 사람' 칸이 화면 밖으로 밀리고 설명이 잘렸다 → 표 글자 줄바꿈(어절 단위). e2e layout.spec 에 375px 확인 추가(수정 뒤 작성).
 
 ## 남은 것
-- mp4(H.264) 변환: 이 Mac 에 ffmpeg 가 없어 하지 않았다(설치는 사용자 허락 대기). /tour 는 새 webm 을 먼저 두고, webm 을 못 트는 브라우저는 이전 촬영본 mp4 로 떨어진다.
+- mp4(H.264) 변환: 사용자 허락 뒤 brew 로 ffmpeg 설치(2026-11-27 22:36 UTC), `ffmpeg -c:v libx264 -profile:v main -pix_fmt yuv420p -crf 26 -movflags +faststart -an` 로 변환. demo-flow.mp4 19.9초 약 126KB, community-flow.mp4 16.0초 약 171KB (390x844). 변환본 프레임(3초·2.5초 간격 7장씩)에서도 비밀번호·실명 없음. /tour 는 다시 mp4 → webm 순서.
 - 실제 iPhone Safari 재생 확인 안 함.
