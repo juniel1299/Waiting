@@ -14,6 +14,9 @@ java {
 }
 
 repositories {
+	// Maven Central 의 Google 미러를 먼저: Render 빌드가 repo.maven.apache.org 에서 429(Too Many Requests)를 받아 배포가 실패했다(2026-11-27).
+	// 미러에 없거나 미러가 실패하면 Maven Central 로 넘어간다
+	maven("https://maven-central.storage-download.googleapis.com/maven2/")
 	mavenCentral()
 }
 
@@ -46,4 +49,14 @@ tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+// Docker 빌드의 의존성 층(소스 복사 전)에서 실제 jar 까지 받아 두는 작업. 소스만 바뀐 배포는 이 층을 캐시로 다시 써서
+// 저장소에 다시 묻지 않는다(그 뒤 bootJar 는 --offline). 테스트용 구성은 운영 이미지에 필요 없어 받지 않는다.
+tasks.register("downloadDependencies") {
+	description = "운영 빌드에 필요한 의존성 jar 를 받아 둔다 (Dockerfile)"
+	val wanted = configurations.matching { it.isCanBeResolved && !it.name.startsWith("test") }
+	doLast {
+		wanted.forEach { it.resolve() }
+	}
 }
