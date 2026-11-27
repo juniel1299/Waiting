@@ -45,6 +45,13 @@ public enum ErrorCode {
 	CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "찾을 수 없는 메시지입니다."),
 	CHAT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "본인 메시지나 모임 운영자만 지울 수 있습니다."),
 	CHAT_TOO_FAST(HttpStatus.TOO_MANY_REQUESTS, "메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요."),
+	PHOTO_INVALID(HttpStatus.BAD_REQUEST, "JPEG·PNG·WebP 사진만 올릴 수 있어요."),
+	PHOTO_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "사진은 5MB 이하만 올릴 수 있어요."),
+	PHOTO_TOO_FAST(HttpStatus.TOO_MANY_REQUESTS, "사진을 너무 많이 올리고 있어요. 잠시 후 다시 올려 주세요."),
+	PHOTO_CLUB_FULL(HttpStatus.CONFLICT, "이 모임의 사진첩이 가득 찼어요. 오래된 사진을 지운 뒤 올려 주세요."),
+	PHOTO_STORAGE_FULL(HttpStatus.CONFLICT, "사진 저장 공간이 가득 찼어요. 운영자에게 알려 주세요."),
+	PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 사진입니다."),
+	PHOTO_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "본인 사진이나 모임 운영자만 지울 수 있습니다."),
 	FAVORITE_FORBIDDEN(HttpStatus.FORBIDDEN, "체험 계정은 즐겨찾기를 쓸 수 없습니다."),
 	// 다른 사람의 예약도 존재 여부를 드러내지 않도록 같은 코드로 응답한다
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "삭제되었거나 찾을 수 없는 알림입니다."),

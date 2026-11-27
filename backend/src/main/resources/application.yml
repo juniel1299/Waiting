@@ -16,6 +16,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   jackson:
     time-zone: UTC
     deserialization:
@@ -83,6 +87,12 @@ daumjari:
       authorize-uri: https://nid.naver.com/oauth2.0/authorize
       token-uri: https://nid.naver.com/oauth2.0/token
       user-uri: https://openapi.naver.com/v1/nid/me
+  # 모임 사진첩: 원본 5MB(multipart 한도와 같게), 모임당 장수, 전체 저장 용량(Neon 무료 0.5GB 안), 계정별 업로드 속도
+  photo:
+    max-per-club: ${PHOTO_MAX_PER_CLUB:200}
+    total-max-bytes: ${PHOTO_TOTAL_MAX_BYTES:314572800}
+    max-per-window: ${PHOTO_MAX_PER_WINDOW:10}
+    window: ${PHOTO_WINDOW:10m}
   # 모임 채팅: 계정별 전송 속도 제한 (window 안에 max-per-window 건까지, 모든 모임 합산)
   chat:
     max-per-window: ${CHAT_MAX_PER_WINDOW:5}

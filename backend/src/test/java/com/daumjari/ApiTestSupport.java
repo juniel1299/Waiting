@@ -13,6 +13,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.daumjari.account.Account;
@@ -71,8 +72,7 @@ abstract class ApiTestSupport {
 	}
 
 	/** 상태 변경 요청에 XSRF 쿠키·헤더를 붙인다. */
-	MockHttpServletRequestBuilder withXsrf(MockHttpServletRequestBuilder request, MockHttpSession session)
-			throws Exception {
+	<B extends AbstractMockHttpServletRequestBuilder<B>> B withXsrf(B request, MockHttpSession session) throws Exception {
 		MockHttpServletRequestBuilder csrfRequest = get("/api/auth/csrf");
 		if (session != null) {
 			csrfRequest.session(session);

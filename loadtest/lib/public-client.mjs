@@ -23,8 +23,10 @@ export class Client {
     if (method !== "GET" && !this.jar.get("XSRF-TOKEN")) await this.csrf();
     const headers = { cookie: [...this.jar].map(([k, v]) => `${k}=${v}`).join("; ") };
     if (method !== "GET") headers["X-XSRF-TOKEN"] = this.jar.get("XSRF-TOKEN");
-    if (body) headers["content-type"] = "application/json";
-    const res = await fetch(BASE + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    // FormData(사진 올리기)는 fetch 가 경계 문자열을 붙인 Content-Type 을 직접 정한다
+    const form = body instanceof FormData;
+    if (body && !form) headers["content-type"] = "application/json";
+    const res = await fetch(BASE + path, { method, headers, body: form ? body : body ? JSON.stringify(body) : undefined });
     for (const c of res.headers.getSetCookie()) {
       const [pair] = c.split(";");
       const i = pair.indexOf("=");
@@ -36,6 +38,11 @@ export class Client {
     let json = null;
     try { json = JSON.parse(text); } catch { json = null; }
     return { status: res.status, body: json };
+  }
+  /** 이미지처럼 바이트로 받는 GET: 상태·헤더·바이트. */
+  async raw(path) {
+    const res = await fetch(BASE + path, { headers: { cookie: [...this.jar].map(([k, v]) => `${k}=${v}`).join("; ") } });
+    return { status: res.status, headers: res.headers, bytes: Buffer.from(await res.arrayBuffer()) };
   }
   /** 잠든 무료 서버가 깨는 동안(502/503/504)은 5초 간격으로 최대 5분 다시 받는다. */
   async csrf() {

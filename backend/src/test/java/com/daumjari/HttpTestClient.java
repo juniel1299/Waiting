@@ -62,6 +62,22 @@ final class HttpTestClient {
 		return http.send(builder.build(), BodyHandlers.ofString());
 	}
 
+	/** multipart/form-data 로 파일 하나(field 이름 file)를 올린다. */
+	HttpResponse<String> upload(String path, String filename, String contentType, byte[] bytes) throws Exception {
+		String boundary = "----daumjari" + System.nanoTime();
+		java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+		body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\nContent-Type: "
+				+ contentType + "\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		body.write(bytes);
+		body.write(("\r\n--" + boundary + "--\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+			.header("Content-Type", "multipart/form-data; boundary=" + boundary)
+			.header("X-XSRF-TOKEN", xsrfToken())
+			.POST(BodyPublishers.ofByteArray(body.toByteArray()))
+			.build();
+		return http.send(request, BodyHandlers.ofString());
+	}
+
 	HttpResponse<String> reserve(Long sessionId) throws Exception {
 		return post("/api/sessions/" + sessionId + "/reservations", "");
 	}

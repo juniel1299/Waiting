@@ -27,6 +27,8 @@ dependencies {
 	// prod 프로필에서만 쓰는 JDBC 세션 저장소 (ProdSessionConfig). Boot 자동 설정 없이 라이브러리만 둔다
 	implementation("org.springframework.session:spring-session-jdbc")
 	implementation("org.flywaydb:flyway-database-postgresql")
+	// 사진첩: JDK ImageIO 에 없는 WebP 읽기만 더한다(쓰기는 모두 JPEG). 근거·크기는 docs/plans/platform-plan.md 7단계
+	implementation("com.twelvemonkeys.imageio:imageio-webp:3.12.0")
 	runtimeOnly("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-security-test")

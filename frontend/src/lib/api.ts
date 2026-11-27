@@ -193,7 +193,9 @@ export const AUTH_EXPIRED_EVENT = "daumjari:auth-expired";
 export async function api<T>(path: string, init: ApiInit = {}): Promise<ApiResult<T>> {
   const method = init.method ?? "GET";
   const headers: Record<string, string> = {};
-  if (init.body !== undefined) {
+  // FormData(사진 올리기)는 브라우저가 경계 문자열을 붙인 Content-Type 을 직접 정한다
+  const form = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body !== undefined && !form) {
     headers["Content-Type"] = "application/json";
   }
   if (MUTATING.has(method)) {
@@ -204,7 +206,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<ApiResul
       fetch(path, {
         method,
         headers,
-        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+        body: init.body === undefined ? undefined : form ? (init.body as FormData) : JSON.stringify(init.body),
         cache: "no-store",
         signal: init.signal,
       }),
