@@ -53,3 +53,9 @@ test("개발자 역할이 있으면 개발 묶음(개선사항 관리·에러 �
   assert.ok(member.find((g) => g.id === "activity").items.some((i) => i.label === "개선 요청"));
   assert.ok(!labels(visibleMenu({ role: "PARTICIPANT", demo: true, roles: [] })).includes("개선 요청"));
 });
+
+test("회원은 내 정보 > 로그인 계정 연결이 있고, 데모에게는 없다", () => {
+  const member = visibleMenu({ role: "PARTICIPANT", demo: false, roles: [] });
+  assert.ok(member.find((g) => g.id === "account").items.some((i) => i.href === "/me/accounts" && i.label === "로그인 계정 연결"));
+  assert.ok(!labels(visibleMenu({ role: "PARTICIPANT", demo: true, roles: [] })).includes("로그인 계정 연결"));
+});

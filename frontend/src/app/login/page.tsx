@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { api, errorMessage, type Me } from "@/lib/api";
+import { PROVIDER_LABEL, PROVIDERS, socialNotice, type ProviderPath } from "@/lib/social";
 
 export default function LoginPage() {
   return (
@@ -32,6 +33,8 @@ function LoginForm() {
   const params = useSearchParams();
   const signedUp = params.get("signedUp");
   const withdrawn = params.get("withdrawn") === "1";
+  const social = socialNotice(new URLSearchParams(params.toString()));
+  const [enabled, setEnabled] = useState<Record<ProviderPath, boolean> | null>(null);
   const [loginId, setLoginId] = useState(signedUp ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +47,12 @@ function LoginForm() {
     },
     [],
   );
+
+  useEffect(() => {
+    api<Record<ProviderPath, boolean>>("/api/auth/oauth/providers")
+      .then((res) => setEnabled(res.data))
+      .catch(() => setEnabled(null));
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -82,6 +91,17 @@ function LoginForm() {
         </button>
         {error && <p role="alert">{error}</p>}
       </form>
+      {social && <p role={social.kind}>{social.text}</p>}
+      {enabled && PROVIDERS.some((p) => enabled[p]) && (
+        <div className="social-login">
+          <p className="meta">계정을 연결해 둔 회원만 쓸 수 있어요.</p>
+          {PROVIDERS.filter((p) => enabled[p]).map((p) => (
+            <a key={p} href={`/api/auth/oauth/${p}/login/start`} className="button-link secondary-link">
+              {PROVIDER_LABEL[p]}로 로그인
+            </a>
+          ))}
+        </div>
+      )}
     </>
   );
 }

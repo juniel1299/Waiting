@@ -1,0 +1,20 @@
+# 로컬 리허설 (local 프로필 백엔드 18080 + Next 프로덕션 빌드 3100, 2026-11-27 01:2x UTC)
+
+## 1. 실제 브라우저 흐름 (Next 프록시 경유, 가짜 공급자 127.0.0.1:18555, 시드 회원 carol)
+연결하기 → 가짜 인가 → 콜백(프록시) → 연결, 새 브라우저에서 카카오로 로그인 → 같은 계정, 모바일에서 틀린 비밀번호 해제 거부 → 맞는 비밀번호로 해제
+연결 후 주소: /me/accounts?linked=kakao
+소셜 로그인 결과 계정 id 일치: true
+해제 뒤 다시 '연결하기' 표시
+모바일 가로 넘침 px: 0
+
+## 2. 공급자 설정 없음(운영과 같은 상태): BASE_URL=http://localhost:3100 node loadtest/public-platform5-open-check.mjs (종료 코드 0)
+시작 2026-11-27T01:27:27.025Z
+성공 | 화면 주소 200 | /me/accounts 200
+성공 | 새 백엔드(V19): 공급자 목록 200 | 200 {"kakao":false,"naver":false}
+성공 | 비회원 내 연결 목록 401 | 401
+성공 | kakao 비회원 연결 시작 → /me/accounts?error=OAUTH_PROVIDER_DISABLED | 302 /me/accounts?error=OAUTH_PROVIDER_DISABLED
+성공 | kakao 꺼짐: 로그인 시작 → 준비 중 안내 | 302 /login?error=OAUTH_PROVIDER_DISABLED
+성공 | naver 비회원 연결 시작 → /me/accounts?error=OAUTH_PROVIDER_DISABLED | 302 /me/accounts?error=OAUTH_PROVIDER_DISABLED
+성공 | naver 꺼짐: 로그인 시작 → 준비 중 안내 | 302 /login?error=OAUTH_PROVIDER_DISABLED
+성공 | 위조 state 콜백 거부 | 302 /login?error=OAUTH_STATE_INVALID
+결과: 성공 8 / 실패 0
