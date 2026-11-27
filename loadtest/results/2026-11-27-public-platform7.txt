@@ -1,0 +1,21 @@
+# 로그인 점검 — 확장 7단계 모임 사진첩 (사용자 실행, 배포 63135600, 2026-11-27 05:27~05:28 UTC)
+## node loadtest/public-platform7-check.mjs (통과, 운영자 아이디·비밀번호 입력 줄은 기록에서 뺌)
+05:27:58 운영자 로그인 200
+05:28:03 A qa_pa7a11270527 가입 201 / 로그인 200
+05:28:06 B qa_pa7b11270527 가입 201 / 로그인 200
+05:28:08 모임 신청 201 → 승인 200 → B 가입 전 사진첩 403 CLUB_MEMBERS_ONLY → B 가입 200
+05:28:11 확장자만 .jpg 인 글자 파일 400 PHOTO_INVALID | EXIF(표지 포함 true) JPEG 201 크기 20×30
+05:28:12 A 원본 보기 200 image/jpeg | max-age=300, private | nosniff | 표지 남음 false, EXIF 남음 false | 썸네일 200 | 비회원 401
+05:28:13 B 본인 사진 삭제 204 → 원본 404
+05:28:13 확장 7단계 공개 점검 통과
+05:28:13 정리: 모임 삭제(사진 함께) 204
+05:28:15 정리: A 탈퇴 204
+05:28:16 정리: B 탈퇴 204
+05:28:16 정리: 운영자 로그아웃 204
+05:28:16 Neon SQL 편집기에서 확인 (기대값: 0 | 0 | 0 | 2 — 남은 모임, 남은 사진, 남은 사진 바이트, 탈퇴한 점검 계정):
+select (select count(*) from club where id = 5) as club_left,
+       (select count(*) from club_photo where club_id = 5) as photos_left,
+       (select count(*) from photo_object where photo_id in (1)) as bytes_left,
+       (select count(*) from account where id in (272, 273) and deleted_at is not null) as withdrawn;
+
+## Neon SQL 결과 (사용자 실행, 2026-11-27 05:59 UTC 보고): 0 | 0 | 0 | 2 — 기대값과 같음
