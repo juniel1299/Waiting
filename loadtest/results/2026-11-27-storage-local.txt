@@ -38,4 +38,4 @@
 
 ## 읽는 법
 - 사진 논리 용량(club_photo.stored_bytes 합계)은 0 인데 photo_object 디스크는 56KB: 앞선 테스트에서 올렸다 지운 사진의 자리(TOAST·dead tuple)가 남아 있다. 앱의 300MB 상한은 논리 용량으로 세므로 지우면 바로 줄고, 디스크 공간은 autovacuum 뒤 같은 테이블이 다시 쓴다(파일이 OS 로 돌아가지는 않음, VACUUM FULL 이 필요하지만 쓰기 잠금이 걸려 운영에서는 하지 않는다).
-- 운영 Neon 값은 사용자가 같은 SQL 을 실행해 알려 주기 전까지 미측정.
+- 운영 Neon 값: [2026-11-27-storage-neon.txt](2026-11-27-storage-neon.txt) (사용자 실행 11:12 UTC).
