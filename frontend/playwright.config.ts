@@ -23,8 +23,9 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      // 로그인 제한 창을 짧게: 제한 후 정상 로그인까지 e2e 에서 기다릴 수 있게
-      command: `./gradlew bootRun --console=plain --args='--server.port=${BACKEND_PORT} --daumjari.login-throttle.window=${process.env.E2E_THROTTLE_WINDOW_SECONDS ?? 10}s'`,
+      // 로그인 제한 창을 짧게: 제한 후 정상 로그인까지 e2e 에서 기다릴 수 있게.
+      // 채팅 속도 제한은 넉넉히: 이전 기록 e2e 가 120건을 빨리 넣는다(속도 제한 자체는 백엔드 테스트가 확인)
+      command: `./gradlew bootRun --console=plain --args='--server.port=${BACKEND_PORT} --daumjari.login-throttle.window=${process.env.E2E_THROTTLE_WINDOW_SECONDS ?? 10}s --daumjari.chat.max-per-window=1000'`,
       cwd: "../backend",
       url: `${BACKEND_URL}/actuator/health`,
       reuseExistingServer: !process.env.CI,
