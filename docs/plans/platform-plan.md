@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 배포(꺼진 상태 점검 통과), 6단계 배포(비밀번호 없는 점검 통과), 7단계 배포(비밀번호 없는 점검 통과). 7단계 모두 배포·공개 검증. 남은 것: 5단계 실제 카카오·네이버 계정으로 연결·로그인 확인(사용자, 공급자는 07:50 UTC 켜짐). 요약: [정리](../platform-expansion-summary.md)** (아래 "상태 기록").
+진행: **1~7단계 모두 배포·공개 검증 완료(PR #50~#56, 기록 정리 PR #57 은 2026-11-27 07:14 UTC 병합). 5단계 소셜 연결·로그인·해제는 사용자가 카카오·네이버 실제 계정으로 확인(2026-11-27). 후속: 채팅 이전 기록 조회·사진 업로드 개선(별도 PR), Sentry 연동(코드 있음, DSN 미설정).** 요약: [정리](../platform-expansion-summary.md)
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -26,7 +26,7 @@
 | 2 | 프로필(소개·관심 태그)·공개 프로필, 랜덤 한글 닉네임·유일성, 즐겨찾기(모임·회차) | 1(메뉴 자리) | V17 닉네임 정규화 키 유일·기존 회원 이관, `profile`, `favorite` |
 | 3 | 개선사항 접수·관리, 에러 로그(자체 요약 + Sentry 링크), 마스킹·보관·샘플링 | 1(개발자 역할) | V18 `feedback`·`feedback_history`, `error_group`(개별 `error_event` 는 두지 않음), 알림 종류 2개 |
 | 4 | 대시보드 그리드·차트 전환(같은 데이터·기간·필터) | 1(관리 메뉴) | 없음(`usage_daily` 재사용) |
-| 5 | 카카오·네이버 로그인·계정 연결·해제·소셜 전용 회원 탈퇴 | 1(요청마다 재확인), 2(새 계정 랜덤 닉네임) | V19 `account_identity` |
+| 5 | 카카오·네이버 로그인·계정 연결·해제 (구현: 기존 아이디 계정에 연결만, **최초 소셜 가입은 지원하지 않음**, 그래서 소셜 전용 회원 탈퇴도 없음) | 1(요청마다 재확인), 2(새 계정 랜덤 닉네임) | V19 `social_account` (계획 단계 이름 `account_identity`) |
 | 6 | 모임 단체 채팅(모임당 1방, 텍스트) | 1(모임 탭), 실시간 방식 실험 | V20 `chat_message`, `chat_read` |
 | 7 | 모임 사진첩 | 6(모임 활동 메뉴), **저장소 결정(사용자)** | V21 `club_photo`, `storage_job` |
 
@@ -94,14 +94,14 @@
 | Supabase Storage (Free) | 1GB, 비공개 버킷, 1주 비활성 시 프로젝트 일시정지 | 무료 플랜은 초과 과금 없이 알림·유예·제한 ([사용량](https://supabase.com/docs/guides/platform/manage-your-usage/storage-size), [비용 관리](https://supabase.com/docs/guides/platform/spend-cap)). 카드 요구 여부는 공식 페이지에 없음 → 가입 때 확인 | **추천(카드 없이 가입되면)** |
 | Backblaze B2 | 10GB | 초과 과금, 결제 수단(카드·청구서) | 카드 필요 → 제외 |
 | Cloudflare R2 | 10GB·Class A 100만·B 1,000만/월, 송신 무료 ([요금](https://developers.cloudflare.com/r2/pricing/)) | R2 구독 결제 절차 필요, 초과 과금 | 카드 필요 → 제외 |
-| Neon `bytea` | DB 0.5GB 를 같이 씀 | 기존 무료 | Supabase 가 안 되면 대안(사진 크기·개수를 작게 제한) |
+| Neon `bytea` | DB 저장 한도를 같이 씀(Free: 프로젝트당 1GB, 아래 "공식 문서 확인") | 기존 무료 | Supabase 가 안 되면 대안(사진 크기·개수를 작게 제한) |
 | 카카오·네이버 로그인 | 무료 | — | 5단계 |
 
 **7단계 전 사용자 결정:** 사진 저장소 = Supabase Storage(카드 없이 가입 가능하면, 추천) 또는 Neon `bytea`(용량 작게). 비활성 일시정지는 사진 조회 실패로 이어질 수 있어 화면에 안내하고 재처리로 복구.
 
 ## 사용자가 할 일 (해당 단계에서 다시 안내)
 
-- 3단계: Sentry 가입(카드 요구 여부 확인), 프로젝트 2개(프런트·백엔드), 알림 이메일, DSN 을 Vercel·Render 환경변수로(저장소에 넣지 않음).
+- 3단계(후속 과제, 미진행): Sentry 가입(카드 요구 여부 확인), 프로젝트 1개면 충분(화면 오류도 백엔드를 거쳐 보냄), DSN 을 Render 환경변수로(저장소에 넣지 않음).
 - 5단계: 카카오·네이버 개발자 앱 등록, 콜백 URL(`https://waiting-mauve.vercel.app/api/auth/oauth/{provider}/callback` 예정), 동의 항목(제공자 사용자 식별자만, 이메일·실명 선택 안 함), 클라이언트 ID·비밀키를 Render 환경변수로.
 - 7단계: 저장소 결정, Supabase 비공개 버킷·서비스 키를 Render 환경변수로.
 
@@ -123,7 +123,7 @@
 - **가림(`ErrorMasking`, 저장·전송 전):** 비밀번호·비밀·토큰·쿠키·세션 이름 뒤 값, Bearer, JWT, 이메일, 휴대전화, 24자 이상 영숫자 덩어리(UUID 포함). 메시지는 한 줄 300자. 경로는 질의·조각 제거, 숫자·UUID 조각을 `:id` 로. 요청·응답 본문(글·채팅)은 받지 않는다.
 - **알림·샘플링:** 새 오류이거나 마지막 알림 1시간이 지난 오류만 개발자에게 알림(`ERROR_ALERT`) + Sentry 전송. DB 횟수는 매번 센다(묶음 갱신이라 추가 샘플링 없음). 화면은 같은 오류 1번·화면 적재당 최대 5건만 보낸다.
 - **보관:** 마지막으로 본 지 30일이 지난 묶음은 1시간마다 지운다(알림은 FK cascade).
-- **Sentry:** `SENTRY_DSN` 이 있을 때만 envelope API 로 가린 요약 1건을 비동기 전송(SDK·새 의존성 없음, 실패해도 무시). 에러 로그 화면 링크는 `SENTRY_ISSUE_URL_TEMPLATE`(`{eventId}` 자리 채움)이 있을 때만. 둘 다 비어 있으면 자체 DB 요약만(지금 상태, 월 0원).
+- **Sentry (후속 과제, 2026-11-27 기준 DSN 미설정으로 꺼짐):** `SENTRY_DSN` 이 있을 때만 envelope API 로 가린 요약 1건을 비동기 전송(SDK·새 의존성 없음, 실패해도 무시). 에러 로그 화면 링크는 `SENTRY_ISSUE_URL_TEMPLATE`(`{eventId}` 자리 채움)이 있을 때만. 둘 다 비어 있으면 자체 DB 요약만(지금 상태, 월 0원).
 - **화면:** 내 활동 > 개선 요청(보내기·내 요청·상세와 상태 기록), 개발 묶음(개발자만): 개선사항 관리(검색·상태·종류 필터, 펼쳐서 상태·사유·처리 내용·PR 링크), 에러 로그(검색어·출처). 화면 오류 자동 보고(`ErrorReporter`).
 
 ## 4단계 설계·구현 (2026-11-27)
@@ -149,11 +149,12 @@
 - **권한:** 승인된 모임의 지금 회원만 읽고 쓴다. 요청마다 `ClubRoles` 로 가입·역할을 DB 에서 다시 읽어 모임 탈퇴·내보내기(회원 행 삭제) 직후 다음 요청부터 403 `CLUB_MEMBERS_ONLY`. 서비스 운영자도 회원이 아니면 못 본다(채팅은 회원끼리의 대화라 게시판의 운영자 열람 정책을 넓히지 않았다). 내보내기(강퇴) 화면·API 는 아직 없어 테스트는 회원 행 삭제로 대신했다.
 - **메시지:** 1000자(앞뒤 공백 제거 뒤 1자 이상), 계정별 전송 속도 제한 10초 5건(모든 모임 합산, `CHAT_MAX_PER_WINDOW`·`CHAT_WINDOW`) 넘으면 429 `CHAT_TOO_FAST`. 본인 또는 모임 운영자가 지우면 내용을 비우고 삭제 표시만 남긴다(다시 지우면 그대로 성공). 모임이 지워지면 FK cascade 로 함께 지워진다.
 - **스키마(V20):** `club_chat_message(club_id FK cascade, author_account_id, body null=삭제, seq, created_at, deleted_at, deleted_by)` + 시퀀스 `club_chat_seq`. `seq` 는 넣을 때와 지울 때 새로 받는 변경 순번.
-- **전송 방식 결정: 커서 기반 증분 폴링(3초, 화면이 보일 때만).** 근거:
-  - Vercel 프록시(`/api/[...path]`)는 응답 본문을 다 받은 뒤 넘기고 함수 실행 시간 한도(90초)가 있어, SSE·롱폴링 같은 긴 연결은 프록시를 고치거나 끊김 처리를 따로 해야 한다.
-  - Render 무료 인스턴스는 잠들고 다시 시작하면 연결이 모두 끊긴다. 짧은 요청은 기존 '깨우는 중' 재시도(503·Retry-After)를 그대로 탄다.
-  - 새 서비스·의존성 없이 기존 `useVisiblePolling`(탭 숨김 시 멈춤, 복귀·온라인 시 즉시 조회)을 재사용한다.
-  - 비용: 화면을 연 사람마다 3초에 1회 가벼운 조회(인덱스 `(club_id, seq)`). 모임 채팅 규모에서는 무료 한도 안.
+- **전송 방식 결정: 커서 기반 증분 폴링(3초, 화면이 보일 때만).** 근거(2026-11-27 다시 정리):
+  - **인증 구조:** 세션 쿠키가 Vercel 도메인에 있고 브라우저는 같은 출처 `/api` 만 부른다(Next 라우트 핸들러가 Render 로 프록시하며 프록시 공유 토큰을 붙임). Render 에 브라우저가 직접 붙는 WebSocket 은 쿠키·CSRF·프록시 토큰 구조를 새로 만들어야 한다. 폴링은 기존 요청과 같은 인증·CSRF·회원 재확인 경로를 그대로 탄다.
+  - **프록시 구조:** 프록시는 응답 본문을 다 받은 뒤 넘긴다(`arrayBuffer`). Vercel Functions 의 WebSocket 은 2026-06-22 부터 **공개 베타**(모든 요금제, Fluid Compute 필요)이고, Hobby 는 연결이 함수 최대 실행 시간 **300초**에 끊기며, Next.js 에는 내장 업그레이드 API 가 없어 `@vercel/functions` 의 실험 API 를 써야 하고, 인스턴스끼리 메모리를 나누지 않아 같은 방 메시지를 전하려면 Redis 같은 외부 저장소가 필요하다(아래 "공식 문서 확인"). 외부 저장소는 새 서비스라 월 0원 원칙과 맞지 않는다.
+  - **운영 복잡도:** Render Free 는 잠들고 재시작하면 연결이 모두 끊긴다. 폴링은 짧은 요청이라 기존 '깨우는 중' 재시도(503·Retry-After)를 그대로 쓰고, 재연결·재구독 처리가 없다. 기존 `useVisiblePolling`(탭 숨김 시 멈춤, 복귀·온라인 시 즉시 조회)을 재사용했다.
+  - **검증 결과:** 동시성 테스트(4명이 60건을 동시에 보내는 동안 cursor 로 이어 받기, 5회)에서 누락·순서 뒤바뀜 0, e2e 두 브라우저 주고받기·삭제 표시 통과, 공개 환경 로그인 점검 통과(Neon SQL 0·0·2).
+  - **비용:** 화면을 연 사람마다 3초에 1회 가벼운 조회(인덱스 `(club_id, seq)`). 모임 채팅 규모에서는 무료 한도 안. 동시 접속이 커지면 SSE·WebSocket(+외부 pub/sub)을 다시 검토한다.
 - **순서·누락 없음:** 표시 순서는 id. 이어 받기는 `GET ?after=cursor` 가 seq 가 더 큰 변경(새 메시지·삭제)을 seq 순으로 최대 200건 주고 다음 cursor 를 준다(더 있으면 `hasMore`). 같은 모임의 쓰기(보내기·지우기)는 모임 행 공유 잠금 뒤 모임 단위 advisory 잠금으로 한 줄로 서서, 커밋 순서 = seq 순서다. 그래서 어떤 seq 를 본 뒤 더 작은 seq 가 늦게 커밋되어 빠지는 일이 없다. 처음 조회는 최근 50건과 cursor 를 한 스냅숏(REPEATABLE READ)에서 읽는다. 재접속·탭 복귀는 마지막 cursor 로 이어 받는다.
 - **화면:** 모임 안 메뉴 '채팅'(회원에게만), `role="log"` 목록(새 메시지 알림은 polite), 맨 아래 근처일 때만 따라 내려가기, Enter 보내기·Shift+Enter 줄바꿈·한글 조합 중 보내지 않음, 1000자 표시, 삭제 버튼(본인·모임 운영자), 회원이 아니게 되면 안내로 바뀜.
 - **미구현(범위 밖):** 이전 메시지 더 불러오기(최근 50건만), 읽음 표시, 첨부, 알림.
@@ -171,6 +172,16 @@
 - **화면:** 모임 안 메뉴 '사진첩'(회원에게만), 썸네일 격자(눌러 원본), 장수 표시, 사진 올리기(키보드로도 고를 수 있는 파일 입력), 형식 안내, 삭제, 더 보기(30장씩), 회원이 아니면 안내.
 - **알려진 한계:** CMYK JPEG 는 JDK 기본 리더가 못 읽어 `PHOTO_INVALID` 로 거부된다(필요하면 TwelveMonkeys imageio-jpeg 추가). HEIC(아이폰 기본)는 받지 않는다(화면이 안내).
 
+## 공식 문서 확인 (2026-11-27)
+
+| 항목 | 확인 내용 | 출처(페이지 갱신일) |
+|---|---|---|
+| Vercel WebSocket | 2026-06-22 공개 베타, 모든 요금제, Fluid Compute 필요. Hobby 는 연결이 최대 실행 시간 300초에 끊김(재연결 필요). Next.js 내장 업그레이드 API 없음(`@vercel/functions` 의 `experimental_upgradeWebSocket()`). 인스턴스 간 메모리 공유 없음(Redis 등 필요) | [KB: Do Vercel Functions support WebSocket connections?](https://vercel.com/kb/guide/do-vercel-serverless-functions-support-websocket-connections) (2026-10-01) |
+| Vercel Functions 한도 | 요청 본문 4.5MB(20MiB 는 Pro·Enterprise 베타), 응답 본문 4.5MB(스트리밍 제외), Hobby 최대 실행 300초 | [Functions limitations](https://vercel.com/docs/functions/limitations) (2026-08-24) |
+| Neon Free | 프로젝트당 저장 1GB(계정 전체 20GB), 프로젝트당 월 100 CU-시간, 자동 확장 최대 2 CU, 5분 무활동 시 정지(끌 수 없음), 프로젝트당 월 전송 5GB. 초과 요금 없음: CU-시간·전송을 다 쓰면 다음 달까지 컴퓨트 정지, 저장 1GB 를 넘으면 저장을 늘리는 쓰기가 실패(읽기는 됨) | [Neon plans](https://neon.com/docs/introduction/plans) (2026-11-24), [Free plan limits FAQ](https://neon.com/faqs/free-plan-limits-and-quotas) (2026-11-03) |
+
+- 이 저장소의 앞선 문서에 있던 "Neon 0.5GB" 는 옛 한도다(위 공식 문서 기준 1GB). 다만 **이 계정의 프로젝트에 실제로 적용된 한도·사용량은 Neon 콘솔(Billing·Usage)에서 확인해야 해 미확인**으로 둔다(사진 300MB 상한은 0.5GB 여도 안전한 값).
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
@@ -179,6 +190,6 @@
 | 2 | 배포 완료, 공개 검증 완료(비밀번호 없는 6/6, 로그인 재실행 통과, Neon SQL 0·0) | PR #51 | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | PR #51 병합·배포 `69ed7e6d`(Render 18:37 UTC, V17 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform2-open.txt)). 운영 DB V17 이관 확인(사용자 Neon SQL 실행 19:15 UTC): 닉네임 없는 일반 회원 0·대소문자 무시 중복 0·정규화 안 된 닉네임 0·`flyway_schema_history` 17 성공 true. 로그인 점검: 05:39 UTC 실행은 가입 제한 429 로 중단(A 탈퇴 204), 06:29 UTC 재실행 통과(닉네임 중복 409·금지어 400, 공개 프로필에 로그인 아이디 없음, 즐겨찾기 멱등·해제, 탈퇴 정리, [기록](../../loadtest/results/2026-11-27-public-platform2.txt)), Neon SQL 0·0 확인 | 실제 iPhone Safari·스크린 리더 |
 | 3 | 배포 완료, 공개 점검 통과(비밀번호 없는 6/6, 로그인 통과) | PR #52 | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | PR #52 병합·배포 `4e7d0427`(Render 19:19 UTC, V18 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform3-open.txt), QA 오류 보고 1건은 30일 뒤 자동 삭제 또는 기록의 SQL 로 삭제). 로그인 점검 통과(사용자 재실행 2026-11-27 05:39 UTC: 운영자 혼자 개발 API 403, 남의 요청 404, 사유 없는 보류 400·사유 있는 보류 200, 작성자 화면·알림, 오류 메시지 가림·경로 틀, 정리 204, [기록](../../loadtest/results/2026-11-27-public-platform3.txt)). 05:59 UTC 추가 실행은 가입 제한으로 중단(A 탈퇴, 그 실행의 SQL 0·1 정상). 통과 실행(274·275)의 Neon SQL 은 사용자가 실행 완료를 알림(값 미첨부) | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
 | 4 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 변경 없음(793 그대로). 프런트 단위 43(새 `dashboard.test.mjs` 5, 구현 전 실패 확인), e2e 112(새 `dashboard.spec.ts` 2: 카드=표 값, 차트 전환·이름의 합계=표 합계·새로 고침 뒤 기억, 빈 기간, 오류 뒤 다시 시도), `tsc`·`eslint` 0. 스크린샷: 표·차트(데스크톱), 차트(모바일 어두운 테마, 가로 넘침 0) | 배포 뒤 공개 화면 확인(운영자 로그인 필요, 사용자) | 실제 스크린 리더로 차트 이름 읽기, 실제 iPhone Safari |
-| 5 | 배포 완료, 공급자 켬(2026-11-27 07:50 UTC), 켜진 상태 공개 점검 8/8, 실제 계정 연결·로그인 확인은 사용자 대기 | PR #54 | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | PR #54 병합·배포 `0a483e40`(Render 01:56 UTC, V19 적용). 꺼진 상태 점검 8/8 ([기록](../../loadtest/results/2026-11-27-public-platform5-open.txt)). 사용자가 환경 변수를 넣은 뒤(07:49 UTC) 재실행 8/8: 로그인 시작이 kauth.kakao.com·nid.naver.com 으로, state 있음·scope 없음, redirect_uri 가 Vercel 콜백 ([기록](../../loadtest/results/2026-11-27-public-platform5-on.txt)). 실제 계정 연결·소셜 로그인·해제는 사용자 확인 대기 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
+| 5 | 완료·공개 검증 완료(공급자 켬 07:50 UTC, 켜진 상태 점검 8/8, 사용자 실제 계정 확인 완료) | PR #54 | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | PR #54 병합·배포 `0a483e40`(Render 01:56 UTC, V19 적용). 꺼진 상태 점검 8/8 ([기록](../../loadtest/results/2026-11-27-public-platform5-open.txt)). 사용자가 환경 변수를 넣은 뒤(07:49 UTC) 재실행 8/8: 로그인 시작이 kauth.kakao.com·nid.naver.com 으로, state 있음·scope 없음, redirect_uri 가 Vercel 콜백 ([기록](../../loadtest/results/2026-11-27-public-platform5-on.txt)). 사용자 실제 계정 확인(2026-11-27): 네이버 연결·로그인·해제 성공, 카카오는 처음에 KOE006(로그인 Redirect URI 를 로그아웃 칸에 넣음)과 토큰 단계 실패(클라이언트 시크릿 설정)가 있었고 카카오 콘솔·Render 설정을 고친 뒤 연결·로그인·해제 성공 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
 | 6 | 배포 완료, 공개 검증 완료(비밀번호 없는 5/5, 로그인 재실행 통과, Neon SQL 0·0·2) | PR #55 | 백엔드 831(새 `ClubChatApiTests` 5: 주고받기·이어 받기, 비회원·탈퇴 직후·내보내기 직후 403, 길이·속도 제한, 본인·운영자 삭제 표시, 모임 삭제 cascade / `ClubChatConcurrencyTests` 5회: 4명 동시 60건 보내는 동안 cursor 이어 받기가 모두 받음·id 순, 구현 전 10개 실패 확인), e2e 116(새 `club-chat.spec.ts` 2), 프런트 단위 47, `tsc`·`eslint` 0. 공개 점검 리허설 5/5·통과, 정리 SQL 0·0·2 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform6.txt)) | PR #55 병합·배포 `cf7d8b2c`(Render 03:20 UTC, V20 적용). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-27-public-platform6-open.txt)). 로그인 점검 `public-platform6-check.mjs`: 05:27 UTC 실행은 운영자 로그인 401(비밀번호 입력 오류로 보임)로 시작 전 중단. 재실행 통과, Neon SQL 0·0·2 확인(사용자 보고 05:59 UTC, 재실행 출력은 미수신, [기록](../../loadtest/results/2026-11-27-public-platform6.txt)) | 공개 환경에서 여러 사람 동시 채팅·Render 재시작 중 이어 받기, 실제 iPhone Safari·스크린 리더 |
 | 7 | 배포 완료(Neon 저장), 공개 검증 완료(비밀번호 없는 5/5, 로그인 통과, Neon SQL 0·0·0·2) | PR #56 | 백엔드 842(새 `ClubPhotoApiTests` 5: 줄인 JPEG·썸네일·private 캐시·nosniff, EXIF 위치 표지 제거·방향 반영, 시그니처(가짜 .jpg·GIF·깨진 파일 거부, PNG·WebP 허용), 5MB 초과 413, 권한·삭제·탈퇴 직후 403·모임 삭제 cascade / `ClubPhotoQuotaTests` 1: 속도 429·모임당 장수 409 / `ClubPhotoConcurrencyTests` 5회: 8명 동시 업로드에서 정확히 남은 3장만 저장·용량 상한 이하, 구현 전 11개 실패 확인), e2e 118(새 `club-photos.spec.ts` 2, 업로드가 Next 프록시 경유), 프런트 단위 48, `tsc`·`eslint` 0. 공개 점검 리허설 5/5·통과, 정리 SQL 0·0·0·2 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform7.txt)) | PR #56 병합·배포 `63135600`(Render 04:59 UTC, V21 적용). 비밀번호 없는 점검 5/5 ([기록](../../loadtest/results/2026-11-27-public-platform7-open.txt)). 로그인 점검 통과(사용자 실행 05:28 UTC: 가입 전 403, 가짜 .jpg 400, EXIF JPEG 201·20×30, private·nosniff, 표지·EXIF 없음, 비회원 401, 삭제 뒤 404, 정리 204, [기록](../../loadtest/results/2026-11-27-public-platform7.txt)), Neon SQL 0·0·0·2 확인 | 실제 휴대폰 사진(큰 원본·HEIC·CMYK), Vercel 4.5MB 근처 업로드, 공개 환경 용량 경합, 실제 iPhone Safari·스크린 리더 |
