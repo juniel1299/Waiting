@@ -59,6 +59,17 @@ export function ClubList({ me }: { me: Me }) {
         </div>
         <div className="actions">
           <button type="submit">검색</button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!search.q && !q}
+            onClick={() => {
+              setQ("");
+              router.push("/clubs", { scroll: false });
+            }}
+          >
+            초기화
+          </button>
         </div>
       </form>
       {error && (

@@ -90,12 +90,14 @@ export function ClubForm({ me, clubId }: { me: Me; clubId?: string }) {
         </div>
         <fieldset className="field">
           <legend>활동 방식</legend>
-          {CLUB_MODES.map(([value, label]) => (
-            <label key={value} className="choice">
-              <input type="radio" name={`${id}-mode`} value={value} checked={form.mode === value} onChange={set("mode")} />
-              {label}
-            </label>
-          ))}
+          <div className="choices">
+            {CLUB_MODES.map(([value, label]) => (
+              <label key={value} className="choice">
+                <input type="radio" name={`${id}-mode`} value={value} checked={form.mode === value} onChange={set("mode")} />
+                {label}
+              </label>
+            ))}
+          </div>
         </fieldset>
         <div className="actions">
           <button type="submit" disabled={busy}>

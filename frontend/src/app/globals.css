@@ -1855,3 +1855,167 @@ select {
     min-height: 1.25em;
   }
 }
+
+/* ── 화면별 레이아웃 (2026-11-27): 공개 프로필·모임 상세·회차 관리 ── */
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.push-end {
+  margin-left: auto;
+}
+
+/* 공개 프로필: 상단 아바타·닉네임, 소개·태그는 각자 상자 */
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.profile-name {
+  min-width: 0;
+}
+
+.profile-name h1,
+.profile-text {
+  overflow-wrap: anywhere;
+}
+
+.profile .panel h2,
+.club-body h2 {
+  font-size: 1rem;
+}
+
+/* 모임 상세: 머리 상자(이름·가입 상태·정보·버튼) → 모임 안 메뉴 → 본문 */
+.club-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.club-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.club-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.club-title h1 {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.club-membership {
+  margin: 0;
+}
+
+.club-facts dd {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.club-actions {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* 모임 안 메뉴는 본문과 구분되는 띠, 좁으면 가로로 밀어 본다(줄바꿈 대신 한 줄 유지) */
+.club-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.club-tabs a {
+  flex: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.club-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 회차 관리: 영역별 상자, 정원 입력과 버튼은 같은 줄·아래선 정렬, 삭제는 선으로 떨어뜨림 */
+.stat-cards.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: var(--space-2) 0 0;
+}
+
+.stat-cards.compact .stat-card {
+  padding: var(--space-3);
+}
+
+.stat-cards.compact .stat-value {
+  font-size: 1.35rem;
+}
+
+.capacity-row .field:first-child {
+  flex: 0 1 200px;
+}
+
+.capacity-row .field.end {
+  flex: 0 0 auto;
+}
+
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--danger);
+}
+
+@media (max-width: 480px) {
+  .profile-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .club-head {
+    padding: var(--space-3);
+  }
+
+  .push-end {
+    margin-left: 0;
+  }
+}
