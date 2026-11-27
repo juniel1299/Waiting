@@ -1821,6 +1821,26 @@ input[type="datetime-local"]::-webkit-datetime-edit {
   flex: 1 1 180px;
 }
 
+/* 좁은 화면: 시작일·종료일을 각자 한 줄(다른 칸과 섞여 짝이 갈라지지 않게) */
+@media (max-width: 599px) {
+  .search-row .field:has(> input[type="date"]) {
+    flex-basis: 100%;
+  }
+}
+
+/* 선택창: WebKit(Safari·iPhone)은 기본 모양의 select 에 min-height 를 적용하지 않아 22px 정도로 낮게 그린다.
+   기본 모양을 끄고 화살표를 직접 그려 입력·버튼과 같은 44px 로 맞춘다 */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 44px;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+}
+
 /* iOS Safari: 날짜 입력이 고유 너비로 부모를 넘고 글자가 가운데로 몰린다. 기본 모양을 끄면 너비를 따르고, 누르면 그대로 날짜 선택기가 열린다 */
 @supports (-webkit-touch-callout: none) {
   input[type="date"],
