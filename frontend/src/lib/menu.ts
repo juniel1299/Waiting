@@ -24,7 +24,7 @@ const participant = (u: MenuUser) => u.role === "PARTICIPANT";
 const operator = (u: MenuUser) => u.role === "OPERATOR";
 const developer = (u: MenuUser) => !u.demo && (u.roles ?? []).includes("DEVELOPER");
 
-/** 아직 없는 화면(로그인 계정 연결 등)은 해당 단계에서 더한다. */
+/** 아직 없는 화면(모임 채팅·사진첩)은 해당 단계에서 더한다. */
 export const MENU: MenuGroup[] = [
   { id: "board", label: "게시판", items: [{ href: "/board", label: "회원게시판" }, { href: "/notices", label: "공지사항" }] },
   {
@@ -61,6 +61,7 @@ export const MENU: MenuGroup[] = [
     show: member,
     items: [
       { href: "/me/profile", label: "프로필" },
+      { href: "/me/accounts", label: "로그인 계정 연결" },
       { href: "/account/withdraw", label: "회원 탈퇴", show: participant },
     ],
   },
