@@ -2,7 +2,7 @@
 
 요청: 계층형 메뉴와 디자인 개편 → 서비스·모임 권한 관리 → 프로필·랜덤 닉네임·즐겨찾기 → 개선사항·에러 로그·모니터링 → 대시보드 그리드·차트 → 카카오·네이버 로그인·계정 연결 → 모임 채팅 → 모임 사진첩. 단계마다 테스트 먼저(권한·계정 연결·중복 방지·삭제 정합성은 실제 PostgreSQL), PR 분리, 완료·검증·미검증 구분 기록. **월 0원 유지(카드 등록이 필요한 서비스는 쓰지 않는다).**
 
-진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
+진행: **1단계 완료·공개 검증 통과, 2단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 3단계 배포·비밀번호 없는 점검 통과(로그인 점검 대기), 4단계 배포(PR #53), 5단계 구현·로컬 검증 완료(PR·공개 검증 대기)** (아래 "상태 기록").
 
 ## 지금 구조 (2026-11-25 `c3505151` 확인)
 
@@ -135,6 +135,15 @@
 - **접근성:** 차트는 `role="img"` 이고 이름에 기간·일반 합계·가장 많은 날·데모 합계를 글자로 담는다. 일반은 실선·원·채운 막대, 데모 체험은 점선·네모·빗금 막대로 색 말고도 구분. 차트 바로 아래 합계와 날짜별 수치 표(펼치기), 막대 차트 아래 합계 표가 같은 수치를 보인다. 좁은 화면에서는 차트 최소 너비 560px, 차트 상자 안에서만 가로 스크롤(화면 전체 가로 넘침 0).
 - **상태:** 불러오는 중(`role=status`), 빈 기간("이 기간에는 기록이 없어요."), 오류(안내 + 다시 시도).
 
+## 5단계 설계·구현 (2026-11-27)
+
+- **정책:** 아이디·비밀번호로 로그인한 상태에서만 소셜 계정을 연결한다(소셜로 새 가입 없음). 소셜 로그인은 이미 연결된 계정에만, 정지 계정은 거부. 한 소셜 계정은 한 회원(`unique(provider, provider_user_id)`), 회원당 공급자 하나(`unique(account_id, provider)`). 해제는 비밀번호 재확인(로그인과 같은 시도 제한). 비밀번호 로그인은 늘 남아 로그인 수단이 없어지지 않는다. 데모는 연결 불가.
+- **스키마(V19):** `social_account(account_id FK cascade, provider KAKAO|NAVER, provider_user_id, linked_at)`. 이메일·닉네임·액세스 토큰 저장 안 함. 탈퇴(본인·강제)는 계정 행을 익명화해 남기므로 연결 행을 탈퇴 처리에서 지운다.
+- **흐름:** 브라우저가 `/api/auth/oauth/{kakao|naver}/{link|login}/start` 로 이동 → 서버가 32바이트 무작위 state 를 세션(운영 JDBC 세션, 직렬화 가능)에 10분·최대 5개 보관하고 공급자 인가 주소로 302(동의 항목 scope 없음) → 공급자가 `/api/auth/oauth/{provider}/callback` 으로 돌려보냄 → state 를 꺼내며 지움(일회용), 없음·만료·공급자 불일치면 `OAUTH_STATE_INVALID` → 서버 간 코드 → 토큰 → 사용자 id(토큰은 그 호출 안에서만) → 연결 또는 로그인 → 화면 주소로 302(`?linked=` / `?error=코드`). 코드·state·토큰은 로그에 남기지 않는다.
+- **콜백 주소:** 조정 메모의 'Render 백엔드 주소 기준' 대신 **Vercel 주소**(`https://waiting-mauve.vercel.app/api/auth/oauth/{provider}/callback`)로 정했다. 세션 쿠키가 Vercel 도메인에 있어 Render 로 바로 오면 state 를 확인할 수 없기 때문. 프록시는 이미 `redirect: "manual"` 이라 302 를 그대로 전달한다(로컬 실제 브라우저로 확인).
+- **설정:** 공급자마다 클라이언트 id(네이버는 시크릿도)와 `OAUTH_REDIRECT_BASE` 가 있을 때만 켜진다. 없으면 목록 false, 화면 '준비 중', 로그인 화면 버튼 없음. 앱 등록·환경 변수는 [설정 안내](../social-login-setup.md).
+- **화면:** 내 정보 > 로그인 계정 연결(연결됨·연결일, 연결하기 링크, 비밀번호 확인 해제, 준비 중), 로그인 화면 '카카오로 로그인'·'네이버로 로그인'(켜진 공급자만), 콜백 결과 안내.
+
 ## 상태 기록
 
 | 단계 | 상태 | PR | 로컬 검증 | 공개 검증 | 미검증 |
@@ -143,4 +152,5 @@
 | 2 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #51 | 백엔드 781(새 `ProfileNicknameApiTests` 5·`FavoriteApiTests` 4·`NicknameFavoriteConcurrencyTests` 40·`NicknameMigrationTests` 1, 금지어에 '개발자'가 들어가 `CommentApiTests` 닉네임 예시 1곳 변경), e2e 108(새 `profile-favorite.spec.ts` 2, 메뉴 '닉네임'→'프로필'), 프런트 단위 34, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 정리 SQL 0·0 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform2.txt)) | PR #51 병합·배포 `69ed7e6d`(Render 18:37 UTC, V17 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform2-open.txt)). 운영 DB V17 이관 확인(사용자 Neon SQL 실행 19:15 UTC): 닉네임 없는 일반 회원 0·대소문자 무시 중복 0·정규화 안 된 닉네임 0·`flyway_schema_history` 17 성공 true. 로그인 점검 `public-platform2-check.mjs`(테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 iPhone Safari·스크린 리더 |
 | 3 | 배포 완료, 비밀번호 없는 공개 점검 통과, 로그인 점검 대기 | PR #52 | 백엔드 793(새 `FeedbackApiTests` 4·`ErrorLogApiTests` 4·`ErrorMaskingTests` 3·`SentryForwardingTests` 1, 구현 전 12개 실패 확인. 예상하지 못한 오류가 500 JSON 으로 바뀌어 `CapacityRollbackTests`·`UsageCountTests` 의 예외 기대를 500 기대로 수정), e2e 110(새 `feedback-errors.spec.ts` 2), 프런트 단위 38, `tsc`·`eslint` 0. 공개 점검 스크립트 로컬 리허설 6/6·통과, 확인 SQL 0·2·가림 ([기록](../../loadtest/results/2026-11-26-rehearsal-platform3.txt)) | PR #52 병합·배포 `4e7d0427`(Render 19:19 UTC, V18 적용). 비밀번호 없는 점검 6/6 ([기록](../../loadtest/results/2026-11-26-public-platform3-open.txt), QA 오류 보고 1건은 30일 뒤 자동 삭제 또는 기록의 SQL 로 삭제). 로그인 점검 `public-platform3-check.mjs`(운영자 비밀번호 숨김 입력, 테스트 회원 2명 가입·탈퇴)는 사용자 실행 대기 | 실제 Sentry 전송(DSN 미설정, 로컬 가짜 서버로만 확인), 실제 iPhone Safari·스크린 리더, 공개 환경 알림 1시간 1회 |
 | 4 | 구현·로컬 검증 완료, PR·공개 검증 대기 | (PR 대기) | 백엔드 변경 없음(793 그대로). 프런트 단위 43(새 `dashboard.test.mjs` 5, 구현 전 실패 확인), e2e 112(새 `dashboard.spec.ts` 2: 카드=표 값, 차트 전환·이름의 합계=표 합계·새로 고침 뒤 기억, 빈 기간, 오류 뒤 다시 시도), `tsc`·`eslint` 0. 스크린샷: 표·차트(데스크톱), 차트(모바일 어두운 테마, 가로 넘침 0) | 배포 뒤 공개 화면 확인(운영자 로그인 필요, 사용자) | 실제 스크린 리더로 차트 이름 읽기, 실제 iPhone Safari |
-| 5~7 | 대기 | — | — | — | — |
+| 5 | 구현·로컬 검증 완료, PR·공개 검증 대기(공급자 앱 등록·환경 변수는 사용자) | (PR 대기) | 백엔드 821(새 `SocialAccountApiTests` 7·`SocialProviderDisabledTests` 1·`SocialLinkConcurrencyTests` 20, 가짜 공급자 서버, 구현 전 28개 실패 확인), e2e 114(새 `social.spec.ts` 2), 프런트 단위 45, `tsc`·`eslint` 0. 로컬 실제 브라우저로 프록시 경유 연결·소셜 로그인·해제 확인, 공개 점검 리허설 8/8 ([기록](../../loadtest/results/2026-11-27-rehearsal-platform5.txt)) | 배포 뒤 `public-platform5-open-check.mjs`(꺼짐 상태), 환경 변수 넣은 뒤 다시 실행(공급자 인가 주소) + 직접 연결·로그인 | 실제 카카오·네이버 인가·토큰·사용자 API(가짜 서버로만 확인), 공급자 카드 등록 필요 여부(미확인), 네이버 검수 전 멤버 제한, 실제 iPhone Safari |
+| 6~7 | 대기 | — | — | — | — |
