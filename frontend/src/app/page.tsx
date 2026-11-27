@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { api, type Me } from "@/lib/api";
 
@@ -28,6 +29,9 @@ export default function Home() {
 
   return (
     <main className="container home">
+      <div className="page-tools">
+        <ThemeToggle />
+      </div>
       <h1>다음자리</h1>
       <p>
         정원이 찬 스터디도 놓치지 않게: 대기를 걸어 두면 취소로 빈자리가 생길 때 순서대로 자동 확정돼요. 가입 없이

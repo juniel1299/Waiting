@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, errorMessage, type Me } from "@/lib/api";
 
 import { Shell } from "./Shell";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface AuthGateProps {
   children: (me: Me) => ReactNode;
@@ -94,6 +95,7 @@ function PublicHeader() {
           공지사항
         </Link>
       </nav>
+      <ThemeToggle />
       <Link href="/login" className="link">
         로그인
       </Link>

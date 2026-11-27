@@ -9,6 +9,7 @@ import { activeGroup, activeHref, visibleMenu, type MenuGroup } from "@/lib/menu
 import { useUi } from "@/lib/uiStore";
 
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * 로그인한 화면의 틀: 위 막대(브랜드·메뉴 버튼·알림·사용자·로그아웃) + 계층형 메뉴.
@@ -142,6 +143,7 @@ function TopBar({ me, menuButton, drawerOpen, onMenu }: { me: Me; menuButton: Re
       </Link>
       <span className="spacer" />
       <span className="who">{me.displayName} 님</span>
+      <ThemeToggle />
       <NotificationBell />
       <button type="button" className="secondary" onClick={logout}>
         로그아웃

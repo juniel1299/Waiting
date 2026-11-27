@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { DemoStartButton } from "@/components/DemoStartButton";
 import { api, errorMessage, type Me } from "@/lib/api";
 import { PROVIDER_LABEL, PROVIDERS, socialNotice, type ProviderPath } from "@/lib/social";
@@ -11,6 +12,9 @@ import { PROVIDER_LABEL, PROVIDERS, socialNotice, type ProviderPath } from "@/li
 export default function LoginPage() {
   return (
     <main className="container narrow">
+      <div className="page-tools">
+        <ThemeToggle />
+      </div>
       <h1>다음자리 로그인</h1>
       <Suspense>
         <LoginForm />

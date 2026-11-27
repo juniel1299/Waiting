@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
+
 export const metadata = { title: "다음자리 시연" };
 
 const STEPS = [
@@ -53,6 +55,9 @@ const ROLE_STEPS = [
 export default function TourPage() {
   return (
     <main className="container narrow">
+      <div className="page-tools">
+        <ThemeToggle />
+      </div>
       <h1>다음자리 시연</h1>
       <h2>예약·자동 승격 (34초)</h2>
       <p className="meta">공개 서비스에서 녹화한 핵심 흐름이에요: 대기 신청 → 빈자리 발생 → 예약 확정.</p>
