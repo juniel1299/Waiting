@@ -83,6 +83,10 @@ daumjari:
       authorize-uri: https://nid.naver.com/oauth2.0/authorize
       token-uri: https://nid.naver.com/oauth2.0/token
       user-uri: https://openapi.naver.com/v1/nid/me
+  # 모임 채팅: 계정별 전송 속도 제한 (window 안에 max-per-window 건까지, 모든 모임 합산)
+  chat:
+    max-per-window: ${CHAT_MAX_PER_WINDOW:5}
+    window: ${CHAT_WINDOW:10s}
   # 개선사항 접수 제한 (로그인 제한과 같은 창)
   feedback:
     max-per-account: ${FEEDBACK_MAX_PER_ACCOUNT:5}
