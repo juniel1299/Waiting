@@ -1,0 +1,13 @@
+# 공개 점검 (비밀번호 없음) — 배포 63135600 (PR #56, Render 성공 04:59 UTC, V21 적용), 2026-11-27 05:00 UTC
+## node loadtest/public-platform7-open-check.mjs (종료 코드 0)
+시작 2026-11-27T05:00:11.627Z
+성공 | 화면 주소 200 (권한 판단은 화면·API 에서) | /clubs/1/photos 200
+성공 | 비회원 사진첩 목록·썸네일·삭제 401 | 401, 401, 401
+성공 | 데모 시작 | 201
+성공 | 새 백엔드(V21): 회원이 아닌 데모는 사진첩 403 CLUB_MEMBERS_ONLY | 모임 4: 목록 403 CLUB_MEMBERS_ONLY, 올리기 403 CLUB_MEMBERS_ONLY
+성공 | 없는 모임 사진첩 404 | 404 CLUB_NOT_FOUND
+결과: 성공 5 / 실패 0
+
+바꾸는 데이터: 데모 시작 1회(30분 뒤 서버가 지움). 사진은 올리지 않는다.
+
+## 로그인 점검 (node loadtest/public-platform7-check.mjs): 사용자 실행 대기
