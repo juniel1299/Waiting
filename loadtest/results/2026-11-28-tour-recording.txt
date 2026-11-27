@@ -22,3 +22,8 @@
 ## 남은 것
 - mp4(H.264) 변환: 사용자 허락 뒤 brew 로 ffmpeg 설치(2026-11-27 22:36 UTC), `ffmpeg -c:v libx264 -profile:v main -pix_fmt yuv420p -crf 26 -movflags +faststart -an` 로 변환. demo-flow.mp4 19.9초 약 126KB, community-flow.mp4 16.0초 약 171KB (390x844). 변환본 프레임(3초·2.5초 간격 7장씩)에서도 비밀번호·실명 없음. /tour 는 다시 mp4 → webm 순서.
 - 실제 iPhone Safari 재생 확인 안 함.
+
+## 배포 뒤 공개 확인 (main d5c41e79 = PR #68, Vercel 2026-11-27 22:39 UTC 성공, 22:45 UTC 확인)
+- /tour 를 Chromium 390px·WebKit(iPhone 17 Pro 에뮬레이션)으로 열어: 영상 둘 다 mp4 를 골라 readyState 4(demo-flow 20초·community-flow 16초), 이미지 12/12 로드, 구역 3개(예약·자동 승격 / 모임·커뮤니티 / 플랫폼 기능 화면 자료), 가로 넘침 0, /api 요청 0.
+- 첫 측정은 이미지를 한꺼번에 스크롤해 지연 로딩 이미지를 9/12·3/12 로 셌다(측정 방법 문제). 하나씩 보이게 한 뒤 12/12.
+- 실제 iPhone 재생은 이 측정에 포함되지 않는다.
