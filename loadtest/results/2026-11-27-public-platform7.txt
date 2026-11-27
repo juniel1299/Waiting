@@ -18,4 +18,4 @@ select (select count(*) from club where id = 5) as club_left,
        (select count(*) from photo_object where photo_id in (1)) as bytes_left,
        (select count(*) from account where id in (272, 273) and deleted_at is not null) as withdrawn;
 
-## Neon SQL 결과: 아직 받지 않음
+## Neon SQL 결과 (사용자 실행, 2026-11-27 05:59 UTC 보고): 0 | 0 | 0 | 2 — 기대값과 같음
