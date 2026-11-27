@@ -1,0 +1,23 @@
+# 공개 점검 (비밀번호 없음) — 확장 5단계 공급자 켠 뒤 (사용자가 Render 에 카카오·네이버 환경 변수를 넣음 07:49 UTC, 07:50 UTC 반영 확인)
+## node loadtest/public-platform5-open-check.mjs (켜진 상태, 8/8)
+시작 2026-11-27T07:50:27.097Z
+성공 | 화면 주소 200 | /me/accounts 200
+성공 | 새 백엔드(V19): 공급자 목록 200 | 200 {"kakao":true,"naver":true}
+성공 | 비회원 내 연결 목록 401 | 401
+성공 | kakao 비회원 연결 시작 → /login?error=LOGIN_REQUIRED | 302 /login?error=LOGIN_REQUIRED
+성공 | kakao 로그인 시작 → 공급자 인가 주소(state 있음, 추가 동의 없음) | 302 kauth.kakao.com redirect_uri=https://waiting-mauve.vercel.app/api/auth/oauth/kakao/callback
+성공 | naver 비회원 연결 시작 → /login?error=LOGIN_REQUIRED | 302 /login?error=LOGIN_REQUIRED
+성공 | naver 로그인 시작 → 공급자 인가 주소(state 있음, 추가 동의 없음) | 302 nid.naver.com redirect_uri=https://waiting-mauve.vercel.app/api/auth/oauth/naver/callback
+성공 | 위조 state 콜백 거부 | 302 /login?error=OAUTH_STATE_INVALID
+결과: 성공 8 / 실패 0
+
+출력에는 클라이언트 id·시크릿이 없다(스크립트가 인가 주소의 host·redirect_uri 만 출력). state 는 32자 이상, scope 파라미터 없음.
+
+## 실제 계정 확인 (사용자, 07:52 UTC 보고)
+- 네이버: 성공.
+- 카카오: 카카오 인가 화면에서 "앱 관리자 설정 오류 (KOE006)" — 카카오 Developers 에 Redirect URI 가 등록되지 않았거나 글자가 다른 경우. 서버가 보낸 redirect_uri 는 https://waiting-mauve.vercel.app/api/auth/oauth/kakao/callback (위 점검과 같음). 카카오 콘솔 등록 뒤 다시 확인 대기.
+
+## 카카오 해결 뒤 (사용자, 2026-11-27 08:12 UTC 보고): 완료
+- KOE006: 리다이렉트 URI 를 로그아웃 칸에 넣었던 것을 로그인 리다이렉트 URI 칸으로 옮겨 해결.
+- 토큰 단계 실패("공급자에서 계정을 확인하지 못했어요"): 카카오 클라이언트 시크릿 설정을 맞춰 해결.
+- 사용자가 카카오·네이버 모두 실제 계정으로 아이디 로그인 → 연결 → 로그아웃 → 소셜 로그인 → 연결 해제까지 확인 완료라고 알림(터미널·SQL 출력은 받지 않음).

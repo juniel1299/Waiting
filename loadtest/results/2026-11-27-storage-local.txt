@@ -1,0 +1,41 @@
+# 저장 용량 점검 — 로컬 개발 DB 측정 (운영 Neon 값 아님), 2026-11-27
+## loadtest/sql/storage-check.sql 을 로컬 daumjari-postgres 에 읽기 전용(default_transaction_read_only=on)으로 실행
+
+ database_size | database_bytes 
+---------------+----------------
+ 12 MB         |       12499991
+(1 row)
+
+    table_name     |    heap    |   toast    | indexes | total  | total_bytes | live_rows | dead_rows |        last_autovacuum        
+-------------------+------------+------------+---------+--------+-------------+-----------+-----------+-------------------------------
+ study_session     | 280 kB     | 0 bytes    | 288 kB  | 600 kB |      614400 |      2316 |       269 | 2026-11-24 20:50:37.054808+00
+ reservation       | 152 kB     | 0 bytes    | 344 kB  | 528 kB |      540672 |      1807 |       386 | 2026-11-26 18:53:03.052086+00
+ account           | 216 kB     | 8192 bytes | 168 kB  | 424 kB |      434176 |       826 |       184 | 2026-11-27 01:25:24.228402+00
+ board_post        | 168 kB     | 8192 bytes | 144 kB  | 344 kB |      352256 |       879 |        97 | 
+ notification      | 96 kB      | 0 bytes    | 176 kB  | 304 kB |      311296 |       671 |       125 | 2026-11-26 12:34:25.02949+00
+ club              | 40 kB      | 8192 bytes | 48 kB   | 128 kB |      131072 |       137 |         9 | 2026-11-27 03:37:26.76702+00
+ club_chat_message | 16 kB      | 8192 bytes | 64 kB   | 112 kB |      114688 |       184 |        17 | 
+ comment           | 16 kB      | 8192 bytes | 48 kB   | 104 kB |      106496 |       101 |         0 | 2026-11-27 03:37:26.879857+00
+ moderation_action | 16 kB      | 8192 bytes | 48 kB   | 96 kB  |       98304 |        78 |         0 | 
+ club_member       | 16 kB      | 0 bytes    | 32 kB   | 80 kB  |       81920 |       185 |        29 | 2026-11-27 02:06:25.035124+00
+ login_attempt     | 8192 bytes | 0 bytes    | 32 kB   | 72 kB  |       73728 |        58 |        64 | 2026-11-27 03:39:26.790011+00
+ mention           | 8192 bytes | 0 bytes    | 64 kB   | 72 kB  |       73728 |        63 |        40 | 
+ favorite          | 8192 bytes | 0 bytes    | 64 kB   | 72 kB  |       73728 |        11 |        11 | 
+ demo_trial        | 8192 bytes | 0 bytes    | 32 kB   | 72 kB  |       73728 |        18 |        17 | 2026-11-27 03:36:26.77454+00
+ feedback          | 8192 bytes | 8192 bytes | 48 kB   | 64 kB  |       65536 |        12 |         9 | 
+(15 rows)
+
+ photos | logical_bytes | stored_data_bytes | photo_object_disk_bytes | percent_of_300mb 
+--------+---------------+-------------------+-------------------------+------------------
+      0 |             0 |                 0 |                   57344 |             0.00
+(1 row)
+
+ chat_messages | chat_deleted | error_groups | sessions | notifications | accounts 
+---------------+--------------+--------------+----------+---------------+----------
+           184 |            4 |           16 |        0 |           671 |      826
+(1 row)
+
+
+## 읽는 법
+- 사진 논리 용량(club_photo.stored_bytes 합계)은 0 인데 photo_object 디스크는 56KB: 앞선 테스트에서 올렸다 지운 사진의 자리(TOAST·dead tuple)가 남아 있다. 앱의 300MB 상한은 논리 용량으로 세므로 지우면 바로 줄고, 디스크 공간은 autovacuum 뒤 같은 테이블이 다시 쓴다(파일이 OS 로 돌아가지는 않음, VACUUM FULL 이 필요하지만 쓰기 잠금이 걸려 운영에서는 하지 않는다).
+- 운영 Neon 값은 사용자가 같은 SQL 을 실행해 알려 주기 전까지 미측정.
